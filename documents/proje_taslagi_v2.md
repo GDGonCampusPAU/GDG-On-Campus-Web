@@ -135,3 +135,16 @@ You are an AI Coding Agent tasked with building the React frontend for GDG On Ca
 - **Hackathon:** 
   - `POST /hackathon/apply` (Supports optional resume PDF upload)
   - `GET /hackathon/applications`
+
+  🟢 Yöntem A: Cloudinary (GDG Ekibi İçin En Kolay ve Ücretsiz Yöntem - Önerilen)
+Nedir?: Görsel ve PDF yönetimi sağlayan ücretsiz bir bulut servisidir.
+
+Avantajları:
+
+Ayda binlerce görseli ve PDF'i ücretsiz saklamanıza izin verir.
+
+Resimleri otomatik sıkıştırır, boyutlandırır ve hızlı yüklenmesini sağlar.
+
+Node.js için hazır kütüphanesi (cloudinary paketi) vardır.
+
+Nasıl Çalışır?: Kullanıcı dosyayı seçer ──► Node.js backend dosyayı Cloudinary'ye gönderir ──► Cloudinary bir URL verir ──► Node.js bu URL'i MongoDB'ye kaydeder.
