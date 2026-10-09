@@ -19,22 +19,11 @@ app.use(
   })
 );
 
-// 2. CORS Configuration
-const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
-      if (!origin || origin === allowedOrigin || process.env.NODE_ENV !== 'production') {
-        return callback(null, true);
-      }
-      return callback(new Error('CORS ilkesi tarafından erişim reddedildi.'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  })
-);
+// Frontend'in çalıştığı adrese izin veriyoruz
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173', // Frontend adresi
+  credentials: true
+}));
 
 // 3. HTTP Request Logging (morgan)
 if (process.env.NODE_ENV !== 'test') {
