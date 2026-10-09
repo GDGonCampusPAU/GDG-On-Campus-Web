@@ -1,5 +1,5 @@
 # ==========================================
-# Environment & Secrets (Root Protection)
+# Environment & Sensitive Credentials
 # ==========================================
 .env
 .env.*
@@ -10,9 +10,8 @@
 *.env
 *.env.*
 !.env.example
-!backend/.env.example
 
-# Certificates & Private Keys
+# Private Keys & Certificates
 *.pem
 *.key
 *.cert
@@ -27,16 +26,13 @@ id_rsa*
 # Dependencies
 # ==========================================
 node_modules/
-*/node_modules/
 jspm_packages/
 
 # ==========================================
-# Uploads
+# User Uploads & Media Files
 # ==========================================
 uploads/*
 !uploads/.gitkeep
-backend/uploads/*
-!backend/uploads/.gitkeep
 
 # ==========================================
 # Logs & Process IDs
@@ -48,6 +44,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.pid
+*.seed
+*.pid.lock
 
 # ==========================================
 # Local Databases & Dumps
@@ -68,12 +67,11 @@ coverage/
 .nyc_output/
 
 # ==========================================
-# Build & Distribution Artifacts
+# Temporary & Build Dirs
 # ==========================================
 dist/
 build/
 .cache/
-out/
 tmp/
 temp/
 
