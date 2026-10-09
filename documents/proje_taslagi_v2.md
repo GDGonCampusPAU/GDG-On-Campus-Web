@@ -83,6 +83,7 @@ Projenin gidişatına ve ekibin tercihlerine göre uygulanabilecek esnek opsiyon
 
 ## 4. MARKA VE TASARIM STANDARTLARI
 *(GDG BRAND GUIDELINES)*
+*Brand guide'ların drive'dan kopyalanıp, başka bir drive'a alınıp burada isimlendirmelerin yapılması gerekiyor. Frontend geliştirmesinin başlaması için bu gerekli.*
 
 * **Topluluk Resmi Adı:** `Google Developer Groups on Campus Pamukkale University` veya `GDGoC Pamukkale University`.
 * **Unvan Standardı:** `GDG Organizer` veya `GDGoC Organizer` *(Lead unvanı kullanılmaz)*.
