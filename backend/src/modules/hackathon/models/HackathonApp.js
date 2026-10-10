@@ -59,3 +59,4 @@ hackathonAppSchema.index({ teamName: 'text', leaderName: 'text', leaderEmail: 't
 const HackathonApp = mongoose.model('HackathonApp', hackathonAppSchema);
 
 module.exports = HackathonApp;
+

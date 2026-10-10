@@ -1,5 +1,7 @@
 const HackathonApp = require('../models/HackathonApp');
-const { validateHackathonInput } = require('../../../utils/validators');
+const VerificationToken = require('../../../models/VerificationToken');
+const { validateHackathonInput, isValidEmail } = require('../../../utils/validators');
+const { sendHackathonOtpEmail } = require('../../../services/emailService');
 
 /**
  * Helper to resolve resume URL from file upload or body
@@ -23,14 +25,64 @@ const escapeCsvCell = (val) => {
 };
 
 /**
- * @desc    Submit hackathon application form
+ * @desc    Send verification code to hackathon team leader email
+ * @route   POST /api/v1/hackathon/send-verification
+ * @access  Public
+ */
+const sendHackathonVerification = async (req, res, next) => {
+  try {
+    const { leaderEmail, leaderName, teamName } = req.body;
+
+    if (!leaderEmail || !isValidEmail(leaderEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lütfen geçerli bir e-posta adresi giriniz.'
+      });
+    }
+
+    const normalizedEmail = leaderEmail.toLowerCase().trim();
+
+    // Generate 6-digit OTP code (10 min TTL)
+    const code = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
+
+    // Send email via Brevo
+    await sendHackathonOtpEmail({
+      email: normalizedEmail,
+      leaderName: leaderName ? leaderName.trim() : 'Takım Lideri',
+      teamName: teamName ? teamName.trim() : '',
+      code
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Doğrulama kodu takım lideri e-posta adresine gönderildi. Lütfen gelen kutunuzu kontrol ediniz.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Submit hackathon application form (requires valid verificationCode)
  * @route   POST /api/v1/hackathon/apply
  * @access  Public
  */
 const applyHackathon = async (req, res, next) => {
   try {
-    const { teamName, leaderName, leaderEmail, leaderPhone, memberCount, projectIdea } = req.body;
+    const {
+      teamName,
+      leaderName,
+      leaderEmail,
+      leaderPhone,
+      memberCount,
+      projectIdea,
+      verificationCode,
+      code
+    } = req.body;
 
+    const inputCode = verificationCode || code;
+
+    // 1. Validate Form Fields
     const errors = validateHackathonInput({
       teamName,
       leaderName,
@@ -47,12 +99,43 @@ const applyHackathon = async (req, res, next) => {
       });
     }
 
+    const normalizedEmail = leaderEmail.trim().toLowerCase();
+
+    // 2. Validate Verification Code
+    if (!inputCode) {
+      // If code was not entered, auto-send code and prompt user to enter it
+      const otpCode = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
+      await sendHackathonOtpEmail({
+        email: normalizedEmail,
+        leaderName: leaderName.trim(),
+        teamName: teamName.trim(),
+        code: otpCode
+      });
+
+      return res.status(400).json({
+        success: false,
+        requiresVerification: true,
+        message: 'Başvuruyu tamamlamak için takım lideri e-postasına gönderilen 6 haneli doğrulama kodunu giriniz.'
+      });
+    }
+
+    // Verify OTP
+    const verification = await VerificationToken.verifyOtp(normalizedEmail, inputCode, 'HACKATHON_APPLY');
+    if (!verification.success) {
+      return res.status(400).json({
+        success: false,
+        message: verification.message
+      });
+    }
+
+    // 3. Process Resume / Attachment
     const resumeUrl = resolveResumeUrl(req);
 
+    // 4. Save Hackathon Application
     const application = await HackathonApp.create({
       teamName: teamName.trim(),
       leaderName: leaderName.trim(),
-      leaderEmail: leaderEmail.trim().toLowerCase(),
+      leaderEmail: normalizedEmail,
       leaderPhone: leaderPhone.trim(),
       memberCount: Number(memberCount),
       projectIdea: projectIdea.trim(),
@@ -61,7 +144,7 @@ const applyHackathon = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Hackathon başvurunuz başarıyla alındı! Ekibinizle iletişime geçilecektir.',
+      message: 'E-posta adresiniz doğrulandı ve Hackathon başvurunuz başarıyla alındı! Ekibinizle iletişime geçilecektir.',
       data: {
         applicationId: application._id,
         teamName: application.teamName,
@@ -179,6 +262,7 @@ const exportApplications = async (req, res, next) => {
 };
 
 module.exports = {
+  sendHackathonVerification,
   applyHackathon,
   getApplications,
   exportApplications

@@ -138,18 +138,23 @@ Hackathon işlemleri ana kod tabanından tamamen ayrı bir klasörde (`src/modul
 
 | Metot | Uç Nokta | Yetki | Açıklama |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/hackathon/apply` | Herkese Açık | Hackathon başvuru formu gönderme (CV yükleme destekli: `resume`) |
+| `POST` | `/api/v1/hackathon/send-verification` | Herkese Açık | Takım lideri e-posta adresine Brevo ile 6 haneli doğrulama kodu gönderir |
+| `POST` | `/api/v1/hackathon/apply` | Herkese Açık | Hackathon başvuru formu gönderme (**`verificationCode` zorunludur**, CV destekli) |
 | `GET` | `/api/v1/hackathon/applications` | `ORGANIZER`, `ADMIN` | Başvuruları listeleme |
 | `GET` | `/api/v1/hackathon/applications/export` | `ORGANIZER`, `ADMIN` | Başvuruları CSV/JSON dışa aktarma |
 
 ---
 
-## 🔒 Kimlik Doğrulama & Yetkilendirme (`/api/v1/auth`)
+## 🔒 Kimlik Doğrulama & 2FA / E-posta Doğrulama (`/api/v1/auth`)
+
+Core Team kayıtlarında ve hesap güvenliğinde Brevo destekli 6 haneli OTP kodu kullanılır:
 
 | Metot | Uç Nokta | Yetki | Açıklama |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/auth/register` | Herkese Açık | Yeni kullanıcı kaydı (`PENDING` rolü, PAU veya Gmail e-posta kuralı) |
-| `POST` | `/api/v1/auth/login` | Herkese Açık | Giriş yapma ve JWT alma |
+| `POST` | `/api/v1/auth/send-otp` | Herkese Açık | Kayıt öncesi e-postaya 6 haneli doğrulama kodu gönderir |
+| `POST` | `/api/v1/auth/register` | Herkese Açık | Doğrulama koduyla (`code`) güvenli kayıt tamamlama |
+| `POST` | `/api/v1/auth/verify-email` | Herkese Açık | Mevcut bekleyen hesabı kod ile doğrulama |
+| `POST` | `/api/v1/auth/login` | Herkese Açık | Giriş yapma ve JWT alma (E-posta doğrulaması ve yönetici onayı şarttır) |
 | `GET` | `/api/v1/auth/me` | Giriş Yapmış | Kullanıcı profil bilgileri |
 
 ---

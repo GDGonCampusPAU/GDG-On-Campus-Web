@@ -5,7 +5,9 @@ const authMiddleware = require('../../../middleware/authMiddleware');
 const { requireRoles } = require('../../../middleware/roleMiddleware');
 const { uploadResume } = require('../../../middleware/uploadMiddleware');
 
-// Public hackathon application endpoint
+// Public hackathon endpoints
+router.post('/send-verification', hackathonController.sendHackathonVerification);
+
 router.post(
   '/apply',
   uploadResume.single('resume'),
