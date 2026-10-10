@@ -40,7 +40,10 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
       ],
       subject,
       htmlContent,
-      ...(textContent && { textContent })
+      ...(textContent && { textContent }),
+      ...(process.env.BREVO_REPLY_TO && {
+        replyTo: { email: process.env.BREVO_REPLY_TO }
+      })
     };
 
     const response = await fetch(BREVO_API_URL, {
@@ -171,3 +174,4 @@ module.exports = {
   sendRegistrationOtpEmail,
   sendHackathonOtpEmail
 };
+
