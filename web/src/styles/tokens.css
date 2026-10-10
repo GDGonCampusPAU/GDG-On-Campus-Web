@@ -1,0 +1,32 @@
+:root {
+  --blue: #4285f4;
+  --green: #34a853;
+  --yellow: #f9ab00;
+  --red: #ea4335;
+
+  --blue-half: #57caff;
+  --green-half: #5cdb6d;
+  --yellow-half: #ffd427;
+  --red-half: #ff7daf;
+
+  --blue-pastel: #c3ecf6;
+  --green-pastel: #ccf6c5;
+  --yellow-pastel: #ffe7a5;
+  --red-pastel: #f8d8d8;
+
+  --off-white: #f0f0f0;
+  --black: #1e1e1e;
+  --white: #ffffff;
+
+  --font-sans: 'Google Sans', 'Google Sans Text', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Google Sans Mono', 'Google Sans Code', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+
+  --container: 1120px;
+  --gutter: 16px;
+  --nav-h: 64px;
+}

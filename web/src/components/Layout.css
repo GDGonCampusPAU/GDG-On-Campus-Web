@@ -1,0 +1,9 @@
+.app__main {
+  min-height: 60vh;
+}
+
+@media (max-width: 767px) {
+  .app {
+    padding-bottom: 76px;
+  }
+}
