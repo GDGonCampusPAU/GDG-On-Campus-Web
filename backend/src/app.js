@@ -7,7 +7,8 @@ const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
-const hackathonRoutes = require('./routes/hackathonRoutes');
+const formRoutes = require('./routes/formRoutes');
+const hackathonModule = require('./modules/hackathon');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -85,7 +86,19 @@ app.get('/api/v1/health', (req, res) => {
 // 9. API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/content', contentRoutes);
-app.use('/api/v1/hackathon', hackathonRoutes);
+app.use('/api/v1/forms', formRoutes);
+
+// Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
+if (hackathonModule.isEnabled()) {
+  app.use('/api/v1/hackathon', hackathonModule.routes);
+} else {
+  app.use('/api/v1/hackathon', (req, res) => {
+    res.status(404).json({
+      success: false,
+      message: 'Hackathon modülü şu anda kapalıdır.'
+    });
+  });
+}
 
 // 10. 404 Route Not Found Handler
 app.use((req, res, next) => {

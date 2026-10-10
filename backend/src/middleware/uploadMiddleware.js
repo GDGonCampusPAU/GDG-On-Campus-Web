@@ -24,7 +24,7 @@ const storage = multer.diskStorage({
   }
 });
 
-// Filter for images (Content cover images)
+// Filter for images (Content & Banner cover images)
 const imageFilter = (req, file, cb) => {
   const allowedExtensions = /jpeg|jpg|png|webp|gif/;
   const ext = path.extname(file.originalname).toLowerCase();
@@ -49,6 +49,18 @@ const resumeFilter = (req, file, cb) => {
   }
 };
 
+// Filter for generic form uploads (Images, PDFs, Documents, ZIPs)
+const formUploadFilter = (req, file, cb) => {
+  const allowedExtensions = /jpeg|jpg|png|webp|gif|pdf|doc|docx|zip|rar|txt/;
+  const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
+
+  if (allowedExtensions.test(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Yüklenen dosya türü desteklenmiyor. (.jpg, .png, .pdf, .docx, .zip)'), false);
+  }
+};
+
 const uploadCoverImage = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
@@ -61,8 +73,14 @@ const uploadResume = multer({
   fileFilter: resumeFilter
 });
 
+const uploadFormFiles = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB max
+  fileFilter: formUploadFilter
+});
+
 module.exports = {
   uploadCoverImage,
-  uploadResume
+  uploadResume,
+  uploadFormFiles
 };
-

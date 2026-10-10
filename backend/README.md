@@ -1,11 +1,12 @@
 # GDG On Campus Pamukkale University - Backend API
 
-Google Developer Groups on Campus Pamukkale Üniversitesi web platformu için geliştirilmiş RESTful API servisidir.
+Google Developer Groups on Campus Pamukkale Üniversitesi web platformu için geliştirilmiş modüler RESTful API servisidir.
 
-Bu backend servisi 3 ana frontend alanını destekler:
+Bu backend servisi şu ana alanları destekler:
 1. **Public Landing Page:** Etkinlikler ve Duyurular (`/api/v1/content/public`, `/api/v1/content/featured`)
 2. **Core Team Administration & CMS:** İçerik Yönetimi ve Ekip Yetkilendirmesi (`/api/v1/auth`, `/api/v1/content`)
-3. **Hackathon Management:** Başvuru toplama, listeleme ve CSV/JSON dışa aktarma (`/api/v1/hackathon`)
+3. **Dinamik Form Yönetimi (Google Forms Mantığı):** Her amaca uygun dinamik form oluşturma, soru ekleme/çıkarma, yanıt toplama ve Excel/CSV dışa aktarma (`/api/v1/forms`)
+4. **İzole Hackathon Modülü:** Ayrı bir modül olarak tutulan, hackathon bittiğinde tek satırla gizlenebilen veya silinebilen modül (`/api/v1/hackathon`)
 
 ---
 
@@ -16,7 +17,7 @@ Bu backend servisi 3 ana frontend alanını destekler:
 - **Veritabanı:** MongoDB & Mongoose ORM
 - **Kimlik Doğrulama:** JWT (JSON Web Tokens) & `bcryptjs`
 - **Güvenlik:** `helmet`, `cors`, `express-rate-limit`
-- **Dosya Yükleme:** `multer` (Resimler ve CV/özgeçmiş belgeleri için)
+- **Dosya Yükleme:** `multer` (Görseller, dinamik form belgeleri ve CV'ler için)
 - **Loglama:** `morgan`
 
 ---
@@ -27,14 +28,16 @@ Bu backend servisi 3 ana frontend alanını destekler:
 /backend
   ├── /src
   │     ├── /config          # Veritabanı bağlantısı (db.js)
-  │     ├── /controllers     # Controller katmanı (auth, content, hackathon)
+  │     ├── /controllers     # Controller katmanı (auth, content, form)
   │     ├── /middleware      # authMiddleware, roleMiddleware, uploadMiddleware, errorHandler
-  │     ├── /models          # Mongoose modelleri (User, Content, HackathonApp)
-  │     ├── /routes          # API rotaları (authRoutes, contentRoutes, hackathonRoutes)
+  │     ├── /models          # Mongoose modelleri (User, Content, Form, FormResponse)
+  │     ├── /modules         # Bağımsız / İzole modüller
+  │     │     └── /hackathon # İzole Hackathon Modülü (models, controllers, routes, index.js)
+  │     ├── /routes          # API rotaları (authRoutes, contentRoutes, formRoutes)
   │     ├── /utils           # JWT yardımcısı, girdi doğrulayıcılar, seed scripti
   │     ├── app.js           # Express uygulama yapılandırması
   │     └── server.js        # Uygulama başlangıç ve dinleme noktası
-  ├── /uploads               # Yüklenen medya ve CV dosyaları
+  ├── /uploads               # Yüklenen medya, CV ve form dosyaları
   ├── .env                   # Ortam değişkenleri (gizli)
   ├── .env.example           # Örnek ortam değişkenleri şablonu
   ├── package.json           # Bağımlılıklar ve npm scriptleri
@@ -66,6 +69,9 @@ JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:5173
 NODE_ENV=development
 
+# Hackathon modülü bittiğinde false yaparak API'yi gizleyebilirsiniz
+ENABLE_HACKATHON_MODULE=true
+
 # Seed Admin Bilgileri
 DEFAULT_ADMIN_NAME=GDG Admin
 DEFAULT_ADMIN_EMAIL=admin@pau.edu.tr
@@ -73,7 +79,7 @@ DEFAULT_ADMIN_PASSWORD=Admin123456!
 ```
 
 ### 3. Başlangıç Verilerini (Seed) Yükleyin
-Varsayılan **ADMIN** kullanıcısını ve örnek etkinlik/duyuruları oluşturmak için:
+Varsayılan **ADMIN** kullanıcısını, örnek etkinlikleri ve **Hackathon Başvuru Formu Şablonunu** yüklemek için:
 ```bash
 npm run seed
 ```
@@ -83,105 +89,77 @@ npm run seed
 > - **Rol:** `ADMIN`
 
 ### 4. Sunucuyu Başlatın
-- **Geliştirme Modu (Hot Reload):**
-  ```bash
-  npm run dev
-  ```
-- **Prodüksiyon Modu:**
-  ```bash
-  npm start
-  ```
-
-Sunucu varsayılan olarak `http://localhost:5000` adresinde çalışacaktır.
+- **Geliştirme Modu (Hot Reload):** `npm run dev`
+- **Prodüksiyon Modu:** `npm start`
 
 ---
 
-## 🔒 Kimlik Doğrulama & Yetkilendirme Mekanizması
+## 📋 Dinamik Form Yönetimi (Google Forms Mantığı)
 
-1. **Kayıt (`POST /api/v1/auth/register`):**
-   - E-posta yalnızca `@pau.edu.tr`, `@posta.pau.edu.tr` veya `@gmail.com` uzantılı olabilir.
-   - Yeni kaydolan kullanıcılara varsayılan olarak `PENDING` rolü verilir.
-2. **Giriş (`POST /api/v1/auth/login`):**
-   - Rolü `PENDING` olan kullanıcılar giriş yapamaz (`403 Forbidden - Account awaiting admin approval`).
-   - Yönetici tarafından rolü `ORGANIZER` veya `ADMIN` yapılan kullanıcılar JWT token alır.
-3. **Korumalı Uç Noktalar:**
-   - İstek başlığında (Header) `Authorization: Bearer <TOKEN>` gönderilmelidir.
+Formlar tamamen dinamiktir. Her türlü etkinlik kaydı, geri bildirim anketi, hackathon başvurusu vb. için soru ekleyip çıkarabilir, sıralayabilir ve yanıtları Excel/CSV olarak indirebilirsiniz.
 
----
+### Desteklenen Soru Tipleri (`fields[].type`):
+- `text`: Kısa metin
+- `textarea`: Uzun metin
+- `number`: Sayısal değer (min/max doğrulama destekli)
+- `email`: E-posta formatı doğrulamalı
+- `phone`: Telefon numarası
+- `select`: Açılır liste (dropdown)
+- `radio`: Tekli seçim
+- `checkbox`: Çoklu seçim
+- `file`: Dosya / CV / Belge yükleme (PDF, DOCX, ZIP, Resim)
+- `date`: Tarih seçici
 
-## 📡 API Uç Noktaları (Endpoints)
-
-### 1. Kimlik Doğrulama (`/api/v1/auth`)
+### Form Rotaları (`/api/v1/forms`)
 
 | Metot | Uç Nokta | Yetki | Açıklama |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/auth/register` | Herkese Açık | Yeni kullanıcı kaydı (`PENDING` rolü ile) |
-| `POST` | `/api/v1/auth/login` | Herkese Açık | Giriş yapma ve JWT token alma |
-| `GET` | `/api/v1/auth/me` | Giriş Yapmış | Mevcut kullanıcının profil bilgileri |
-
-#### Örnek Kayıt İsteği:
-```json
-POST /api/v1/auth/register
-{
-  "fullName": "Ahmet Yılmaz",
-  "email": "ahmet@posta.pau.edu.tr",
-  "password": "Password123!"
-}
-```
+| `GET` | `/api/v1/forms/public/:slugOrId` | Herkese Açık | Aktif formu ve soru şemasını getirir |
+| `POST` | `/api/v1/forms/public/:slugOrId/submit` | Herkese Açık | Form yanıtı gönderir (Dosya yükleme destekli: `multipart/form-data`) |
+| `GET` | `/api/v1/forms` | `ORGANIZER`, `ADMIN` | Tüm formları listeler |
+| `POST` | `/api/v1/forms` | `ORGANIZER`, `ADMIN` | Yeni form ve soru listesi oluşturur |
+| `GET` | `/api/v1/forms/:id` | `ORGANIZER`, `ADMIN` | Form detayını ve soru şemasını getirir |
+| `PUT` | `/api/v1/forms/:id` | `ORGANIZER`, `ADMIN` | Formu ve sorularını günceller |
+| `PATCH`| `/api/v1/forms/:id/status` | `ORGANIZER`, `ADMIN` | Durumu günceller (`DRAFT`, `PUBLISHED`, `CLOSED`, `ARCHIVED`) |
+| `DELETE`| `/api/v1/forms/:id` | `ORGANIZER`, `ADMIN` | Formu ve ilişkili yanıtlarını siler |
+| `GET` | `/api/v1/forms/:id/responses` | `ORGANIZER`, `ADMIN` | Form yanıtlarını listeler |
+| `GET` | `/api/v1/forms/:id/responses/export` | `ORGANIZER`, `ADMIN` | Yanıtları her soru bir sütun olacak şekilde CSV veya JSON olarak indirir (`?format=csv` veya `?format=json`) |
 
 ---
 
-### 2. İçerik ve Etkinlik Yönetimi (`/api/v1/content`)
+## 🧩 İzole Hackathon Modülü (`/src/modules/hackathon`)
 
-| Metot | Uç Nokta | Yetki | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/content/public` | Herkese Açık | Sayfalamalı ve filtreli etkinlik/duyuru listesi (`?page=1&limit=10&type=EVENT&search=ai`) |
-| `GET` | `/api/v1/content/featured` | Herkese Açık | Anasayfa slider'ı için öne çıkan etkinlikler (`isFeatured: true`) |
-| `POST` | `/api/v1/content` | `ORGANIZER`, `ADMIN` | Yeni etkinlik/duyuru ekleme (Resim yükleme destekli: `coverImage`) |
-| `PUT` | `/api/v1/content/:id` | `ORGANIZER`, `ADMIN` | İçerik güncelleme |
-| `DELETE`| `/api/v1/content/:id` | `ORGANIZER`, `ADMIN` | İçerik silme |
+Hackathon işlemleri ana kod tabanından tamamen ayrı bir klasörde (`src/modules/hackathon/`) tutulmaktadır.
 
-#### Örnek İçerik Ekleme İsteği (`POST /api/v1/content`):
-```json
-{
-  "title": "Flutter ile Mobil Uygulama Geliştirme",
-  "description": "Sıfırdan ileri seviyeye Flutter workshop serimiz başlıyor.",
-  "coverImageUrl": "https://example.com/banner.png",
-  "bevyLink": "https://gdg.community.dev/events/details/...",
-  "isFeatured": true,
-  "type": "EVENT",
-  "eventDate": "2026-11-15T14:00:00.000Z"
-}
-```
-*(Ayrıca `multipart/form-data` formatında `coverImage` dosyası yüklenerek de oluşturulabilir.)*
+- **Geçici Olarak Gizleme:** `.env` dosyasına `ENABLE_HACKATHON_MODULE=false` yazıldığında hackathon API rotaları otomatik olarak kapanır.
+- **Tamamen Silme / Kaldırma:** Hackathon bittiğinde `src/modules/hackathon/` klasörü doğrudan silinebilir.
 
----
-
-### 3. Hackathon Başvuruları (`/api/v1/hackathon`)
+### Hackathon Uç Noktaları (`/api/v1/hackathon`)
 
 | Metot | Uç Nokta | Yetki | Açıklama |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/hackathon/apply` | Herkese Açık | Hackathon başvuru formu gönderme (CV yükleme destekli: `resume`) |
-| `GET` | `/api/v1/hackathon/applications` | `ORGANIZER`, `ADMIN` | Tüm başvuruları listeleme (Sayfalama ve arama destekli) |
-| `GET` | `/api/v1/hackathon/applications/export` | `ORGANIZER`, `ADMIN` | Başvuruları indirme (`?format=csv` veya `?format=json`) |
-
-#### Örnek Başvuru İsteği (`POST /api/v1/hackathon/apply`):
-```json
-{
-  "teamName": "Algoritma Ustaları",
-  "leaderName": "Zeynep Kaya",
-  "leaderEmail": "zeynep@gmail.com",
-  "leaderPhone": "+90 555 123 4567",
-  "memberCount": 4,
-  "projectIdea": "Yapay zeka tabanlı kampüs içi akıllı enerji tasarrufu sistemi.",
-  "resumeUrl": "https://linkedin.com/in/zeynep-kaya"
-}
-```
+| `GET` | `/api/v1/hackathon/applications` | `ORGANIZER`, `ADMIN` | Başvuruları listeleme |
+| `GET` | `/api/v1/hackathon/applications/export` | `ORGANIZER`, `ADMIN` | Başvuruları CSV/JSON dışa aktarma |
 
 ---
 
-## 🛡️ Hata Yakalama & Güvenlik
-- **Hata Formatı:** Tüm hatalar standart `{ success: false, message: "Hata mesajı" }` JSON formatında döner.
-- **Rate Limit:** API uç noktaları DDoS ve kaba kuvvet (brute force) saldırılarına karşı `express-rate-limit` ile korunmaktadır.
-- **Dosya Doğrulama:** Yüklenen dosyalar uzantı ve MIME tiplerine göre doğrulanır (Resimler için maks 5MB, PDF/CV için maks 10MB).
+## 🔒 Kimlik Doğrulama & Yetkilendirme (`/api/v1/auth`)
 
+| Metot | Uç Nokta | Yetki | Açıklama |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/register` | Herkese Açık | Yeni kullanıcı kaydı (`PENDING` rolü, PAU veya Gmail e-posta kuralı) |
+| `POST` | `/api/v1/auth/login` | Herkese Açık | Giriş yapma ve JWT alma |
+| `GET` | `/api/v1/auth/me` | Giriş Yapmış | Kullanıcı profil bilgileri |
+
+---
+
+## 📰 İçerik ve Etkinlik Yönetimi (`/api/v1/content`)
+
+| Metot | Uç Nokta | Yetki | Açıklama |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/content/public` | Herkese Açık | Sayfalamalı ve filtreli etkinlik/duyuru listesi |
+| `GET` | `/api/v1/content/featured` | Herkese Açık | Anasayfa slider'ı için öne çıkanlar |
+| `POST` | `/api/v1/content` | `ORGANIZER`, `ADMIN` | Yeni içerik ekleme (Görsel yükleme destekli: `coverImage`) |
+| `PUT` | `/api/v1/content/:id` | `ORGANIZER`, `ADMIN` | İçerik güncelleme |
+| `DELETE`| `/api/v1/content/:id` | `ORGANIZER`, `ADMIN` | İçerik silme |
