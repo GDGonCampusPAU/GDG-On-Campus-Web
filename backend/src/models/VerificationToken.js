@@ -119,3 +119,4 @@ verificationTokenSchema.statics.verifyOtp = async function (email, inputCode, pu
 const VerificationToken = mongoose.model('VerificationToken', verificationTokenSchema);
 
 module.exports = VerificationToken;
+
