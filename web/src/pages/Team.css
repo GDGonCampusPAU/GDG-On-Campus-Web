@@ -1,0 +1,18 @@
+.team {
+  padding: 48px 0 0;
+}
+
+.team__title {
+  margin-bottom: 40px;
+  font-size: clamp(2.25rem, 8vw, 4rem);
+}
+
+.team__section {
+  margin-bottom: 56px;
+}
+
+.team__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
