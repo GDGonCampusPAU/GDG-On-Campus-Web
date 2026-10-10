@@ -1,0 +1,47 @@
+.hero-shapes {
+  --px: 0;
+  --py: 0;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-shapes svg {
+  position: absolute;
+  top: 50%;
+  right: -120px;
+  width: min(120vw, 600px);
+  height: auto;
+  opacity: 0.3;
+  transform: translateY(-50%);
+}
+
+@media (min-width: 768px) {
+  .hero-shapes svg {
+    right: 2%;
+    width: min(52vw, 620px);
+    opacity: 1;
+  }
+}
+
+.shape {
+  transform: translate(calc(var(--px) * var(--depth) * 22px), calc(var(--py) * var(--depth) * 22px));
+  transition: transform 0.25s ease-out;
+}
+
+.shape__drift {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: shape-drift var(--dur, 12s) ease-in-out infinite alternate;
+}
+
+@keyframes shape-drift {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate(var(--dx, 18px), var(--dy, -22px)) rotate(var(--rot, 12deg));
+  }
+}
