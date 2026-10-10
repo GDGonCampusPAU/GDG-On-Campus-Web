@@ -18,3 +18,6 @@ if (!window.matchMedia) {
     },
   })
 }
+
+// jsdom does not implement scrolling; Layout scrolls to top on every route change.
+window.scrollTo = () => {}

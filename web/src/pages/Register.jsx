@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Button from '../components/Button.jsx'
 import StepForm from '../components/StepForm.jsx'
 import { submitRegistration } from '../lib/registration.js'
@@ -8,6 +8,11 @@ const endpoint = import.meta.env.VITE_REGISTER_ENDPOINT
 
 export default function Register() {
   const [done, setDone] = useState(false)
+  const successHeadingRef = useRef(null)
+
+  useEffect(() => {
+    if (done) successHeadingRef.current?.focus()
+  }, [done])
 
   return (
     <div className="register container">
@@ -21,8 +26,10 @@ export default function Register() {
             <i className="tone--yellow" />
             <i className="tone--green" />
           </div>
-          <h2>Kaydın alındı!</h2>
-          <p>Detaylar e-posta adresine gönderilecek. Programa göz atmayı unutma.</p>
+          <h2 tabIndex={-1} ref={successHeadingRef}>
+            Kaydın alındı!
+          </h2>
+          <p>Kaydın alındı. Programa göz atmayı unutma.</p>
           <Button to="/program">Programı Gör</Button>
         </section>
       ) : (

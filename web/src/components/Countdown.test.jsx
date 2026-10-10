@@ -30,6 +30,11 @@ describe('getTimeLeft', () => {
     expect(getTimeLeft('bozuk-tarih', base)).toEqual({ status: 'invalid' })
     expect(getTimeLeft(undefined, base)).toEqual({ status: 'invalid' })
   })
+
+  it('null ve boş dizgede invalid döner', () => {
+    expect(getTimeLeft(null, base)).toEqual({ status: 'invalid' })
+    expect(getTimeLeft('', base)).toEqual({ status: 'invalid' })
+  })
 })
 
 describe('Countdown', () => {
@@ -60,5 +65,10 @@ describe('Countdown', () => {
     render(<Countdown startsAt="bozuk" />)
     expect(screen.getByText('Tarih yakında açıklanacak')).toBeInTheDocument()
     expect(document.body).not.toHaveTextContent('NaN')
+  })
+
+  it('startsAt null iken yedek metin gösterir', () => {
+    render(<Countdown startsAt={null} />)
+    expect(screen.getByText('Tarih yakında açıklanacak')).toBeInTheDocument()
   })
 })

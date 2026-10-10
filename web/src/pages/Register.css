@@ -15,6 +15,10 @@
   max-width: 560px;
 }
 
+.register__success h2:focus {
+  outline: none;
+}
+
 .register__shapes {
   display: flex;
   gap: 10px;

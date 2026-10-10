@@ -19,8 +19,7 @@ export default function Marquee({ items }) {
   return (
     <div className="marquee" aria-hidden="true">
       <div className="marquee__track">
-        {group('a')}
-        {group('b')}
+        {['a', 'b', 'c', 'd'].map(group)}
       </div>
     </div>
   )

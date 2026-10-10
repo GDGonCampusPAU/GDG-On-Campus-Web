@@ -81,7 +81,7 @@ export function validateStep(stepId, values) {
   }
 
   if (stepId === 'team') {
-    if (v.teamName.length < 2) errors.teamName = 'Takım adını yaz.'
+    if (v.teamRole !== 'looking' && v.teamName.length < 2) errors.teamName = 'Takım adını yaz.'
     if (!has(ROLE_OPTIONS, v.teamRole)) errors.teamRole = 'Rolünü seç.'
   }
 

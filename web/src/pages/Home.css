@@ -105,6 +105,10 @@
   color: var(--black);
 }
 
+.closing :focus-visible {
+  outline-color: var(--black);
+}
+
 .closing__inner {
   display: flex;
   flex-direction: column;

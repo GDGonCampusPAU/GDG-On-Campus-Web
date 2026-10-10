@@ -27,7 +27,8 @@
   margin-bottom: 8px;
   padding: 2px 12px;
   border-radius: var(--radius-pill);
-  background: var(--tone);
+  border: 2px solid var(--black);
+  background: var(--tone-pastel);
   color: var(--black);
   font-family: var(--font-mono);
   font-size: 0.8125rem;

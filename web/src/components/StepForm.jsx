@@ -28,6 +28,7 @@ export default function StepForm({ onSubmit, onSuccess }) {
 
   const step = STEPS[stepIndex]
   const isLast = stepIndex === STEPS.length - 1
+  const looking = values.teamRole === 'looking'
 
   useEffect(() => {
     if (firstRender.current) {
@@ -79,11 +80,17 @@ export default function StepForm({ onSubmit, onSuccess }) {
     inFlight.current = true
     setSubmitting(true)
     setSubmitError('')
-    const result = await onSubmit(values)
-    inFlight.current = false
-    setSubmitting(false)
-    if (result.ok) onSuccess()
-    else setSubmitError(result.error ?? 'Bir şeyler ters gitti. Tekrar dene.')
+    let result
+    try {
+      result = await onSubmit(values)
+    } catch {
+      result = { ok: false }
+    } finally {
+      inFlight.current = false
+      setSubmitting(false)
+    }
+    if (result?.ok) onSuccess()
+    else setSubmitError(result?.error ?? 'Bir şeyler ters gitti. Tekrar dene.')
   }
 
   const summary = normalize(values)
@@ -173,14 +180,20 @@ export default function StepForm({ onSubmit, onSuccess }) {
 
       {step.id === 'team' && (
         <>
-          <Field id="teamName" label="Takım adı" required error={errors.teamName}>
+          <Field
+            id="teamName"
+            label="Takım adı"
+            required={!looking}
+            error={errors.teamName}
+            hint={looking ? 'Takım arıyorsan boş bırakabilirsin.' : undefined}
+          >
             <input
               id="teamName"
               type="text"
               value={values.teamName}
               onChange={set('teamName')}
               aria-invalid={errors.teamName ? 'true' : undefined}
-              aria-describedby={describe('teamName')}
+              aria-describedby={describe('teamName', looking)}
             />
           </Field>
           <Field id="teamRole" label="Rol" required error={errors.teamRole}>
@@ -268,7 +281,9 @@ export default function StepForm({ onSubmit, onSuccess }) {
             </dd>
             <dt>Takım</dt>
             <dd>
-              {summary.teamName} ({labelOf(ROLE_OPTIONS, summary.teamRole)})
+              {summary.teamName
+                ? `${summary.teamName} (${labelOf(ROLE_OPTIONS, summary.teamRole)})`
+                : labelOf(ROLE_OPTIONS, summary.teamRole)}
             </dd>
             <dt>İlgi alanları</dt>
             <dd>{summary.interests.map((i) => labelOf(INTEREST_OPTIONS, i)).join(', ')}</dd>

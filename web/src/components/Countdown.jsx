@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './Countdown.css'
 
 export function getTimeLeft(startsAt, now = Date.now()) {
+  if (startsAt == null || startsAt === '') return { status: 'invalid' }
   const target = new Date(startsAt).getTime()
   if (Number.isNaN(target)) return { status: 'invalid' }
   const diff = target - now

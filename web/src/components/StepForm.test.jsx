@@ -72,6 +72,35 @@ describe('StepForm', () => {
     expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 
+  it('onSubmit reddedilirse yedek mesaj gösterir, "Tekrar dene" ile yeniden denenebilir', async () => {
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('patladı'))
+      .mockResolvedValueOnce({ ok: true })
+    const { user, onSuccess } = setup(onSubmit)
+    await fillUntilConfirm(user)
+    await acceptConsent(user)
+    await user.click(screen.getByRole('button', { name: 'Gönder' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Bir şeyler ters gitti. Tekrar dene.')
+    expect(onSuccess).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Tekrar dene' }))
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
+    expect(onSubmit).toHaveBeenCalledTimes(2)
+  })
+
+  it('Takım arıyorum rolünde takım adı boş bırakılıp ilerlenebilir', async () => {
+    const { user } = setup()
+    await fillPerson(user)
+    await next(user)
+    await user.selectOptions(screen.getByLabelText('Rol'), 'looking')
+    expect(screen.getByText('Takım arıyorsan boş bırakabilirsin.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Takım adı')).toHaveAttribute('aria-describedby', 'teamName-hint')
+    await next(user)
+    expect(screen.getByRole('heading', { level: 2, name: 'İlgi alanları' })).toBeInTheDocument()
+  })
+
   it('Gönder butonuna çift tıklamada tek istek atar', async () => {
     let resolve
     const onSubmit = vi.fn(

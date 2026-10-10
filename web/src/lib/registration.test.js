@@ -83,6 +83,21 @@ describe('validateStep: team, interest, confirm', () => {
     expect(validateStep('team', valid)).toEqual({})
   })
 
+  it('Takım arıyorum rolünde takım adı boş olabilir', () => {
+    expect(validateStep('team', { ...valid, teamRole: 'looking', teamName: '' })).toEqual({})
+  })
+
+  it('kurucu rolünde boş takım adı hata verir', () => {
+    expect(validateStep('team', { ...valid, teamRole: 'founder', teamName: '' })).toEqual({
+      teamName: 'Takım adını yaz.',
+    })
+  })
+
+  it('rol boşken rol hatası verir', () => {
+    const errors = validateStep('team', { ...valid, teamRole: '', teamName: '' })
+    expect(errors.teamRole).toBe('Rolünü seç.')
+  })
+
   it('bilinmeyen rol reddedilir', () => {
     expect(validateStep('team', { ...valid, teamRole: 'hacker' }).teamRole).toBe('Rolünü seç.')
   })
