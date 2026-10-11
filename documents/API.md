@@ -2,7 +2,7 @@
 
 [← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)
 
-> Kaynak kod incelemesi: 11 Ekim 2026, sürüm `d218156`. Canlı API ve veritabanı testi yapılmadı. Belgelerin ayrılması: 12 Ekim 2026.
+> Güncelleme: 12 Ekim 2026 — `feature/participant-verification` çalışma ağacı. Katılımcı doğrulaması ve testler dahil.
 
 ## API kullanım kuralları
 
@@ -12,14 +12,15 @@ Yerel API kökü: `http://localhost:5000/api/v1`. Sağlık kontrolü ayrıca kö
 - **Query parametresi:** URL'de `?page=1&limit=10`. GET'lerin aşağıda belirtilen filtreleri isteğe bağlıdır; GET body gerekmez.
 - **JSON body:** `Content-Type: application/json`. Boolean değerleri `true/false`, sayıları sayı olarak gönderin.
 - **Dosya body:** `multipart/form-data`. `curl -F` veya tarayıcı `FormData` boundary'yi kendisi üretir; elle Content-Type eklemeyin.
-- **Yetki:** Korumalı rotalarda `Authorization: Bearer <JWT>` zorunlu. Cookie tabanlı oturum uygulanmış değil.
+- **Yetki:** Yönetim rotalarında ekip JWT’si, doğrulama isteyen form submit rotalarında katılımcı JWT’si `Authorization: Bearer <JWT>` ile gönderilir. İki token türü birbirinin yerine geçmez. Cookie tabanlı oturum uygulanmış değil.
 - **Tarih:** ISO 8601 ve açık saat dilimi kullanın; örneğin `2026-11-01T18:00:00+03:00`. Yanıtlarda tarih JSON içinde ISO metnidir.
 
 Örneklerde şu terminal değişkenleri kullanılır:
 
 ```bash
 API_BASE='http://localhost:5000/api/v1'
-AUTH_TOKEN='LOGIN_YANITINDAKI_TOKEN'
+AUTH_TOKEN='EKIP_LOGIN_YANITINDAKI_TOKEN'
+PARTICIPANT_TOKEN='KATILIMCI_DOGRULAMA_YANITINDAKI_TOKEN'
 FORM_ID='GERCEK_FORM_OBJECT_ID'
 CONTENT_ID='GERCEK_CONTENT_OBJECT_ID'
 ```
@@ -47,12 +48,15 @@ Sayfalı listelerin ortak yapısı:
 
 ## Bütün uç noktalar
 
-Tablodaki yollar API köküne göredir; `/health` istisnası tam yol olarak yazılmıştır. **Ekip** = `ORGANIZER` veya `ADMIN`; **Token** = JWT ve DB'de mevcut kullanıcı.
+Tablodaki yollar API köküne göredir; `/health` istisnası tam yol olarak yazılmıştır. **Ekip** = `ORGANIZER` veya `ADMIN`; **Token** = ekip JWT’si ve DB’de mevcut kullanıcı; **Katılımcı** = doğrulanmış Participant kimliği ve katılımcı JWT’si.
 
 | Metot | Yol | Erişim | Girdi / çıktı özeti |
 | --- | --- | --- | --- |
 | GET | `/health` (API kökü dışında) | Public | Parametresiz, `success/message/timestamp` |
 | GET | `/health` (API kökü altında: `/api/v1/health`) | Public | Parametresiz, `success/message/timestamp` |
+| POST | `/participant-auth/email/send-otp` | Public | `email`; süre ve yeniden gönderme beklemesi |
+| POST | `/participant-auth/email/verify` | Public | `email,code`; katılımcı token’ı |
+| POST | `/participant-auth/google` | Public | Google `idToken`; katılımcı token’ı |
 | POST | `/auth/send-otp` | Public | `email`, isteğe bağlı `fullName` |
 | POST | `/auth/register` | Public | `fullName,email,password`, tamamlamak için `code` |
 | POST | `/auth/verify-email` | Public | `email,code` |
@@ -64,7 +68,7 @@ Tablodaki yollar API köküne göredir; `/health` istisnası tam yol olarak yaz�
 | PUT | `/content/:id` | Ekip | Path `id`, değişecek içerik alanları |
 | DELETE | `/content/:id` | Ekip | Path `id`; body yok |
 | GET | `/forms/public/:slugOrId` | Public | Path slug veya ID; yayınlanmış form |
-| POST | `/forms/public/:slugOrId/submit` | Public | Alan kimlikleriyle yanıt / dosyalar |
+| POST | `/forms/public/:slugOrId/submit` | Form ayarına göre Katılımcı | Alan kimlikleriyle yanıt / dosyalar; varsayılan doğrulama zorunlu |
 | GET | `/forms` | Ekip | `page,limit,status,category,search` |
 | POST | `/forms` | Ekip | Form şeması JSON'u |
 | GET | `/forms/:id` | Ekip | Path `id`; bütün form şeması |
@@ -78,9 +82,49 @@ Tablodaki yollar API köküne göredir; `/health` istisnası tam yol olarak yaz�
 | GET | `/hackathon/applications` | Ekip | `page,limit,search` |
 | GET | `/hackathon/applications/export` | Ekip | `format` |
 
-Toplam 26 HTTP uç noktası, ayrıca `/uploads/<dosya-adı>` statik dosya erişimi vardır. Hackathon kapalıysa dört hackathon rotası yerine ilgili prefix altında `404` döner. Sağlık yanıtları DB'ye anlık ping yapmaz; readiness kontrolü değildir.
+Toplam 29 HTTP uç noktası, ayrıca `/uploads/<dosya-adı>` statik dosya erişimi vardır. Hackathon kapalıysa dört hackathon rotası yerine ilgili prefix altında `404` döner. Sağlık yanıtları DB'ye anlık ping yapmaz; readiness kontrolü değildir.
 
-## Kimlik doğrulama API'si
+## Katılımcı doğrulama API’si
+
+Bu kimlik yönetim ekibinin User hesabından ayrıdır; kayıt/parola/yönetici onayı gerekmez. E-posta adresinde ekip kaydının domain kısıtlaması uygulanmaz. Katılımcı OTP’si ayrı koleksiyondadır; REGISTER veya HACKATHON_APPLY kodu kullanılamaz.
+
+```bash
+curl -X POST "$API_BASE/participant-auth/email/send-otp" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"aday@example.com"}'
+curl -X POST "$API_BASE/participant-auth/email/verify" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"aday@example.com","code":"123456"}'
+```
+
+Kod gerçek e-posta/yerel geliştirme konsolundan alınmalı; altı haneli **metin** gönderilmeli. Send yanıtı `200`, `success,message,expiresInSeconds,resendAfterSeconds` içerir. Aynı e-posta için bekleme süresi dolmadan yeniden kod istemek `429`; kod hatalı/eskimiş/deneme hakkı dolmuşsa verify `400` döner. Başarılı kod atomik tüketilir.
+
+Google alternatifi:
+
+```bash
+curl -X POST "$API_BASE/participant-auth/google" \
+  -H 'Content-Type: application/json' \
+  -d '{"idToken":"GOOGLE_IDENTITY_SERVICES_CREDENTIAL"}'
+```
+
+Backend resmi Google kütüphanesiyle doğrular; yalnızca token’ı decode etmek yeterli değildir. GOOGLE_CLIENT_ID yoksa `503`, geçersiz kimlik `401`, Google tarafından e-posta sahipliği güvenilir kabul edilmeyen üçüncü taraf adresi `403` ve EMAIL_OTP yönlendirmesi alır. Google hesabı/e-posta ilişki çakışması `409` olabilir.
+
+Verify ve Google başarı yanıtı `200`:
+
+```json
+{
+  "success": true,
+  "token": "KATILIMCI_JWT",
+  "tokenType": "Bearer",
+  "expiresAt": "2026-10-12T09:00:00.000Z",
+  "participant": {"id":"OBJECT_ID","email":"aday@example.com","fullName":""},
+  "verificationMethod": "EMAIL_OTP"
+}
+```
+
+Google girişinde yöntem `GOOGLE` olur. Token süresi `PARTICIPANT_JWT_EXPIRES_IN`, OTP süresi `PARTICIPANT_OTP_TTL_MINUTES` ile ayarlanır. Token süre sonunda yeniden doğrulama gerekir; refresh token yok. Token bir forma bağlı değildir, kabul edilen yönteme sahip diğer formlarda da kullanılabilir. Ayrıntı: [katılımcı doğrulama ve test rehberi](KATILIMCI_DOGRULAMA.md).
+
+## Ekip kimlik doğrulama API'si
 
 ### OTP ve kayıt
 
@@ -143,7 +187,7 @@ curl "$API_BASE/auth/me" -H "Authorization: Bearer $AUTH_TOKEN"
 
 Query/body yok; `user` içinde `id,fullName,email,role,isEmailVerified,createdAt` döner. Auth middleware JWT'nin geçerliliğini ve kullanıcının DB'de varlığını kontrol eder. Rol middleware'i güncel DB rolünü kullanır. Ancak auth middleware e-posta doğrulama durumunu yeniden kontrol etmez; `/me` ayrıca PENDING engeli uygulamaz.
 
-**2FA durumu:** Girişte şifre sonrası OTP zorunlu değildir. README'deki 2FA ifadesine rağmen mevcut sistem kayıt/e-posta doğrulaması yapar; `LOGIN_2FA` enum'u kullanılmıyor.
+**2FA durumu:** Girişte şifre sonrası OTP zorunlu değildir. Mevcut ekip sistemi kayıt/e-posta doğrulaması yapar; `LOGIN_2FA` enum'u kullanılmıyor.
 
 ## İçerik API'si
 
@@ -226,7 +270,7 @@ POST `/forms` JSON kabul eder; banner dosyası için upload middleware'i yoktur,
 | `startDate`, `endDate` | null; isteğe bağlı tarih sınırları |
 | `maxSubmissions` | null; truthy ise sayıya çevrilir, 0 kotayı devre dışı bırakır |
 | `fields` | `[]`; sıralı soru tanımları |
-| `settings` | `allowMultipleSubmissions:true`, `requireAuth:false`, varsayılan başarı mesajı |
+| `settings` | `verificationRequired:true`, `verificationMethods:["GOOGLE","EMAIL_OTP"]`, `allowMultipleSubmissions:true`, `requireAuth:false`, varsayılan başarı mesajı |
 
 ```bash
 curl -X POST "$API_BASE/forms" \
@@ -237,7 +281,7 @@ curl -X POST "$API_BASE/forms" \
     "status":"PUBLISHED",
     "category":"EVENT",
     "maxSubmissions":100,
-    "settings":{"successMessage":"Kaydınız alındı."},
+    "settings":{"verificationRequired":true,"verificationMethods":["GOOGLE","EMAIL_OTP"],"allowMultipleSubmissions":false,"successMessage":"Kaydınız alındı."},
     "fields":[
       {"fieldId":"fullName","label":"Ad Soyad","type":"text","required":true,"order":0},
       {"fieldId":"email","label":"E-posta","type":"email","required":true,"order":1},
@@ -247,6 +291,8 @@ curl -X POST "$API_BASE/forms" \
     ]
   }'
 ```
+
+Varsayılan olarak yeni ve bu alanı içermeyen eski formlarda doğrulama gerekir. `requireAuth:true` eski ayarı da katılımcı doğrulamasını zorunlu kılar. `allowMultipleSubmissions:false` kimlik doğrulaması ve aynı katılımcı için tek başvuru gerektirir. Anonim form için üçünü birlikte `verificationRequired:false`, `requireAuth:false`, `allowMultipleSubmissions:true` ayarlayın. İzin verilen yöntem listesi boş olamaz.
 
 Başarı `201`, `data._id` sonraki yönetim çağrılarında kullanılır. `createdBy` otomatik token kullanıcısıdır.
 
@@ -293,6 +339,7 @@ Cevapları **fieldId anahtarlarıyla doğrudan üst seviyede** gönderin. Verita
 
 ```bash
 curl -X POST "$API_BASE/forms/public/atolye-kayit/submit" \
+  -H "Authorization: Bearer $PARTICIPANT_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"fullName":"Ayşe Yılmaz","email":"aday@gmail.com","memberCount":2,"interests":["Web","Cloud"]}'
 ```
@@ -311,6 +358,7 @@ Dosyanın multipart alan adı şemadaki file sorusunun `fieldId` değeri olmalı
 
 ```bash
 curl -X POST "$API_BASE/forms/public/atolye-kayit/submit" \
+  -H "Authorization: Bearer $PARTICIPANT_TOKEN" \
   -F 'answers={"fullName":"Ayşe Yılmaz","email":"aday@gmail.com","memberCount":2,"interests":["Web","Cloud"]}' \
   -F 'resumeFile=@/yerel/yol/cv.pdf'
 ```
@@ -319,14 +367,18 @@ Metinleri ayrı `-F 'fullName=...'` alanlarıyla da gönderebilirsiniz. Çoklu s
 
 Submit'in uyguladığı kurallar:
 
-- Form yayın durumu, başlangıç/bitiş tarihi ve kota kontrolü.
+- Dosya yazılmadan önce katılımcı kimliği ve formun kabul ettiği doğrulama yöntemi kontrolü.
+- Form yayın durumu, başlangıç/bitiş tarihi ve transaction içinde kota kontrolü.
+- Tek başvurulu formda aynı katılımcının tekrar kaydının engellenmesi.
 - Required alanların eksik, null, boş metin veya boş dizi kontrolü.
 - E-posta **metin** değerine temel format kontrolü.
 - Number için `Number(value)` ile sayı kontrolü ve min/max karşılaştırması; kaydedilen değer otomatik olarak number'a normalize edilmiyor.
 
-**Mevcut doğrulama eksikleri:** `phone/date/regex`, seçeneklerin `options` içinde olması, checkbox'ın dizi olması ve genel metin türleri tam doğrulanmıyor. Varsayılan min/max null değerleri kodda `undefined` kontrolünden geçerek sayısal karşılaştırmada 0 gibi davranabilir; sayısal sorularda açık min/max gönderin ve bu kodu düzeltmeden sınırların yok sayıldığını varsaymayın. `fieldId` tekilliği garanti edilmiyor.
+**Mevcut doğrulama eksikleri:** `phone/date/regex`, seçeneklerin `options` içinde olması, checkbox'ın dizi olması ve genel metin türleri tam doğrulanmıyor. Min/max null sınırları artık uygulanmaz; yalnızca tanımlı sınırlar karşılaştırılır. `fieldId` tekilliği garanti edilmiyor.
 
-`settings.requireAuth` ve `allowMultipleSubmissions` yalnızca saklanıyor; uygulanmıyor. Public submit'e token göndermek de kullanıcı ilişkilendirmez çünkü bu rotada auth middleware yok. `respondent.user` normal akışta null kalır.
+`settings.requireAuth` ve `allowMultipleSubmissions` artık uygulanır. Katılımcı kimliği `participant` referansına yazılır; `respondent.user` ekip hesabı alanıdır ve bu akışta null kalır. `verifiedEmail`, `verificationMethod`, `verifiedAt` backend’den gelir, istek body’siyle değiştirilemez. E-posta soru yanıtı bu kimlikten ayrı bir alandır.
+
+Eksik/geçersiz/eskimiş katılımcı token’ı `401`, kabul edilmeyen yöntem `403`, tekrar başvuru veya gönderim sırasında değişen form `409` döndürür. Form durum/tarih/kota engeli `403` döner; quota kontrolü tekrar başvuru kontrolünden önce gelir. Yanıt ve sayaç aynı transaction’da saklanır. Eski anonim yanıtlar geriye dönük kimliklendirilmez.
 
 ### Güncelleme, durum, silme ve export
 
@@ -343,9 +395,9 @@ curl "$API_BASE/forms/$FORM_ID/responses/export?format=json" \
   -H "Authorization: Bearer $AUTH_TOKEN" -o form-yanitlari.json
 ```
 
-PUT verilen üst alanları günceller. **`fields` gönderilirse bütün soru dizisini değiştirir**; tek bir soruyu eklemek için mevcut sorular da gönderilmeli. Eski cevaplar değiştirilmez. `fieldId` değişimi eski cevapların CSV'de eşleşmesini bozar. Slug değişimi eski FormResponse kayıtlarındaki `formSlug` değerini güncellemez. `settings` kısmi birleştirme amaçlı işlenir; gerçek nested davranış ayrıca entegrasyon testinde doğrulanmalı.
+PUT verilen üst alanları günceller. **`fields` gönderilirse bütün soru dizisini değiştirir**; tek bir soruyu eklemek için mevcut sorular da gönderilmeli. Eski cevaplar değiştirilmez. `fieldId` değişimi eski cevapların CSV'de eşleşmesini bozar. Slug değişimi eski FormResponse kayıtlarındaki `formSlug` değerini güncellemez. `settings` mevcut alanları koruyarak kısmi birleştirilir; doğrulama yönteminin ve tek başvuru ayarının korunduğu entegrasyon testiyle doğrulandı.
 
-CSV sütunları: yanıt ID, tarih, IP, güncel soruların sıralı başlıkları, dosya linkleri. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Export sayfalama yapmaz; ilgili formun tüm yanıtlarını belleğe alır. `format=json` dışındaki değerler CSV'ye düşer.
+CSV sütunları: yanıt ID, tarih, IP, doğrulanmış e-posta, doğrulama yöntemi, güncel soruların sıralı başlıkları, dosya linkleri. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Export sayfalama yapmaz; ilgili formun tüm yanıtlarını belleğe alır. `format=json` dışındaki değerler CSV'ye düşer.
 
 DELETE `/forms/:id` body almadan formu ve bütün yanıtlarını siler, başarı `200` döner. Dosyaları silmez. Form silme ve yanıt silme transaction içinde değil; kısmi silinme mümkündür.
 
