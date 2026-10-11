@@ -39,6 +39,17 @@ describe('Layout', () => {
     expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(1)
   })
 
+  it('sabit CTA /kayit/ (sonda eğik çizgi) sayfasında da yoktur', () => {
+    const { container } = renderAt('/kayit/')
+    expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(1)
+    expect(container.querySelector('.app')).not.toHaveClass('app--has-cta')
+  })
+
+  it('sayfa başlığı rotaya göre değişir', () => {
+    renderAt('/kayit')
+    expect(document.title).toBe('Kayıt | PAU Hackathon 2026')
+  })
+
   it('sabit CTA yalnızca gösterildiğinde alt boşluk sınıfını ekler', () => {
     const { container, unmount } = renderAt('/')
     expect(container.querySelector('.app')).toHaveClass('app--has-cta')

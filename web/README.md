@@ -26,14 +26,14 @@ Etkinlik adı, tarih, ödül, program, jüri/mentor ve sponsorlar yalnızca `src
 ## Kayıt formu
 
 `.env` dosyasında `VITE_REGISTER_ENDPOINT` tanımlıysa form JSON POST eder (gövde: normalize edilmiş form alanları).
-Tanımlı değilse istek atılmaz ve başarı ekranı gösterilir.
+Geliştirme sunucusunda tanımlı değilse istek atılmaz ve başarı ekranı gösterilir; üretim derlemesinde tanımlı değilse form hata gösterir (kayıt sessizce kaybolmaz).
 
 ## Yayına almadan önce
 
-- Barındırma sağlayıcısının derleme ortamında `VITE_REGISTER_ENDPOINT` tanımla. Tanımlı değilse kayıtlar
-  hiçbir yere gönderilmez, ancak kullanıcı yine de başarı ekranını görür.
+- Barındırma sağlayıcısının derleme ortamında `VITE_REGISTER_ENDPOINT` tanımla. Tanımlı değilse form
+  "Kayıt şu an alınamıyor" hatası verir.
 - Endpoint `Content-Type: application/json` kabul etmeli ve site origin'inden gelen CORS isteklerine izin vermelidir.
-  Formspree ayrıca `Accept: application/json` başlığı ister; mevcut kod bu başlığı göndermez, seçmeden önce kontrol et.
+  İstek `Accept: application/json` başlığını ve 15 saniyelik zaman aşımını içerir (Formspree bu başlığı ister).
 - KVKK onay metninin bağlı bir aydınlatma metni henüz yok. Gerçek veri toplamadan önce gerçek metni ekle.
 - Vite `.env` dosyasını geliştirme sunucusu başlarken ve derleme sırasında okur; değiştirdikten sonra yeniden başlat.
 

@@ -1,12 +1,18 @@
 import { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { event } from '../data/event.js'
 import Navbar from './Navbar.jsx'
 import Footer from './Footer.jsx'
 import StickyCta from './StickyCta.jsx'
 import './Layout.css'
 
+const PAGE_TITLES = { '/': null, '/kayit': 'Kayıt', '/program': 'Program', '/ekip': 'Ekip' }
+
 export default function Layout() {
   const { pathname } = useLocation()
+  // '/kayit/' de aynı rotaya eşleşir; sondaki eğik çizgiyi atıp tek biçime indir.
+  const path = pathname.replace(/\/+$/, '') || '/'
+  const hasCta = path !== '/kayit'
   const mainRef = useRef(null)
   const lastPath = useRef(pathname)
 
@@ -18,8 +24,13 @@ export default function Layout() {
     }
   }, [pathname])
 
+  useEffect(() => {
+    const page = path in PAGE_TITLES ? PAGE_TITLES[path] : 'Sayfa bulunamadı'
+    document.title = page ? `${page} | ${event.name}` : `${event.name} | ${event.organizer}`
+  }, [path])
+
   return (
-    <div className={`app${pathname !== '/kayit' ? ' app--has-cta' : ''}`}>
+    <div className={`app${hasCta ? ' app--has-cta' : ''}`}>
       <a href="#main" className="skip-link">
         İçeriğe geç
       </a>
@@ -28,7 +39,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <Footer />
-      <StickyCta />
+      {hasCta && <StickyCta />}
     </div>
   )
 }

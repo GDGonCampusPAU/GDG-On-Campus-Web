@@ -97,14 +97,23 @@ export function validateStep(stepId, values) {
   return errors
 }
 
-export async function submitRegistration(values, { endpoint, fetchImpl = (...args) => fetch(...args) } = {}) {
-  if (!endpoint) return { ok: true, skipped: true }
+export async function submitRegistration(
+  values,
+  { endpoint, dev = import.meta.env.DEV, fetchImpl = (...args) => fetch(...args) } = {},
+) {
+  if (!endpoint) {
+    // Yayında adres yoksa kayıt hiçbir yere gitmez; başarı göstermek sessiz veri kaybı olur.
+    return dev
+      ? { ok: true, skipped: true }
+      : { ok: false, error: 'Kayıt şu an alınamıyor. Biraz sonra tekrar dene.' }
+  }
 
   try {
     const res = await fetchImpl(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(normalize(values)),
+      signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) return { ok: false, error: `Sunucu hatası (${res.status}). Biraz sonra tekrar dene.` }
     return { ok: true }

@@ -125,6 +125,14 @@ describe('submitRegistration', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
+  it('yayında endpoint yoksa başarı göstermez, hata döner', async () => {
+    const fetchImpl = vi.fn()
+    const result = await submitRegistration(valid, { dev: false, fetchImpl })
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/alınamıyor/)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('endpoint varsa normalize edilmiş JSON POST eder', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200 })
     const result = await submitRegistration(
@@ -137,6 +145,8 @@ describe('submitRegistration', () => {
     expect(url).toBe('https://example.test/kayit')
     expect(init.method).toBe('POST')
     expect(init.headers['Content-Type']).toBe('application/json')
+    expect(init.headers.Accept).toBe('application/json')
+    expect(init.signal).toBeInstanceOf(AbortSignal)
     expect(JSON.parse(init.body).email).toBe('ayse@example.com')
   })
 
