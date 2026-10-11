@@ -52,6 +52,11 @@ const formResponseSchema = new mongoose.Schema(
       required: [true, 'Form referansı zorunludur.'],
       index: true
     },
+    participant: { type: mongoose.Schema.Types.ObjectId, ref: 'Participant', default: null },
+    verifiedEmail: { type: String, default: null },
+    verificationMethod: { type: String, enum: ['GOOGLE', 'EMAIL_OTP', null], default: null },
+    verifiedAt: { type: Date, default: null },
+    singleSubmissionKey: { type: String },
     formSlug: {
       type: String,
       required: true,
@@ -91,6 +96,11 @@ const formResponseSchema = new mongoose.Schema(
     versionKey: false
   }
 );
+
+// Only single-submission responses carry this key; anonymous/multiple responses do not.
+formResponseSchema.index({ form: 1, singleSubmissionKey: 1 }, {
+  unique: true, partialFilterExpression: { singleSubmissionKey: { $type: 'string' } }
+});
 
 // Indexes
 formResponseSchema.index({ form: 1, submittedAt: -1 });

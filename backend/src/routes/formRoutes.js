@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const formParticipantMiddleware = require('../modules/participantAuth/middleware/formParticipantMiddleware');
 const formController = require('../controllers/formController');
 const authMiddleware = require('../middleware/authMiddleware');
 const { requireRoles } = require('../middleware/roleMiddleware');
@@ -9,7 +10,7 @@ const { uploadFormFiles } = require('../middleware/uploadMiddleware');
 // Public Endpoints (Anket/Form Doldurma)
 // ==========================================
 router.get('/public/:slugOrId', formController.getPublicForm);
-router.post('/public/:slugOrId/submit', uploadFormFiles.any(), formController.submitFormResponse);
+router.post('/public/:slugOrId/submit', formParticipantMiddleware, uploadFormFiles.any(), formController.submitFormResponse);
 
 // ==========================================
 // Protected Endpoints (Admin & Organizatör)

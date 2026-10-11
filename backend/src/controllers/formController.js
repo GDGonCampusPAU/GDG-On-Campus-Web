@@ -1,3 +1,5 @@
+const { saveSubmission } = require('../services/formSubmissionService');
+const { unlink } = require('node:fs/promises');
 const Form = require('../models/Form');
 const FormResponse = require('../models/FormResponse');
 
@@ -230,7 +232,7 @@ const updateForm = async (req, res, next) => {
     if (startDate !== undefined) form.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) form.endDate = endDate ? new Date(endDate) : null;
     if (maxSubmissions !== undefined) form.maxSubmissions = maxSubmissions ? Number(maxSubmissions) : null;
-    if (settings !== undefined) form.settings = { ...form.settings, ...settings };
+    if (settings !== undefined) form.set('settings', { ...form.toObject().settings, ...settings });
 
     // Update slug if explicitly passed and different
     if (slug && slug !== form.slug) {
@@ -419,7 +421,7 @@ const exportFormResponses = async (req, res, next) => {
     // Dynamic CSV generation: each question becomes a dedicated column header!
     const sortedFields = [...(form.fields || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    const standardHeaders = ['Yanıt ID', 'Tarih', 'IP Adresi'];
+    const standardHeaders = ['Yanıt ID', 'Tarih', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi'];
     const questionHeaders = sortedFields.map((f) => f.label || f.fieldId);
     const fileHeaders = ['Eklenen Dosyalar'];
     const allHeaders = [...standardHeaders, ...questionHeaders, ...fileHeaders];
@@ -433,7 +435,9 @@ const exportFormResponses = async (req, res, next) => {
       const rowValues = [
         resp._id,
         new Date(resp.submittedAt).toISOString(),
-        resp.respondent?.ip || ''
+        resp.respondent?.ip || '',
+        resp.verifiedEmail || '',
+        resp.verificationMethod || ''
       ];
 
       // Add answer for each question column
@@ -481,7 +485,7 @@ const getPublicForm = async (req, res, next) => {
       query = { $or: [{ slug: slugOrId }, { _id: slugOrId }] };
     }
 
-    const form = await Form.findOne(query).lean();
+    const form = await Form.findOne(query);
     if (!form) {
       return res.status(404).json({
         success: false,
@@ -550,21 +554,9 @@ const getPublicForm = async (req, res, next) => {
  */
 const submitFormResponse = async (req, res, next) => {
   try {
-    const { slugOrId } = req.params;
-
-    let query = { slug: slugOrId };
-    if (/^[0-9a-fA-F]{24}$/.test(slugOrId)) {
-      query = { $or: [{ slug: slugOrId }, { _id: slugOrId }] };
-    }
-
-    const form = await Form.findOne(query);
-    if (!form) {
-      return res.status(404).json({
-        success: false,
-        message: 'Form bulunamadı.'
-      });
-    }
-
+    // Identity middleware loads the form and authenticates before any file is written.
+    const form = req.submissionForm;
+    const schemaUpdatedAt = form.updatedAt.getTime();
     const now = new Date();
 
     if (form.status !== 'PUBLISHED') {
@@ -665,10 +657,10 @@ const submitFormResponse = async (req, res, next) => {
           if (isNaN(num)) {
             validationErrors.push(`'${field.label}' sayısal bir değer olmalıdır.`);
           } else {
-            if (field.validation?.min !== undefined && num < field.validation.min) {
+            if (field.validation?.min != null && num < field.validation.min) {
               validationErrors.push(`'${field.label}' en az ${field.validation.min} olmalıdır.`);
             }
-            if (field.validation?.max !== undefined && num > field.validation.max) {
+            if (field.validation?.max != null && num > field.validation.max) {
               validationErrors.push(`'${field.label}' en fazla ${field.validation.max} olabilir.`);
             }
           }
@@ -690,10 +682,15 @@ const submitFormResponse = async (req, res, next) => {
     }
 
     // Save response
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+    const clientIp = req.ip || req.socket.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
 
-    const response = await FormResponse.create({
+    const response = await saveSubmission(form._id, {
+      schemaUpdatedAt,
+      participant: req.participant?._id || null,
+      verifiedEmail: req.participant?.email || null,
+      verificationMethod: req.participantVerification?.method || null,
+      verifiedAt: req.participantVerification?.verifiedAt || null,
       form: form._id,
       formSlug: form.slug,
       answers: structuredAnswers,
@@ -703,11 +700,8 @@ const submitFormResponse = async (req, res, next) => {
         userAgent,
         user: req.user ? req.user._id : null
       }
-    });
-
-    // Increment submission count
-    form.submissionCount += 1;
-    await form.save();
+    }, req.participant);
+    req.submissionSaved = true;
 
     return res.status(201).json({
       success: true,
@@ -716,6 +710,10 @@ const submitFormResponse = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  } finally {
+    if (!req.submissionSaved && Array.isArray(req.files)) {
+      await Promise.all(req.files.map(file => unlink(file.path).catch(() => {})));
+    }
   }
 };
 

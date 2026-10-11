@@ -10,6 +10,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
  */
 const generateToken = (payload) => {
   return jwt.sign(payload, JWT_SECRET, {
+    algorithm: 'HS256',
     expiresIn: JWT_EXPIRES_IN
   });
 };
@@ -20,7 +21,7 @@ const generateToken = (payload) => {
  * @returns {Object} Decoded payload
  */
 const verifyToken = (token) => {
-  return jwt.verify(token, JWT_SECRET);
+  return jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 };
 
 module.exports = {
