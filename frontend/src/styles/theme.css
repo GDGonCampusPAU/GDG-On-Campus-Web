@@ -93,6 +93,7 @@
   --space-6: 32px;
   --radius-sm: 10px;
   --radius-card: 28px 28px 28px 6px;
+  --radius-card-sm: 20px 20px 20px 6px;
 
   color-scheme: dark;
 }

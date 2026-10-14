@@ -15,6 +15,7 @@ export default function TextField({
   autoComplete,
   required = false,
   disabled = false,
+  inputClassName = '',
   ...rest
 }) {
   const id = useId()
@@ -38,7 +39,7 @@ export default function TextField({
       <div className="field__control">
         <input
           id={id}
-          className="field__input"
+          className={`field__input ${inputClassName}`.trim()}
           name={name}
           type={isPassword && visible ? 'text' : type}
           value={value}

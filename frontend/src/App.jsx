@@ -1,17 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
-import AuthLayout from './components/layout/AuthLayout.jsx'
+import Applications from './pages/Applications.jsx'
+import { clearSession, loadSession } from './lib/session.js'
 
-// Geçici, bağımlılık gerektirmeyen yönlendirme: #/login ve #/register.
+// Geçici, bağımlılık gerektirmeyen yönlendirme: #/login, #/register, #/applications.
 // Sayfalar arası geçiş adımında react-router ile değiştirilecek.
 function getRoute() {
-  return window.location.hash === '#/register' ? 'register' : 'login'
+  const hash = window.location.hash
+  if (hash === '#/register') return 'register'
+  if (hash === '#/applications') return 'applications'
+  return 'login'
 }
 
 export default function App() {
   const [route, setRoute] = useState(getRoute)
-  const [session, setSession] = useState(null)
+  const [session, setSession] = useState(loadSession)
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
     const onHashChange = () => setRoute(getRoute())
@@ -19,15 +24,36 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  if (session) {
-    return (
-      <AuthLayout title="Giriş yaptın" subtitle="Üye listesi sayfası bir sonraki adımda eklenecek.">
-        <button type="button" className="btn" onClick={() => setSession(null)}>
-          Çıkış Yap
-        </button>
-      </AuthLayout>
-    )
+  // Giriş yapılmışsa her zaman başvuru listesi, yapılmamışsa giriş ya da kayıt gösterilir.
+  const page = session ? 'applications' : route === 'register' ? 'register' : 'login'
+
+  // Adres çubuğunu gösterilen sayfayla aynı tut (ör. girişsizken #/applications yazılırsa #/login olur).
+  useEffect(() => {
+    const target = `#/${page}`
+    if (window.location.hash !== target) window.location.replace(target)
+  }, [page, route])
+
+  const handleLogin = (nextSession) => {
+    setNotice('')
+    setSession(nextSession)
   }
 
-  return route === 'register' ? <Register /> : <Login onSuccess={setSession} />
+  const handleLogout = () => {
+    clearSession()
+    setSession(null)
+  }
+
+  const handleUnauthorized = useCallback(() => {
+    clearSession()
+    setSession(null)
+    setNotice('Oturum süren doldu. Lütfen tekrar giriş yap.')
+  }, [])
+
+  if (page === 'applications') {
+    return (
+      <Applications session={session} onLogout={handleLogout} onUnauthorized={handleUnauthorized} />
+    )
+  }
+  if (page === 'register') return <Register />
+  return <Login onSuccess={handleLogin} notice={notice} />
 }

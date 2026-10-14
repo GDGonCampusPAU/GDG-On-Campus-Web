@@ -265,8 +265,56 @@
   border-color: var(--success-line);
 }
 
+.form-message--info {
+  color: var(--text-strong);
+  border-color: var(--gdg-blue);
+}
+
 .form-message strong {
   font-weight: 700;
+}
+
+/* 6 haneli kod alanı: Mono font, geniş harf aralığı (marka kuralı: kod benzeri metin) */
+.field__input--code {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+/* Metin gibi görünen düğme (Geri dön, Kodu tekrar gönder) */
+.link-button {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--gdg-blue-halftone);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.link-button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.link-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.link-button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 /* Buton */
