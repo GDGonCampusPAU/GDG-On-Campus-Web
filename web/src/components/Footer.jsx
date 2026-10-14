@@ -7,8 +7,8 @@ export default function Footer() {
       <div className="footer__inner container">
         <p className="footer__name">{event.organizer}</p>
         <ul className="footer__socials">
-          {event.socials.map((s) => (
-            <li key={s.label}>
+          {event.socials.map((s, i) => (
+            <li key={i}>
               <a href={s.url} target="_blank" rel="noopener noreferrer">
                 {s.label}
               </a>

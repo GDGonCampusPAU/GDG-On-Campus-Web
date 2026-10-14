@@ -12,7 +12,7 @@ export default function Layout() {
   const { pathname } = useLocation()
   // '/kayit/' de aynı rotaya eşleşir; sondaki eğik çizgiyi atıp tek biçime indir.
   const path = pathname.replace(/\/+$/, '') || '/'
-  const hasCta = path !== '/kayit'
+  const hasCta = path !== '/kayit' && path !== '/'
   const mainRef = useRef(null)
   const lastPath = useRef(pathname)
 

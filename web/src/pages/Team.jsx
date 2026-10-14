@@ -14,7 +14,7 @@ function PeopleSection({ title, eyebrow, people }) {
       <SectionHeading eyebrow={eyebrow} title={title} />
       <div className="team__grid">
         {people.map((p, i) => (
-          <Reveal key={p.name}>
+          <Reveal key={i}>
             <PersonCard person={p} tone={TONES[i % TONES.length]} />
           </Reveal>
         ))}

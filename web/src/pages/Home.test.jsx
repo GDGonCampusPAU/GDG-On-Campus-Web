@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
 import Home from './Home.jsx'
@@ -28,16 +28,25 @@ describe('Home', () => {
     expect(screen.getByRole('link', { name: 'Programı Gör' })).toHaveAttribute('href', '/program')
   })
 
-  it('3 ödül kartı gösterir', () => {
+  it('her ödül için bir kart gösterir', () => {
     renderHome(event)
-    event.prizes.forEach((p) => {
-      expect(screen.getByRole('heading', { level: 3, name: p.title })).toBeInTheDocument()
-    })
+    const section = screen.getByRole('heading', { name: 'Kazananları bekleyen ödüller' }).closest('section')
+    const titles = within(section).getAllByRole('heading', { level: 3 })
+    expect(titles).toHaveLength(event.prizes.length)
+    expect(titles.map((h) => h.textContent)).toEqual(event.prizes.map((p) => p.title))
   })
 
   it('sponsor yokken sponsor bölümünü göstermez', () => {
     renderHome({ ...event, sponsors: [] })
     expect(screen.queryByRole('heading', { name: 'Sponsorlarımız' })).not.toBeInTheDocument()
+  })
+
+  it('tek h1 render eder ve bölümler laptopun ekranının içindedir', () => {
+    const { container } = renderHome(event)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    const display = container.querySelector('.laptop__display')
+    expect(display).toContainElement(screen.getByRole('heading', { name: 'Neden katılmalısın?' }))
+    expect(display).toContainElement(screen.getByRole('heading', { name: 'Sponsorlarımız' }))
   })
 
   it('bozuk tarihle çökmez', () => {

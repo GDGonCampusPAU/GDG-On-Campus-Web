@@ -1,20 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { event, typeLabels } from './event.js'
+import { typeLabels } from './event.js'
+import event from './event.json'
+import { isEventShape } from '../lib/content.js'
 
 const colors = ['blue', 'green', 'yellow', 'red']
 
-describe('event verisi', () => {
+// event.json'un kendisi denetlenir; tarayıcıdaki taslak testin sonucunu değiştirmemeli.
+describe('event.json', () => {
+  it('yayınlanan veri editörün kabul ettiği şekle uyar', () => {
+    expect(isEventShape(event, event)).toBe(true)
+  })
+
   it('startsAt geçerli bir tarihtir', () => {
     expect(Number.isNaN(new Date(event.startsAt).getTime())).toBe(false)
   })
 
-  it('3 ödül vardır ve her biri bilinen bir renk taşır', () => {
-    expect(event.prizes).toHaveLength(3)
+  it('en az bir ödül vardır ve her biri bilinen bir renk taşır', () => {
+    expect(event.prizes.length).toBeGreaterThan(0)
     event.prizes.forEach((p) => expect(colors).toContain(p.color))
   })
 
   it('tanıtım kartları bilinen bir renk taşır', () => {
-    expect(event.about).toHaveLength(3)
+    expect(event.about.length).toBeGreaterThan(0)
     event.about.forEach((a) => expect(colors).toContain(a.color))
   })
 

@@ -18,7 +18,7 @@ export default function Schedule({ data = event }) {
           <div className="schedule__tabs" role="tablist" aria-label="Günler">
             {days.map((day, i) => (
               <button
-                key={day.label}
+                key={i}
                 type="button"
                 role="tab"
                 id={`tab-${i}`}
@@ -34,7 +34,7 @@ export default function Schedule({ data = event }) {
 
           {days.map((day, i) => (
             <section
-              key={day.label}
+              key={i}
               id={`day-${i}`}
               role="tabpanel"
               aria-labelledby={`tab-${i}`}

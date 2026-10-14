@@ -5,6 +5,7 @@ import Register from './pages/Register.jsx'
 import Schedule from './pages/Schedule.jsx'
 import Team from './pages/Team.jsx'
 import NotFound from './pages/NotFound.jsx'
+import Admin from './pages/Admin.jsx'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="ekip" element={<Team />} />
         <Route path="*" element={<NotFound />} />
       </Route>
+      <Route path="admin" element={<Admin />} />
     </Routes>
   )
 }

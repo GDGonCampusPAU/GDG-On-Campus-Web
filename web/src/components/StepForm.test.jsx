@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import StepForm from './StepForm.jsx'
-import { fillPerson, fillUntilConfirm, acceptConsent, next } from '../test/registrationHelpers.js'
+import { fillPerson, fillUntilConfirm, next } from '../test/registrationHelpers.js'
 
 const setup = (onSubmit = vi.fn().mockResolvedValue({ ok: true })) => {
   const onSuccess = vi.fn()
@@ -35,22 +36,24 @@ describe('StepForm', () => {
     expect(screen.getByLabelText('Sınıf')).toHaveValue('2')
   })
 
-  it('onay verilmeden gönderilmez', async () => {
-    const { user, onSubmit } = setup()
-    await fillUntilConfirm(user)
-    await user.click(screen.getByRole('button', { name: 'Gönder' }))
-    expect(screen.getByText('Devam etmek için onay vermelisin.')).toBeInTheDocument()
-    expect(onSubmit).not.toHaveBeenCalled()
-  })
-
   it('tüm adımlar tamamlanınca gönderir ve onSuccess çağırır', async () => {
     const { user, onSubmit, onSuccess } = setup()
     await fillUntilConfirm(user)
-    await acceptConsent(user)
     await user.click(screen.getByRole('button', { name: 'Gönder' }))
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
     expect(onSubmit).toHaveBeenCalledTimes(1)
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ fullName: 'Ayşe Yılmaz', consent: true })
+    expect(onSubmit.mock.calls[0][0]).toEqual({
+      fullName: 'Ayşe Yılmaz',
+      email: 'ayse@example.com',
+      phone: '0555 123 45 67',
+      department: 'Bilgisayar Mühendisliği',
+      year: '2',
+      teamName: 'Kod Kurtları',
+      teamRole: 'founder',
+      teammates: '',
+      interests: ['web'],
+      level: 'beginner',
+    })
   })
 
   it('sunucu hatasında mesaj ve "Tekrar dene" gösterir, veriyi korur, sonra başarır', async () => {
@@ -60,12 +63,11 @@ describe('StepForm', () => {
       .mockResolvedValueOnce({ ok: true })
     const { user, onSuccess } = setup(onSubmit)
     await fillUntilConfirm(user)
-    await acceptConsent(user)
     await user.click(screen.getByRole('button', { name: 'Gönder' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Sunucu hatası (500)')
     expect(onSuccess).not.toHaveBeenCalled()
-    expect(screen.getByLabelText(/katılım koşullarını/i)).toBeChecked()
+    expect(screen.getByText('Ayşe Yılmaz')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Tekrar dene' }))
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
@@ -79,7 +81,6 @@ describe('StepForm', () => {
       .mockResolvedValueOnce({ ok: true })
     const { user, onSuccess } = setup(onSubmit)
     await fillUntilConfirm(user)
-    await acceptConsent(user)
     await user.click(screen.getByRole('button', { name: 'Gönder' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Bir şeyler ters gitti. Tekrar dene.')
@@ -101,7 +102,7 @@ describe('StepForm', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'İlgi alanları' })).toBeInTheDocument()
   })
 
-  it('Gönder butonuna çift tıklamada tek istek atar', async () => {
+  it('aynı anda gelen iki submit olayında tek istek atar', async () => {
     let resolve
     const onSubmit = vi.fn(
       () =>
@@ -111,11 +112,36 @@ describe('StepForm', () => {
     )
     const { user, onSuccess } = setup(onSubmit)
     await fillUntilConfirm(user)
-    await acceptConsent(user)
-    await user.dblClick(screen.getByRole('button', { name: 'Gönder' }))
+    const form = screen.getByRole('button', { name: 'Gönder' }).closest('form')
+    act(() => {
+      fireEvent.submit(form)
+      fireEvent.submit(form)
+    })
     expect(onSubmit).toHaveBeenCalledTimes(1)
 
-    resolve({ ok: true })
+    await act(async () => resolve({ ok: true }))
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
+  })
+
+  it('İleri sonrası odak yeni adımın başlığına gider', async () => {
+    const { user } = setup()
+    await fillPerson(user)
+    await next(user)
+    expect(screen.getByRole('heading', { level: 2, name: 'Takım' })).toHaveFocus()
+  })
+
+  it('başarısız İleri odağı ilk geçersiz alana taşır', async () => {
+    const { user } = setup()
+    await next(user)
+    expect(screen.getByLabelText('Ad soyad')).toHaveFocus()
+  })
+
+  it('StrictMode altında ilk açılışta odağı başlığa taşımaz', () => {
+    render(
+      <StrictMode>
+        <StepForm onSubmit={vi.fn()} onSuccess={vi.fn()} />
+      </StrictMode>,
+    )
+    expect(screen.getByRole('heading', { level: 2, name: 'Kişisel bilgiler' })).not.toHaveFocus()
   })
 })

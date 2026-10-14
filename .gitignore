@@ -6,3 +6,9 @@ dist/
 .env.local
 .claude/
 Docs/*.pdf
+Docs/superpowers/
+.env.*
+!.env.example
+.superpowers/
+.vercel/
+*.log

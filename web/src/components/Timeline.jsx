@@ -13,9 +13,9 @@ const typeTones = {
 export default function Timeline({ items }) {
   return (
     <ol className="timeline">
-      {items.map((item) => (
+      {items.map((item, i) => (
         <li
-          key={`${item.time}-${item.title}`}
+          key={i}
           className={`timeline__item tone--${typeTones[item.type] ?? 'blue'}`}
         >
           <time className="timeline__time">{item.time}</time>

@@ -22,8 +22,8 @@ export default function SponsorGrid({ sponsors, compact = false }) {
   const ordered = [...sponsors].sort((a, b) => (a.tier === b.tier ? 0 : a.tier === 'main' ? -1 : 1))
   return (
     <ul className={`sponsor-grid${compact ? ' sponsor-grid--compact' : ''}`}>
-      {ordered.map((s) => (
-        <li key={s.name}>
+      {ordered.map((s, i) => (
+        <li key={i}>
           <SponsorItem sponsor={s} />
         </li>
       ))}

@@ -53,6 +53,21 @@ describe('Countdown', () => {
     expect(screen.getByTestId('countdown-seconds')).toHaveTextContent('03')
   })
 
+  it('sıfıra ulaşınca "Başladı!" durumuna geçer ve aralığı temizler', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-12-01T00:00:00Z'))
+    render(<Countdown startsAt="2026-12-01T00:00:02Z" />)
+    expect(screen.getByTestId('countdown-seconds')).toHaveTextContent('02')
+    expect(vi.getTimerCount()).toBe(1)
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(screen.getByText('Başladı!')).toBeInTheDocument()
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('geçmiş tarihte "Başladı!" gösterir, NaN göstermez', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-12-01T00:00:00Z'))

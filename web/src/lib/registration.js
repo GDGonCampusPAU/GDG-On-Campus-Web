@@ -45,7 +45,6 @@ export const initialValues = {
   teammates: '',
   interests: [],
   level: '',
-  consent: false,
 }
 
 const collapse = (s) => s.trim().replace(/\s+/g, ' ')
@@ -57,7 +56,8 @@ export function normalize(values) {
     email: values.email.trim().toLowerCase(),
     phone: values.phone.replace(/[\s().-]/g, ''),
     department: collapse(values.department),
-    teamName: collapse(values.teamName),
+    // Takım arayan kişinin takımı yoktur; rol değiştirilirken kalan ad payload'a girmesin.
+    teamName: values.teamRole === 'looking' ? '' : collapse(values.teamName),
     teammates: values.teammates.trim(),
     interests: [...values.interests],
   }
@@ -86,12 +86,9 @@ export function validateStep(stepId, values) {
   }
 
   if (stepId === 'interest') {
-    if (v.interests.length === 0) errors.interests = 'En az bir ilgi alanı seç.'
+    if (v.interests.length === 0 || !v.interests.every((i) => has(INTEREST_OPTIONS, i)))
+      errors.interests = 'En az bir ilgi alanı seç.'
     if (!has(LEVEL_OPTIONS, v.level)) errors.level = 'Deneyim seviyeni seç.'
-  }
-
-  if (stepId === 'confirm') {
-    if (v.consent !== true) errors.consent = 'Devam etmek için onay vermelisin.'
   }
 
   return errors

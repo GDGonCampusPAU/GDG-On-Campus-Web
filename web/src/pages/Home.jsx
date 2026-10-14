@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import Button from '../components/Button.jsx'
-import Countdown from '../components/Countdown.jsx'
-import HeroShapes from '../components/HeroShapes.jsx'
+import LaptopHero from '../components/LaptopHero.jsx'
 import Marquee from '../components/Marquee.jsx'
 import Reveal from '../components/Reveal.jsx'
 import SectionHeading from '../components/SectionHeading.jsx'
@@ -15,34 +14,15 @@ export default function Home({ data = event }) {
   const sponsors = data.sponsors ?? []
 
   return (
-    <>
-      <section className="hero">
-        <HeroShapes />
-        <div className="hero__content container">
-          <p className="hero__eyebrow">{data.theme}</p>
-          <h1 className="hero__title">
-            <span className="hero__light">{data.organizer}</span> <strong>{data.name}</strong>
-          </h1>
-          <p className="hero__tagline">{data.tagline}</p>
-          <Countdown startsAt={data.startsAt} />
-          <p className="hero__meta">{data.location}</p>
-          <div className="hero__actions">
-            <Button to="/kayit">Kayıt Ol</Button>
-            <Button to="/program" variant="ghost">
-              Programı Gör
-            </Button>
-          </div>
-        </div>
-      </section>
-
+    <LaptopHero data={data}>
       <Marquee items={data.marquee} />
 
       {about.length > 0 && (
         <section className="home-section container">
           <SectionHeading eyebrow="Tanıtım" title="Neden katılmalısın?" />
           <div className="home-grid">
-            {about.map((card) => (
-              <Reveal key={card.title}>
+            {about.map((card, i) => (
+              <Reveal key={i}>
                 <article className={`home-card tone--${card.color}`}>
                   <h3>{card.title}</h3>
                   <p>{card.text}</p>
@@ -57,8 +37,8 @@ export default function Home({ data = event }) {
         <section className="home-section container">
           <SectionHeading eyebrow="Ödüller" title="Kazananları bekleyen ödüller" />
           <div className="home-grid">
-            {prizes.map((prize) => (
-              <Reveal key={prize.title}>
+            {prizes.map((prize, i) => (
+              <Reveal key={i}>
                 <article className={`home-card home-card--prize tone--${prize.color}`}>
                   <span className="home-card__place">{prize.place}</span>
                   <h3>{prize.title}</h3>
@@ -89,6 +69,6 @@ export default function Home({ data = event }) {
           </Button>
         </div>
       </section>
-    </>
+    </LaptopHero>
   )
 }

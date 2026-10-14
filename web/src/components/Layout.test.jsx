@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import Layout from './Layout.jsx'
+import { event } from '../data/event.js'
 
 function renderAt(path) {
   return render(
@@ -11,6 +12,8 @@ function renderAt(path) {
         <Route element={<Layout />}>
           <Route index element={<p>içerik</p>} />
           <Route path="kayit" element={<p>form</p>} />
+          <Route path="program" element={<p>program</p>} />
+          <Route path="*" element={<p>yok</p>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -29,13 +32,18 @@ describe('Layout', () => {
     expect(screen.getByRole('main')).toHaveTextContent('içerik')
   })
 
-  it('sabit CTA ana sayfada vardır (navbar + sabit çubuk)', () => {
-    renderAt('/')
+  it('sabit CTA iç sayfalarda vardır (navbar + sabit çubuk)', () => {
+    renderAt('/program')
     expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(2)
   })
 
   it('sabit CTA /kayit sayfasında yoktur', () => {
     renderAt('/kayit')
+    expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(1)
+  })
+
+  it('sabit CTA ana sayfada yoktur (kapanış bölümünde kendi çağrısı var)', () => {
+    renderAt('/')
     expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(1)
   })
 
@@ -47,11 +55,21 @@ describe('Layout', () => {
 
   it('sayfa başlığı rotaya göre değişir', () => {
     renderAt('/kayit')
-    expect(document.title).toBe('Kayıt | PAU Hackathon 2026')
+    expect(document.title).toBe(`Kayıt | ${event.name}`)
+  })
+
+  it('ana sayfa başlığı etkinlik adı ve düzenleyeni içerir', () => {
+    renderAt('/')
+    expect(document.title).toBe(`${event.name} | ${event.organizer}`)
+  })
+
+  it('bilinmeyen rotada 404 başlığı kullanır', () => {
+    renderAt('/yok-boyle-bir-sayfa')
+    expect(document.title).toBe(`Sayfa bulunamadı | ${event.name}`)
   })
 
   it('sabit CTA yalnızca gösterildiğinde alt boşluk sınıfını ekler', () => {
-    const { container, unmount } = renderAt('/')
+    const { container, unmount } = renderAt('/program')
     expect(container.querySelector('.app')).toHaveClass('app--has-cta')
     unmount()
     const second = renderAt('/kayit')

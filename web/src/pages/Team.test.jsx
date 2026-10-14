@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest'
 import Team from './Team.jsx'
 import { initials } from '../components/PersonCard.jsx'
 import { event } from '../data/event.js'
+import { fixtureEvent } from '../test/fixtures.js'
 
 const renderTeam = (data) =>
   render(
@@ -26,16 +27,27 @@ describe('initials', () => {
 
 describe('Team sayfası', () => {
   it('jüri, mentor ve sponsor bölümlerini gösterir', () => {
-    renderTeam(event)
+    renderTeam(fixtureEvent)
     expect(screen.getByRole('heading', { level: 2, name: 'Jüri' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: 'Mentorlar' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: 'Sponsorlar' })).toBeInTheDocument()
-    expect(screen.getByText('Jüri Üyesi Bir')).toBeInTheDocument()
+    expect(screen.getByText(fixtureEvent.people.jury[0].name)).toBeInTheDocument()
   })
 
   it('logosu olmayan sponsorun adını metin olarak gösterir', () => {
+    renderTeam(fixtureEvent)
+    expect(screen.getByText('Ana Test')).toBeInTheDocument()
+  })
+
+  it('gerçek içerikle çökmeden render eder', () => {
     renderTeam(event)
-    expect(screen.getByText('Ana Sponsor')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Ekip' })).toBeInTheDocument()
+  })
+
+  it('aynı veya boş adlı kişilerin hepsini render eder', () => {
+    const p = { name: '', title: 'T', photo: null }
+    renderTeam({ people: { jury: [p, p], mentors: [] }, sponsors: [] })
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2)
   })
 
   it('boş koleksiyonlarda boş başlık göstermez, yedek metin gösterir', () => {

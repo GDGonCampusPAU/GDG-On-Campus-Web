@@ -8,18 +8,14 @@ export async function fillPerson(user) {
   await user.selectOptions(screen.getByLabelText('Sınıf'), '2')
 }
 
-export async function fillTeam(user) {
+async function fillTeam(user) {
   await user.type(screen.getByLabelText('Takım adı'), 'Kod Kurtları')
   await user.selectOptions(screen.getByLabelText('Rol'), 'founder')
 }
 
-export async function fillInterest(user) {
+async function fillInterest(user) {
   await user.click(screen.getByLabelText('Web'))
   await user.selectOptions(screen.getByLabelText('Deneyim seviyesi'), 'beginner')
-}
-
-export async function acceptConsent(user) {
-  await user.click(screen.getByLabelText(/katılım koşullarını/i))
 }
 
 export async function next(user) {

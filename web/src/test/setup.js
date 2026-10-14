@@ -21,3 +21,9 @@ if (!window.matchMedia) {
 
 // jsdom does not implement scrolling; Layout scrolls to top on every route change.
 window.scrollTo = () => {}
+
+// jsdom has no ResizeObserver; the immersive hero measures its page with one.
+window.ResizeObserver ??= class {
+  observe() {}
+  disconnect() {}
+}

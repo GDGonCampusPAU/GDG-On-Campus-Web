@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
 import Navbar from './Navbar.jsx'
+import { event } from '../data/event.js'
 
 function renderNav() {
   return render(
@@ -15,7 +16,7 @@ function renderNav() {
 describe('Navbar', () => {
   it('marka adını ve sayfa bağlantılarını gösterir', () => {
     renderNav()
-    expect(screen.getByRole('link', { name: /GDG On Campus PAU/ })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: new RegExp(event.organizer) })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Program' })).toHaveAttribute('href', '/program')
     expect(screen.getByRole('link', { name: 'Ekip' })).toHaveAttribute('href', '/ekip')
     expect(screen.getByRole('link', { name: 'Kayıt Ol' })).toHaveAttribute('href', '/kayit')

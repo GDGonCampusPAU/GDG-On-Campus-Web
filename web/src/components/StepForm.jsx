@@ -22,7 +22,7 @@ export default function StepForm({ onSubmit, onSuccess }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const inFlight = useRef(false)
-  const firstRender = useRef(true)
+  const shownStep = useRef(0)
   const headingRef = useRef(null)
   const formRef = useRef(null)
 
@@ -31,10 +31,9 @@ export default function StepForm({ onSubmit, onSuccess }) {
   const looking = values.teamRole === 'looking'
 
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false
-      return
-    }
+    // Compare instead of flagging the first run: StrictMode re-runs the mount effect.
+    if (shownStep.current === stepIndex) return
+    shownStep.current = stepIndex
     headingRef.current?.focus()
   }, [stepIndex])
 
@@ -290,20 +289,6 @@ export default function StepForm({ onSubmit, onSuccess }) {
             <dt>Seviye</dt>
             <dd>{labelOf(LEVEL_OPTIONS, summary.level)}</dd>
           </dl>
-
-          <label className="step-form__check step-form__consent">
-            <input
-              type="checkbox"
-              checked={values.consent}
-              onChange={(e) => setValues((v) => ({ ...v, consent: e.target.checked }))}
-              aria-invalid={errors.consent ? 'true' : undefined}
-              aria-describedby={describe('consent')}
-            />
-            Katılım koşullarını ve KVKK aydınlatma metnini okudum, kabul ediyorum.
-          </label>
-          <p className="field__error" id="consent-error" aria-live="polite">
-            {errors.consent}
-          </p>
         </>
       )}
 
