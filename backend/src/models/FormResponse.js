@@ -4,7 +4,7 @@ const answerSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     label: {
       type: String,
@@ -22,19 +22,19 @@ const uploadedFileSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     originalName: {
       type: String,
-      required: true
+      required: [true, 'Orijinal dosya adı zorunludur.']
     },
     filename: {
       type: String,
-      required: true
+      required: [true, 'Dosya adı zorunludur.']
     },
     url: {
       type: String,
-      required: true
+      required: [true, 'Dosya URL adresi zorunludur.']
     },
     size: {
       type: Number,
@@ -54,7 +54,7 @@ const formResponseSchema = new mongoose.Schema(
     },
     formSlug: {
       type: String,
-      required: true,
+      required: [true, 'Form URL adresi (slug) zorunludur.'],
       index: true
     },
     answers: {
@@ -92,10 +92,7 @@ const formResponseSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
 formResponseSchema.index({ form: 1, submittedAt: -1 });
 
 const FormResponse = mongoose.model('FormResponse', formResponseSchema);
-
 module.exports = FormResponse;
-
