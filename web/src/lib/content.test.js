@@ -139,3 +139,30 @@ describe('taslak okuma ve yazma', () => {
     expect(readDraft(base, store)).toBeNull()
   })
 })
+
+describe('isEventShape: kayıt formu', () => {
+  const field = (id, options = []) => ({ id, label: 'L', kind: options.length ? 'select' : 'text', required: 'yes', hint: '', options })
+  const withFields = (...fields) => ({ ...base, register: { steps: [{ title: 'Adım', fields }] } })
+  const form = withFields(field('a', [{ value: 'x', label: 'X' }]), field('b'))
+
+  it('geçerli formu kabul eder', () => {
+    expect(isEventShape(form, form)).toBe(true)
+  })
+
+  it.each([
+    ['yinelenen alan adı', withFields(field('a', [{ value: 'x', label: 'X' }]), field('a'))],
+    ['boş alan adı', withFields(field('a', [{ value: 'x', label: 'X' }]), field(''))],
+    ['boş seçenek değeri', withFields(field('a', [{ value: '', label: 'X' }]))],
+    ['yinelenen seçenek değeri', withFields(field('a', [{ value: 'x', label: 'X' }, { value: 'x', label: 'Y' }]))],
+    ['seçeneksiz açılır liste', withFields({ ...field('a'), kind: 'select' })],
+    ['alansız form', { ...base, register: { steps: [] } }],
+  ])('%s reddedilir', (_, value) => {
+    expect(isEventShape(form, value)).toBe(false)
+  })
+
+  it('bilinmeyen alan türü reddedilir', () => {
+    const bad = withFields({ ...field('a', [{ value: 'x', label: 'X' }]), kind: 'date' })
+    expect(isEventShape(form, bad)).toBe(false)
+  })
+})
+

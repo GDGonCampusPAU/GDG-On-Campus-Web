@@ -21,6 +21,19 @@ const labels = {
   mentors: 'Mentorlar',
   sponsors: 'Sponsorlar',
   socials: 'Sosyal medya',
+  register: 'Kayıt sayfası',
+  status: 'Durum',
+  closedMessage: 'Kapalıyken gösterilen mesaj',
+  successTitle: 'Başarı başlığı',
+  successText: 'Başarı metni',
+  steps: 'Form adımları',
+  fields: 'Alanlar',
+  options: 'Seçenekler',
+  id: 'Alan adı (backend\'e giden anahtar)',
+  kind: 'Alan türü',
+  required: 'Zorunlu',
+  hint: 'İpucu',
+  value: 'Değer (backend\'e giden)',
   title: 'Başlık',
   text: 'Metin',
   color: 'Renk',
@@ -46,6 +59,9 @@ const one = {
   mentors: 'Mentor',
   sponsors: 'Sponsor',
   socials: 'Bağlantı',
+  steps: 'Adım',
+  fields: 'Alan',
+  options: 'Seçenek',
 }
 const person = { name: '', title: '', photo: null }
 const blank = {
@@ -58,8 +74,24 @@ const blank = {
   mentors: person,
   sponsors: { name: '', tier: 'support', logo: null, url: null },
   socials: { label: '', url: '' },
+  steps: { title: '', fields: [] },
+  fields: { id: '', label: '', kind: 'text', required: 'yes', hint: '', options: [] },
+  options: { value: '', label: '' },
 }
-const longText = new Set(['text', 'description', 'tagline'])
+const longText = new Set(['text', 'description', 'tagline', 'closedMessage', 'successText'])
+const optionLabels = {
+  ...typeLabels,
+  open: 'Açık',
+  closed: 'Kapalı',
+  text: 'Kısa metin',
+  textarea: 'Uzun metin',
+  email: 'E-posta',
+  tel: 'Telefon',
+  select: 'Açılır liste',
+  checkbox: 'Çoklu seçim',
+  yes: 'Evet',
+  no: 'Hayır',
+}
 const nullable = new Set(['photo', 'logo', 'url'])
 const tabs = [
   ['Genel', ['organizer', 'name', 'tagline', 'theme', 'startsAt', 'location']],
@@ -70,6 +102,7 @@ const tabs = [
   ['Ekip', ['people']],
   ['Sponsorlar', ['sponsors']],
   ['Sosyal', ['socials']],
+  ['Kayıt', ['register']],
 ]
 // shortcut: client-side check, the value ships in the bundle; replace with real auth when the backend exists
 const PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || '123'
@@ -179,7 +212,7 @@ function Node({ name, title, path, value, update }) {
         <select {...shared}>
           {[...new Set([value, ...options])].map((o) => (
             <option key={o} value={o}>
-              {typeLabels[o] ?? o}
+              {optionLabels[o] ?? o}
             </option>
           ))}
         </select>
@@ -227,7 +260,7 @@ function Editor() {
     // Geçersiz taslak okunurken sessizce yok sayılırdı; kaydetmeden önce reddet.
     if (!isEventShape(base, draft)) {
       return setNote({
-        text: 'Kaydedilmedi: bir alan geçersiz. Başlangıç tarihi geçerli olmalı, bağlantılar / veya http(s) ile başlamalı.',
+        text: 'Kaydedilmedi: bir alan geçersiz. Başlangıç tarihi geçerli olmalı, bağlantılar / veya http(s) ile başlamalı, form alan adları dolu ve benzersiz olmalı.',
         bad: true,
       })
     }

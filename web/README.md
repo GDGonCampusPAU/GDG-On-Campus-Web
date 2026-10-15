@@ -34,13 +34,9 @@ Geliştirme sunucusunda tanımlı değilse istek atılmaz ve başarı ekranı g�
 Backend yazılırken form şu isteği atar. Adres `VITE_REGISTER_ENDPOINT` ile verilir, başka bir ayar gerekmez.
 
 - `POST`, `Content-Type: application/json`, `Accept: application/json`, 15 saniye zaman aşımı.
-- Gövde alanları. Hepsi string, `interests` dizi. Değerleri `src/lib/registration.js` içindeki seçenek listelerinden gelir.
-  - `fullName`, `email` (küçük harf), `phone` (boşluksuz, `+` ve rakam), `department`
-  - `year`: `prep`, `1`, `2`, `3`, `4`, `grad`
-  - `teamRole`: `founder`, `member`, `looking`
-  - `teamName` (`teamRole` `looking` ise boş olabilir), `teammates` (serbest metin, boş olabilir)
-  - `interests`: `web`, `mobile`, `ai`, `game`, `cloud` değerlerinden en az biri
-  - `level`: `beginner`, `intermediate`, `advanced`
+- Gövde, kayıt formundaki her alanın `id` değerini anahtar olarak taşıyan düz bir JSON nesnesidir. Değerler string, çoklu seçim alanları (`checkbox`) string dizisidir. Seçim alanlarında gönderilen değer seçeneğin `value` alanıdır.
+- Alanlar kodda değil `src/data/event.json` içindeki `register.steps` altındadır ve `/admin` panelindeki **Kayıt** sekmesinden değişir. Alan eklemek, çıkarmak veya `id`/`value` değiştirmek gönderilen gövdeyi değiştirir; backend ile birlikte güncelle.
+- Varsayılan alanlar: `fullName`, `email` (küçük harf), `phone` (boşluksuz, `+` ve rakam), `education`, `department`, `year`, `teamName` (boş olabilir), `teamRole` (`looking`, `ready`, `incomplete`), `teammates` (boş olabilir), `interests`, `level` (`beginner`, `basic`, `project`, `advanced`), `hackathonBefore` (`yes`, `no`), `motivation`, `availability` (`yes`, `no`, `unsure`), `heardFrom` (boş olabilir). Güncel liste her zaman `register.steps` içindedir.
 - Başarı için herhangi bir 2xx yeterlidir, gövde okunmaz. Başka durumda form "Sunucu hatası (kod)" gösterir ve kullanıcı yeniden dener.
 - Aynı e-posta ikinci kez gelirse backend karar verir. Form çift tıklamayı engeller ama sayfa yenilenince yeniden gönderebilir.
 

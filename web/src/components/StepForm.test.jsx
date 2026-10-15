@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import StepForm from './StepForm.jsx'
 import { fillPerson, fillUntilConfirm, next } from '../test/registrationHelpers.js'
+import { fixtureSteps } from '../test/fixtures.js'
 
 const setup = (onSubmit = vi.fn().mockResolvedValue({ ok: true })) => {
   const onSuccess = vi.fn()
   const user = userEvent.setup()
-  render(<StepForm onSubmit={onSubmit} onSuccess={onSuccess} />)
+  render(<StepForm steps={fixtureSteps} onSubmit={onSubmit} onSuccess={onSuccess} />)
   return { user, onSubmit, onSuccess }
 }
 
@@ -22,7 +23,7 @@ describe('StepForm', () => {
     const { user } = setup()
     await next(user)
     expect(screen.getByRole('heading', { level: 2, name: 'Kişisel bilgiler' })).toBeInTheDocument()
-    expect(screen.getByText('Ad ve soyadını yaz.')).toBeInTheDocument()
+    expect(screen.getAllByText('Bu alanı doldur.').length).toBeGreaterThan(0)
     expect(screen.getByLabelText('Ad soyad')).toHaveAttribute('aria-invalid', 'true')
   })
 
@@ -45,7 +46,7 @@ describe('StepForm', () => {
     expect(onSubmit.mock.calls[0][0]).toEqual({
       fullName: 'Ayşe Yılmaz',
       email: 'ayse@example.com',
-      phone: '0555 123 45 67',
+      phone: '05551234567',
       department: 'Bilgisayar Mühendisliği',
       year: '2',
       teamName: 'Kod Kurtları',
@@ -91,7 +92,7 @@ describe('StepForm', () => {
     expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 
-  it('Takım arıyorum rolünde takım adı boş bırakılıp ilerlenebilir', async () => {
+  it('zorunlu olmayan alan boş bırakılıp ilerlenebilir ve ipucu alana bağlıdır', async () => {
     const { user } = setup()
     await fillPerson(user)
     await next(user)
@@ -100,6 +101,21 @@ describe('StepForm', () => {
     expect(screen.getByLabelText('Takım adı')).toHaveAttribute('aria-describedby', 'teamName-hint')
     await next(user)
     expect(screen.getByRole('heading', { level: 2, name: 'İlgi alanları' })).toBeInTheDocument()
+  })
+
+  it('admin panelinden eklenen yeni alan çizilir, doğrulanır ve payload\'a girer', async () => {
+    const steps = [
+      { title: 'Ek', fields: [{ id: 'city', label: 'Şehir', kind: 'text', required: 'yes', hint: '', options: [] }] },
+    ]
+    const onSubmit = vi.fn().mockResolvedValue({ ok: true })
+    const user = userEvent.setup()
+    render(<StepForm steps={steps} onSubmit={onSubmit} onSuccess={vi.fn()} />)
+    await next(user)
+    expect(screen.getByLabelText('Şehir')).toHaveAttribute('aria-invalid', 'true')
+    await user.type(screen.getByLabelText('Şehir'), '  Denizli ')
+    await next(user)
+    await user.click(screen.getByRole('button', { name: 'Gönder' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ city: 'Denizli' }))
   })
 
   it('aynı anda gelen iki submit olayında tek istek atar', async () => {
@@ -139,7 +155,7 @@ describe('StepForm', () => {
   it('StrictMode altında ilk açılışta odağı başlığa taşımaz', () => {
     render(
       <StrictMode>
-        <StepForm onSubmit={vi.fn()} onSuccess={vi.fn()} />
+        <StepForm steps={fixtureSteps} onSubmit={vi.fn()} onSuccess={vi.fn()} />
       </StrictMode>,
     )
     expect(screen.getByRole('heading', { level: 2, name: 'Kişisel bilgiler' })).not.toHaveFocus()

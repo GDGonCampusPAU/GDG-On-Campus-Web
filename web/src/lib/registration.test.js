@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { initialValues, normalize, validateStep, submitRegistration, STEPS } from './registration.js'
+import { fieldsOf, initialValues, normalize, validateStep, submitRegistration } from './registration.js'
+import { fixtureSteps } from '../test/fixtures.js'
 
+const [person, team, interest] = fixtureSteps
+const blank = initialValues(fixtureSteps)
 const valid = {
-  ...initialValues,
+  ...blank,
   fullName: 'Ayşe Yılmaz',
   email: 'ayse@example.com',
-  phone: '0555 123 45 67',
+  phone: '05551234567',
   department: 'Bilgisayar Mühendisliği',
   year: '2',
   teamName: 'Kod Kurtları',
@@ -14,15 +17,17 @@ const valid = {
   level: 'beginner',
 }
 
-describe('STEPS', () => {
-  it.each(STEPS.filter((s) => s.id !== 'confirm'))('$id adımının doğrulama dalı vardır', ({ id }) => {
-    expect(Object.keys(validateStep(id, initialValues)).length).toBeGreaterThan(0)
+describe('initialValues', () => {
+  it('her alan için boş değer üretir, çoklu seçim dizi olur', () => {
+    expect(Object.keys(blank)).toEqual(fieldsOf(fixtureSteps).map((f) => f.id))
+    expect(blank.interests).toEqual([])
+    expect(blank.fullName).toBe('')
   })
 })
 
 describe('normalize', () => {
-  it('kirli girdiyi temizler', () => {
-    const out = normalize({
+  it('kirli girdiyi türüne göre temizler', () => {
+    const out = normalize(fixtureSteps, {
       ...valid,
       fullName: '  İlker   Şahin ',
       email: '  ILKER@Example.COM ',
@@ -37,115 +42,70 @@ describe('normalize', () => {
     expect(out.teammates).toBe('Ali, Veli')
   })
 
-  it('Takım arıyorum rolünde takım adını payload dışında bırakır', () => {
-    expect(normalize({ ...valid, teamRole: 'looking', teamName: 'Kod Kurtları' }).teamName).toBe('')
+  it('yalnızca tanımlı alanları döndürür', () => {
+    expect(Object.keys(normalize(fixtureSteps, { ...valid, stray: 'x' }))).not.toContain('stray')
   })
 
   it('girdi nesnesini değiştirmez', () => {
     const input = { ...valid, email: ' A@B.CO ' }
-    normalize(input)
+    normalize(fixtureSteps, input)
     expect(input.email).toBe(' A@B.CO ')
   })
 })
 
-describe('validateStep: person', () => {
-  it('boş değerlerde tüm zorunlu alanlar hata verir', () => {
-    const errors = validateStep('person', initialValues)
-    expect(Object.keys(errors).sort()).toEqual(['department', 'email', 'fullName', 'phone', 'year'])
+describe('validateStep', () => {
+  it('boş değerlerde yalnızca zorunlu alanlar hata verir', () => {
+    expect(Object.keys(validateStep(person, blank)).sort()).toEqual(['department', 'email', 'fullName', 'phone', 'year'])
+    expect(Object.keys(validateStep(team, blank))).toEqual(['teamRole'])
+    expect(Object.keys(validateStep(interest, blank)).sort()).toEqual(['interests', 'level'])
   })
 
   it('geçerli girdide hata yoktur', () => {
-    expect(validateStep('person', valid)).toEqual({})
+    fixtureSteps.forEach((step) => expect(validateStep(step, valid)).toEqual({}))
   })
 
-  it('tek kelimelik ad hata verir', () => {
-    expect(validateStep('person', { ...valid, fullName: 'Ayşe' }).fullName).toBe('Ad ve soyadını yaz.')
-  })
-
-  it('Türkçe karakterli isim geçerlidir', () => {
-    expect(validateStep('person', { ...valid, fullName: 'İlker Şahin' })).toEqual({})
+  it('boş adım listesi (özet adımı) hata vermez', () => {
+    expect(validateStep({ title: 'Onay', fields: [] }, valid)).toEqual({})
   })
 
   it('boşluklu ve büyük harfli e-posta geçerlidir, eksik olan değildir', () => {
-    expect(validateStep('person', { ...valid, email: '  AYSE@Example.COM ' })).toEqual({})
-    expect(validateStep('person', { ...valid, email: 'ayse@' }).email).toBe('Geçerli bir e-posta adresi yaz.')
-  })
-
-  it('telefon biçimlerini kabul eder, kısa numarayı reddeder', () => {
-    expect(validateStep('person', { ...valid, phone: '0 (555) 123-45-67' })).toEqual({})
-    expect(validateStep('person', { ...valid, phone: '+90 555 123 45 67' })).toEqual({})
-    expect(validateStep('person', { ...valid, phone: '123' }).phone).toBe('Geçerli bir telefon numarası yaz.')
+    expect(validateStep(person, { ...valid, email: '  AYSE@Example.COM ' })).toEqual({})
+    expect(validateStep(person, { ...valid, email: 'ayse@' }).email).toBe('Geçerli bir e-posta adresi yaz.')
   })
 
   it.each([
+    ['0 (555) 123-45-67', true],
+    ['+90 555 123 45 67', true],
     ['1234567890', true],
     ['12345678901234', true],
+    ['123', false],
     ['123456789', false],
     ['123456789012345', false],
     ['555abc1234567', false],
     ['12345+67890', false],
   ])('telefon %s geçerlilik: %s', (phone, ok) => {
-    expect('phone' in validateStep('person', { ...valid, phone })).toBe(!ok)
+    expect('phone' in validateStep(person, { ...valid, phone })).toBe(ok === false)
   })
 
-  it('bilinmeyen sınıf reddedilir', () => {
-    expect(validateStep('person', { ...valid, year: '9' }).year).toBe('Sınıfını seç.')
-  })
-})
-
-describe('validateStep: team, interest, confirm', () => {
-  it('takım adı ve rol zorunludur', () => {
-    const errors = validateStep('team', initialValues)
-    expect(errors.teamName).toBe('Takım adını yaz.')
-    expect(errors.teamRole).toBe('Rolünü seç.')
-    expect(validateStep('team', valid)).toEqual({})
+  it('listede olmayan seçim reddedilir', () => {
+    expect(validateStep(person, { ...valid, year: '9' }).year).toBe('Listedeki seçeneklerden seç.')
+    expect(validateStep(team, { ...valid, teamRole: 'hacker' }).teamRole).toBe('Listedeki seçeneklerden seç.')
+    expect(validateStep(interest, { ...valid, interests: ['web', 'hacking'] }).interests).toBeDefined()
+    expect(validateStep(interest, { ...valid, level: 'god' }).level).toBeDefined()
   })
 
-  it('Takım arıyorum rolünde takım adı boş olabilir', () => {
-    expect(validateStep('team', { ...valid, teamRole: 'looking', teamName: '' })).toEqual({})
+  it('zorunlu olmayan alan boş geçilir, doldurulursa türü yine denetlenir', () => {
+    const step = { title: 'T', fields: [{ id: 'mail', label: 'M', kind: 'email', required: 'no', hint: '', options: [] }] }
+    expect(validateStep(step, { mail: '' })).toEqual({})
+    expect(validateStep(step, { mail: 'x' }).mail).toBe('Geçerli bir e-posta adresi yaz.')
   })
 
-  it('kurucu rolünde boş takım adı hata verir', () => {
-    expect(validateStep('team', { ...valid, teamRole: 'founder', teamName: '' })).toEqual({
-      teamName: 'Takım adını yaz.',
-    })
-  })
-
-  it('üye rolünde boş takım adı hata verir', () => {
-    expect(validateStep('team', { ...valid, teamRole: 'member', teamName: '' })).toEqual({
-      teamName: 'Takım adını yaz.',
-    })
-  })
-
-  it('rol boşken rol hatası verir', () => {
-    const errors = validateStep('team', { ...valid, teamRole: '', teamName: '' })
-    expect(errors.teamRole).toBe('Rolünü seç.')
-  })
-
-  it('bilinmeyen rol reddedilir', () => {
-    expect(validateStep('team', { ...valid, teamRole: 'hacker' }).teamRole).toBe('Rolünü seç.')
-  })
-
-  it('en az bir ilgi alanı ve seviye zorunludur', () => {
-    const errors = validateStep('interest', initialValues)
-    expect(errors.interests).toBe('En az bir ilgi alanı seç.')
-    expect(errors.level).toBe('Deneyim seviyeni seç.')
-    expect(validateStep('interest', valid)).toEqual({})
-  })
-
-  it('bilinmeyen ilgi alanı reddedilir', () => {
-    expect(validateStep('interest', { ...valid, interests: ['hacking'] }).interests).toBe(
-      'En az bir ilgi alanı seç.',
-    )
-    expect(validateStep('interest', { ...valid, interests: ['web', 'hacking'] }).interests).toBeDefined()
-  })
-
-  it('bilinmeyen seviye reddedilir', () => {
-    expect(validateStep('interest', { ...valid, level: 'god' }).level).toBe('Deneyim seviyeni seç.')
-  })
-
-  it('özet adımı ek doğrulama istemez', () => {
-    expect(validateStep('confirm', valid)).toEqual({})
+  it('zorunlu olmayan çoklu seçim boş olabilir', () => {
+    const step = {
+      title: 'T',
+      fields: [{ id: 'c', label: 'C', kind: 'checkbox', required: 'no', hint: '', options: [{ value: 'a', label: 'A' }] }],
+    }
+    expect(validateStep(step, { c: [] })).toEqual({})
   })
 })
 
@@ -167,12 +127,9 @@ describe('submitRegistration', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('endpoint varsa normalize edilmiş JSON POST eder', async () => {
+  it('endpoint varsa değerleri JSON POST eder', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200 })
-    const result = await submitRegistration(
-      { ...valid, email: ' AYSE@Example.com ' },
-      { endpoint: 'https://example.test/kayit', fetchImpl },
-    )
+    const result = await submitRegistration(valid, { endpoint: 'https://example.test/kayit', fetchImpl })
     expect(result).toEqual({ ok: true })
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [url, init] = fetchImpl.mock.calls[0]

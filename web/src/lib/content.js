@@ -13,6 +13,9 @@ export const choices = {
   color: ['blue', 'green', 'yellow', 'red'],
   tier: ['main', 'support'],
   type: Object.keys(typeLabels),
+  status: ['open', 'closed'],
+  kind: ['text', 'textarea', 'email', 'tel', 'select', 'checkbox'],
+  required: ['yes', 'no'],
 }
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -40,7 +43,21 @@ function matches(base, v, path = []) {
   return typeof v === typeof base
 }
 
-export const isEventShape = (base, value) => matches(base, value) && !Number.isNaN(Date.parse(value.startsAt))
+// Şekil tutsa bile form çalışmaz: alan adları boş/yinelenen olamaz, seçeneklerin değeri dolu ve benzersiz olmalı.
+function formUsable(steps) {
+  const fields = steps.flatMap((s) => s.fields)
+  const ids = fields.map((f) => f.id)
+  // Boş options şablonu öğeleri doğrulatmaz; bu yüzden öğenin şekli de burada denetlenir.
+  const optionsOk = (f) => {
+    const values = f.options.map((o) => o?.value)
+    const needsOptions = f.kind === 'select' || f.kind === 'checkbox'
+    return (!needsOptions || values.length > 0) && values.every(Boolean) && new Set(values).size === values.length && f.options.every((o) => typeof o.label === 'string')
+  }
+  return ids.length > 0 && ids.every(Boolean) && new Set(ids).size === ids.length && fields.every(optionsOk)
+}
+
+export const isEventShape = (base, value) =>
+  matches(base, value) && !Number.isNaN(Date.parse(value.startsAt)) && (!value.register?.steps || formUsable(value.register.steps))
 
 const store = (s) => s ?? window.localStorage
 

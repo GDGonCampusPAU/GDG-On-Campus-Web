@@ -1,96 +1,48 @@
-export const STEPS = [
-  { id: 'person', title: 'Kişisel bilgiler' },
-  { id: 'team', title: 'Takım' },
-  { id: 'interest', title: 'İlgi alanları' },
-  { id: 'confirm', title: 'Onay' },
-]
-
-export const YEAR_OPTIONS = [
-  { value: 'prep', label: 'Hazırlık' },
-  { value: '1', label: '1. sınıf' },
-  { value: '2', label: '2. sınıf' },
-  { value: '3', label: '3. sınıf' },
-  { value: '4', label: '4. sınıf' },
-  { value: 'grad', label: 'Yüksek lisans / Doktora' },
-]
-
-export const ROLE_OPTIONS = [
-  { value: 'founder', label: 'Takım kurucusuyum' },
-  { value: 'member', label: 'Bir takımın üyesiyim' },
-  { value: 'looking', label: 'Takım arıyorum' },
-]
-
-export const INTEREST_OPTIONS = [
-  { value: 'web', label: 'Web' },
-  { value: 'mobile', label: 'Mobil' },
-  { value: 'ai', label: 'Yapay Zeka' },
-  { value: 'game', label: 'Oyun' },
-  { value: 'cloud', label: 'Bulut' },
-]
-
-export const LEVEL_OPTIONS = [
-  { value: 'beginner', label: 'Yeni başlıyorum' },
-  { value: 'intermediate', label: 'Orta seviye' },
-  { value: 'advanced', label: 'İleri seviye' },
-]
-
-export const initialValues = {
-  fullName: '',
-  email: '',
-  phone: '',
-  department: '',
-  year: '',
-  teamName: '',
-  teamRole: '',
-  teammates: '',
-  interests: [],
-  level: '',
-}
+// Form, event.json içindeki register.steps verisinden çizilir. Alan şekli:
+// { id, label, kind: text|textarea|email|tel|select|checkbox, required: yes|no, hint, options: [{ value, label }] }
+export const fieldsOf = (steps) => steps.flatMap((s) => s.fields)
 
 const collapse = (s) => s.trim().replace(/\s+/g, ' ')
+const isChecklist = (f) => f.kind === 'checkbox'
 
-export function normalize(values) {
-  return {
-    ...values,
-    fullName: collapse(values.fullName),
-    email: values.email.trim().toLowerCase(),
-    phone: values.phone.replace(/[\s().-]/g, ''),
-    department: collapse(values.department),
-    // Takım arayan kişinin takımı yoktur; rol değiştirilirken kalan ad payload'a girmesin.
-    teamName: values.teamRole === 'looking' ? '' : collapse(values.teamName),
-    teammates: values.teammates.trim(),
-    interests: [...values.interests],
-  }
+export const initialValues = (steps) =>
+  Object.fromEntries(fieldsOf(steps).map((f) => [f.id, isChecklist(f) ? [] : '']))
+
+function clean(f, v) {
+  if (isChecklist(f)) return [...v]
+  if (f.kind === 'email') return v.trim().toLowerCase()
+  if (f.kind === 'tel') return v.replace(/[\s().-]/g, '')
+  return f.kind === 'textarea' ? v.trim() : collapse(v)
 }
+
+export const normalize = (steps, values) =>
+  Object.fromEntries(fieldsOf(steps).map((f) => [f.id, clean(f, values[f.id])]))
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_RE = /^\+?\d{10,14}$/
 
-const has = (options, value) => options.some((o) => o.value === value)
+const known = (f, v) => f.options.some((o) => o.value === v)
 
-export function validateStep(stepId, values) {
-  const v = normalize(values)
+function fieldError(f, v) {
+  const required = f.required === 'yes'
+  if (isChecklist(f)) {
+    if (required && v.length === 0) return 'En az bir seçenek seç.'
+    return v.every((x) => known(f, x)) ? '' : 'Listedeki seçeneklerden seç.'
+  }
+  if (v === '') return required ? (f.kind === 'select' ? 'Bir seçenek seç.' : 'Bu alanı doldur.') : ''
+  if (f.kind === 'email' && !EMAIL_RE.test(v)) return 'Geçerli bir e-posta adresi yaz.'
+  if (f.kind === 'tel' && !PHONE_RE.test(v)) return 'Geçerli bir telefon numarası yaz.'
+  if (f.kind === 'select' && !known(f, v)) return 'Listedeki seçeneklerden seç.'
+  return ''
+}
+
+export function validateStep(step, values) {
+  const v = normalize([step], values)
   const errors = {}
-
-  if (stepId === 'person') {
-    if (v.fullName.split(' ').filter(Boolean).length < 2) errors.fullName = 'Ad ve soyadını yaz.'
-    if (!EMAIL_RE.test(v.email)) errors.email = 'Geçerli bir e-posta adresi yaz.'
-    if (!PHONE_RE.test(v.phone)) errors.phone = 'Geçerli bir telefon numarası yaz.'
-    if (v.department.length < 2) errors.department = 'Bölümünü yaz.'
-    if (!has(YEAR_OPTIONS, v.year)) errors.year = 'Sınıfını seç.'
+  for (const f of step.fields) {
+    const msg = fieldError(f, v[f.id])
+    if (msg) errors[f.id] = msg
   }
-
-  if (stepId === 'team') {
-    if (v.teamRole !== 'looking' && v.teamName.length < 2) errors.teamName = 'Takım adını yaz.'
-    if (!has(ROLE_OPTIONS, v.teamRole)) errors.teamRole = 'Rolünü seç.'
-  }
-
-  if (stepId === 'interest') {
-    if (v.interests.length === 0 || !v.interests.every((i) => has(INTEREST_OPTIONS, i)))
-      errors.interests = 'En az bir ilgi alanı seç.'
-    if (!has(LEVEL_OPTIONS, v.level)) errors.level = 'Deneyim seviyeni seç.'
-  }
-
   return errors
 }
 
@@ -109,7 +61,7 @@ export async function submitRegistration(
     const res = await fetchImpl(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(normalize(values)),
+      body: JSON.stringify(values),
       signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) return { ok: false, error: `Sunucu hatası (${res.status}). Biraz sonra tekrar dene.` }

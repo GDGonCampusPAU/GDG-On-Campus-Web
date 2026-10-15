@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../components/Button.jsx'
 import StepForm from '../components/StepForm.jsx'
+import { event } from '../data/event.js'
 import { submitRegistration } from '../lib/registration.js'
 import './Register.css'
 
 const endpoint = import.meta.env.VITE_REGISTER_ENDPOINT
 
-export default function Register() {
+export default function Register({ data = event }) {
+  const { register } = data
   const [done, setDone] = useState(false)
   const successHeadingRef = useRef(null)
 
@@ -16,9 +18,11 @@ export default function Register() {
 
   return (
     <div className="register container">
-      <h1 className="register__title">Kayıt</h1>
+      <h1 className="register__title">{register.title}</h1>
 
-      {done ? (
+      {register.status === 'closed' ? (
+        <p>{register.closedMessage}</p>
+      ) : done ? (
         <section className="register__success" aria-live="polite">
           <div className="register__shapes" aria-hidden="true">
             <i className="tone--blue" />
@@ -27,13 +31,13 @@ export default function Register() {
             <i className="tone--green" />
           </div>
           <h2 tabIndex={-1} ref={successHeadingRef}>
-            Kaydın alındı!
+            {register.successTitle}
           </h2>
-          <p>Kaydın alındı. Programa göz atmayı unutma.</p>
+          <p>{register.successText}</p>
           <Button to="/program">Programı Gör</Button>
         </section>
       ) : (
-        <StepForm onSubmit={(values) => submitRegistration(values, { endpoint })} onSuccess={() => setDone(true)} />
+        <StepForm steps={register.steps} onSubmit={(values) => submitRegistration(values, { endpoint })} onSuccess={() => setDone(true)} />
       )}
     </div>
   )

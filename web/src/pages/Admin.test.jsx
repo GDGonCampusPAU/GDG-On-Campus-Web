@@ -143,6 +143,32 @@ describe('Admin paneli', () => {
     expect(screen.queryByText(/taslak bu tarayıcıda siteye uygulanıyor/)).not.toBeInTheDocument()
   })
 
+  it('Kayıt sekmesinde durumu kapalıya çevirip kaydetmek taslağa yazar', async () => {
+    const user = await openEditor()
+    await openTab(user, 'Kayıt')
+    expect(screen.getByRole('combobox', { name: 'Durum' })).toHaveValue(base.register.status)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Durum' }), 'closed')
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }))
+    expect(stored().register.status).toBe('closed')
+  })
+
+  it('Kayıt sekmesinde forma yeni alan eklenip kaydedilir, adı boş alan kaydı engeller', async () => {
+    const user = await openEditor()
+    await openTab(user, 'Kayıt')
+    const firstStep = base.register.steps[0]
+    const step = await openCard(user, firstStep.title)
+    await user.click(step.getAllByRole('button', { name: 'Alan ekle' }).at(-1))
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Kaydedilmedi')
+    expect(stored()).toBeUndefined()
+
+    const added = within(screen.getByText('Alan ' + (firstStep.fields.length + 1), { selector: 'summary' }).closest('details'))
+    await user.type(added.getByRole('textbox', { name: /Alan adı/ }), 'city')
+    await user.type(added.getByRole('textbox', { name: 'Etiket' }), 'Şehir')
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }))
+    expect(stored().register.steps[0].fields.at(-1)).toMatchObject({ id: 'city', label: 'Şehir', kind: 'text', required: 'yes' })
+  })
+
   it('sponsor adını düzenleyip kaydetmek taslağı yazar', async () => {
     seed({ sponsors: [sponsor('Alfa')] })
     const user = await openEditor()
