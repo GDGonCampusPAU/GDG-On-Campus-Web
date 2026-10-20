@@ -88,3 +88,12 @@ desktop.ini
 !.vscode/extensions.json
 *.swp
 *~
+
+# ==========================================
+# Hackathon web (frontend)
+# ==========================================
+.claude/
+.superpowers/
+.vercel/
+Docs/*.pdf
+Docs/superpowers/

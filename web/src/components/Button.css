@@ -1,0 +1,40 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: 2px solid var(--black);
+  border-radius: var(--radius-pill);
+  font: 700 1rem/1 var(--font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-radius 0.2s ease, transform 0.2s ease;
+}
+
+.btn:hover {
+  border-radius: var(--radius-sm);
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn--primary {
+  background: var(--yellow);
+  color: var(--black);
+}
+
+.btn--secondary {
+  background: var(--black);
+  color: var(--white);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--black);
+}

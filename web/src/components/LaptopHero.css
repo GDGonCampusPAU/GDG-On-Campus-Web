@@ -1,0 +1,589 @@
+/* Varsayılan hâl (JS yok / hareket azaltılmış): kapak açık, zemin siyah. --p 0..1 kaydırma ilerlemesidir. */
+.laptop-hero {
+  --p: 1;
+  --bg: clamp(0, calc((var(--p) - 0.05) / 0.45), 1);
+  --cam: clamp(0, calc(var(--p) / 0.85), 1);
+  --open: clamp(0, calc((var(--p) - 0.12) / 0.6), 1);
+  --on: clamp(0, calc((var(--open) - 0.5) / 0.4), 1);
+  --z: 0; /* ekrana yaklaşma ilerlemesi, açılma bitince 0..1 */
+  --c: 0; /* sayfanın ekranın içinde kaydırılan px'i */
+  --zs: 1;
+  --zx: 0px;
+  --zy: 0px;
+  --zs2: 1;
+  --zx2: 0px;
+  --zy2: 0px;
+  --lid-past: 17deg; /* kapak tam açıkken dikten ne kadar geri yatar */
+  /* Yaklaşma sonunda kamera yüksekliği kapağın geri yatışına eşitlenir: ekran kameraya tam dik olur. */
+  --tilt: calc(-50deg + var(--cam) * 45deg - var(--z) * (var(--lid-past) - 5deg));
+  --lid: calc(-90deg + var(--open) * (90deg + var(--lid-past)));
+  background: color-mix(in srgb, var(--black) calc(var(--bg) * 100%), var(--off-white));
+  color: var(--white);
+}
+
+.laptop-hero--scrub {
+  --p: 0;
+  height: calc(100svh + var(--open-dist, 120svh) + var(--zoom-dist, 0px) + var(--scroll-len, 0px));
+  color: var(--black);
+}
+
+.laptop-hero--scrub[data-dark='true'] {
+  color: var(--white);
+}
+
+.laptop-hero[data-dark='true'] .btn--ghost {
+  border-color: var(--white);
+  color: var(--white);
+}
+
+/* .container'ı (base.css, sonradan yüklenir) geçsin diye .laptop-hero ile birlikte yazılır. */
+.laptop-hero .laptop-hero__stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
+  gap: 24px;
+  align-content: center;
+  padding-block: 64px;
+}
+
+.laptop-hero.laptop-hero--scrub .laptop-hero__stage {
+  position: sticky;
+  top: var(--nav-h);
+  height: calc(100vh - var(--nav-h));
+  height: calc(100svh - var(--nav-h));
+  padding-block: 16px;
+}
+
+.laptop-hero__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.laptop-hero__theme {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.laptop-hero__title {
+  max-width: 14ch;
+  font-size: clamp(2rem, 7vw, 4.25rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.laptop-hero__title strong {
+  display: block;
+  font-weight: 700;
+}
+
+.laptop-hero__tagline {
+  max-width: 36ch;
+  font-size: clamp(1.0625rem, 2.6vw, 1.5rem);
+}
+
+.laptop-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.laptop-hero__meta {
+  font-family: var(--font-mono);
+}
+
+/* Kısa telefonlarda (SE gibi) sahne sığsın diye slogan gizlenir; ad ve CTA kalır. */
+@media (max-width: 767px) and (max-height: 700px) {
+  .laptop-hero__tagline {
+    display: none;
+  }
+}
+
+/* --- Macbook: ölçüler cqw ile, yani kutu genişliğinin yüzdesi. Kapak ve taban aynı ayak izine (100 x 70) sahiptir --- */
+.laptop {
+  --depth: 70cqw;
+  --yc: 22cqw; /* taban güvertesinin merkezi, sahne merkezinin altında */
+  --r: 1.4cqw;
+  --bz-side: 1.1cqw;
+  --bz-top: 1.1cqw;
+  --bz-bottom: 2.3cqw;
+  --alu: #8a8d93;
+  --glass: #050506;
+  container-type: inline-size;
+  width: min(100%, 1240px, calc((100svh - var(--nav-h)) * 1.28));
+  padding-inline: 4%;
+  justify-self: center;
+}
+
+.laptop__view {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 100 / 80;
+  perspective: 240cqw;
+}
+
+.laptop__scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt));
+}
+
+/* Masaya düşen yumuşak gölge; kapak açıldıkça koyulaşır. */
+.laptop__shadow {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  top: calc(50% + 29cqw + (1 - var(--cam)) * 12cqw);
+  height: 12cqw;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.5), transparent);
+  opacity: calc((0.35 + var(--open) * 0.65) * (1 - var(--z)));
+}
+
+/* Taban yatık: arka kenarı z=-35cqw, ön kenarı z=+35cqw. Güverte alüminyum, arkada koyu menteşe bandı. */
+.laptop__base {
+  position: absolute;
+  left: 0;
+  top: calc(50% - var(--depth) / 2);
+  width: 100%;
+  height: var(--depth);
+  border-radius: 0.4cqw 0.4cqw var(--r) var(--r);
+  background:
+    linear-gradient(rgb(0 0 0 / 0.5), transparent 3.2cqw),
+    linear-gradient(100deg, transparent 25%, rgb(255 255 255 / 0.1) 42%, transparent 58%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.025) 0 1px, rgb(0 0 0 / 0.025) 1px 2px),
+    linear-gradient(#6c6f75, var(--alu) 60%, #7b7e84);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+  transform: translateY(var(--yc)) rotateX(90deg);
+}
+
+/* Tuş kuyusu: klavye güvertenin %84'ü, ortalı. En-boy oranı tuş SVG'sininkidir (src/lib/keyboard.js), tuşlar kare kalır.
+   Kuyunun siyah zemini ve ince çukuru gölge halkalarıdır, yerleşimi etkilemez. */
+.laptop__keys {
+  position: absolute;
+  top: 5cqw;
+  left: 8cqw;
+  right: 8cqw;
+  aspect-ratio: var(--keys-ratio);
+  border-radius: 0.6cqw;
+  background: var(--keys) 0 0 / 100% 100% no-repeat, #08090a;
+  box-shadow:
+    0 0 0 0.6cqw #08090a,
+    0 0 0 0.85cqw #17181b;
+}
+
+/* Hoparlör ızgaraları klavyenin iki yanındaki boşluktadır. */
+.laptop__keys::before,
+.laptop__keys::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3.6cqw;
+  background: radial-gradient(circle, #121315 0 0.16cqw, transparent 0.2cqw) 0 0 / 0.7cqw 0.7cqw;
+}
+
+.laptop__keys::before {
+  right: calc(100% + 2.6cqw);
+}
+
+.laptop__keys::after {
+  left: calc(100% + 2.6cqw);
+}
+
+.laptop__base::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5cqw;
+  width: 40cqw;
+  height: 24cqw;
+  border: 1px solid rgb(0 0 0 / 0.25);
+  border-radius: 1.2cqw;
+  background: linear-gradient(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.05));
+  box-shadow:
+    inset 0 0.2cqw 0.8cqw rgb(0 0 0 / 0.18),
+    0 1px 0 rgb(255 255 255 / 0.2);
+  transform: translateX(-50%);
+}
+
+/* Tabanın ön kenarındaki kalınlık ve parmak çentiği. */
+.laptop__lip {
+  position: absolute;
+  left: 0;
+  top: calc(50% + var(--yc));
+  width: 100%;
+  height: 2.4cqw;
+  border-radius: 0 0 var(--r) var(--r);
+  border-top: 1px solid #1a1b1d;
+  background: linear-gradient(#a3a6ac, #6f7278);
+  transform: translateZ(calc(var(--depth) / 2));
+}
+
+.laptop__lip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 14cqw;
+  height: 0.5cqw;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: linear-gradient(rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.04));
+  opacity: var(--open);
+  transform: translateX(-50%);
+}
+
+/* Kapak menteşesi tabanın arka kenarında: -90deg kapalı (tabanın üstüne yatar), +17deg açık. */
+.laptop__lid {
+  position: absolute;
+  left: 0;
+  top: calc(50% + var(--yc) - var(--depth));
+  width: 100%;
+  height: var(--depth);
+  transform-origin: 50% 100%;
+  transform-style: preserve-3d;
+  transform: translateZ(calc(var(--depth) / -2)) translateY(-0.3cqw) rotateX(var(--lid));
+}
+
+/* Kapağın uzak kenarındaki kalınlık: kapalıyken ön kenar, açıkken üst kenar. */
+.laptop__lid::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0.8cqw;
+  background: linear-gradient(90deg, var(--alu), #a9acb2 50%, var(--alu));
+  transform-origin: 50% 0;
+  transform: rotateX(-90deg);
+}
+
+.laptop__back,
+.laptop__screen {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r) var(--r) 0.4cqw 0.4cqw;
+  backface-visibility: hidden;
+}
+
+.laptop__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row-reverse; /* yüz aynalandığı için DOM sırası ters */
+  gap: 1.4cqw;
+  background:
+    linear-gradient(115deg, transparent 28%, rgb(255 255 255 / 0.16) 44%, transparent 60%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.025) 0 1px, rgb(0 0 0 / 0.025) 1px 2px),
+    linear-gradient(160deg, #9a9da3, #7d8087 55%, #6c6f75);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3);
+  transform: rotateY(180deg);
+}
+
+.laptop__back i {
+  width: 2.6cqw;
+  height: 2.6cqw;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.6), transparent 45%),
+    var(--tone);
+  box-shadow: 0 0.2cqw 0.5cqw rgb(0 0 0 / 0.3);
+}
+
+/* İç yüz: siyah cam çerçeve, ince alüminyum kenar, alt çerçeve biraz kalın. */
+.laptop__screen {
+  padding: var(--bz-top) var(--bz-side) var(--bz-bottom);
+  background: color-mix(in srgb, var(--glass) calc((1 - var(--z)) * 100%), transparent);
+  box-shadow: inset 0 0 0 0.4cqw color-mix(in srgb, var(--alu) calc((1 - var(--z)) * 100%), transparent);
+}
+
+/* Kapak yüzlerinden yalnızca biri görünür: p 0.3'e kadar dış yüz, sonrasında ekran. Eşik kapağın kenardan göründüğü
+   an (p ≈ 0.31), yani geçişte yüz çizgi kalınlığındadır ve sıçrama görünmez. backface-visibility'ye tek başına
+   güvenilmez: GPU'lu ve yüksek DPI'lı çizimde kapalı kapağın altından iç yüz sızabiliyor. */
+.laptop-hero[data-dark='false'] .laptop__screen,
+.laptop-hero[data-dark='true'] .laptop__back {
+  opacity: 0;
+}
+
+/* Kamera çentiği ve noktası. */
+.laptop__screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(50% - 5.5cqw);
+  z-index: 1;
+  width: 11cqw;
+  height: 2cqw;
+  border-radius: 0 0 1cqw 1cqw;
+  background: radial-gradient(circle at 50% 55%, #1c2a45 0 0.3cqw, transparent 0.4cqw), var(--glass);
+  pointer-events: none; /* yaklaşınca görünmez olur ama sayfadaki bağlantıların üstünde durmasın */
+}
+
+/* İç yüzün her katmanı kendi arka yüzünü gizler: ebeveynin backface-visibility'sine güvenmeyen
+   tarayıcılarda kapalı kapağın dışından çentik ve yansıma görünmesin. */
+.laptop__screen::before,
+.laptop__screen::after,
+.laptop__display {
+  backface-visibility: hidden;
+}
+
+/* Camdaki hafif çapraz yansıma. */
+.laptop__screen::after {
+  content: '';
+  position: absolute;
+  inset: var(--bz-top) var(--bz-side) var(--bz-bottom);
+  border-radius: 0.8cqw;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.05), transparent 35%);
+  pointer-events: none;
+}
+
+/* Sayfa ekranın içinde: --c kadar yukarı kayar. Tarayıcı kaydırması yok, taşan kısım kırpılır.
+   Dikey pencerede ekran alandan kısadır. Sayfa --clip kadar dışarı taşar, yaklaşma bitince koyu şerit kalmaz.
+   Yaklaşma sonunda ekran pencerenin kendisidir: yuvarlak köşe söner. */
+.laptop__display {
+  height: 100%;
+  overflow: clip;
+  overflow-clip-margin: var(--clip, 0px);
+  border-radius: calc(0.8cqw * (1 - var(--z)));
+  background: var(--screen);
+  box-shadow: inset 0 0 8cqw rgb(66 133 244 / calc(var(--on) * 0.2));
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.laptop__bar {
+  padding: 0.4em 1em;
+  border-bottom: 1px solid var(--laptop-body);
+  color: #9aa0a6;
+  font-size: 0.8em;
+  opacity: var(--on);
+}
+
+.laptop__code {
+  padding: 0.8em 1em;
+  counter-reset: ln;
+  opacity: var(--on);
+}
+
+.laptop__code li {
+  position: relative;
+  padding-left: 2.6em;
+  counter-increment: ln;
+  white-space: nowrap;
+}
+
+.laptop__code li::before {
+  content: counter(ln);
+  position: absolute;
+  left: 0;
+  width: 1.4em;
+  color: #5f6368;
+  text-align: right;
+}
+
+.laptop__code .in {
+  padding-left: 4.4em;
+}
+
+.c-comment {
+  color: #9aa0a6;
+}
+.c-key {
+  color: var(--red-half);
+}
+.c-str {
+  color: var(--green-half);
+}
+.c-fn {
+  color: var(--yellow-half);
+}
+
+.laptop__caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.2em;
+  vertical-align: text-bottom;
+  background: var(--blue-half);
+  animation: laptop-caret 1s steps(2, start) infinite;
+}
+
+@keyframes laptop-caret {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* --- Sayfa laptopun ekranının içinde. Kaydırma: --p kapağı açar, sonra --c px sayfayı ekranda kaydırır --- */
+/* Taban ön kenarı perspektifle kutudan taşar; dar ekranda 4% iç boşluk bunu taşırmadan karşılar. */
+@media (min-width: 900px) {
+  .laptop-hero .laptop {
+    padding-inline: 0;
+  }
+}
+
+/* Kapalı slab afişin altında ve ekranın içinde kalsın (-6cqw), açık laptop sahneye ortalansın (+4cqw). */
+.laptop-hero .laptop__view {
+  transform: translate(calc(var(--z) * var(--zx)), calc(var(--z) * var(--zy)))
+    scale(calc(1 + var(--z) * (var(--zs) - 1))) translateY(calc(var(--cam) * 10cqw - 6cqw));
+}
+
+/* Yaklaşma bitince ekran kameraya diktir ve perspektife, dönüşlere, ayrı katmana ihtiyaç kalmaz: sahne düz
+   2B bir sayfa olur. Safari'nin 3B hesabına (backface, ölçekli perspektif) bağlı olmayan, güvenilir bitiş durumu.
+   --zs2/--zx2/--zy2 bu hâlin ölçülmüş ölçeği (useScrollProgress.js); 3B hâlle aynı dikdörtgeni verir. */
+.laptop-hero[data-zoomed='true'] .laptop__view {
+  perspective: none;
+  transform: translate(var(--zx2), var(--zy2)) scale(var(--zs2)) translateY(calc(var(--cam) * 10cqw - 6cqw));
+}
+
+.laptop-hero[data-zoomed='true'] .laptop__scene {
+  transform: none;
+  transform-style: flat;
+}
+
+.laptop-hero[data-zoomed='true'] .laptop__lid {
+  transform: translateY(-0.3cqw);
+  transform-style: flat;
+}
+
+.laptop-hero[data-zoomed='true'] :is(.laptop__base, .laptop__lip, .laptop__shadow, .laptop__back) {
+  display: none;
+}
+
+.laptop-hero[data-zoomed='true'] :is(.laptop__screen, .laptop__display, .laptop__page) {
+  backface-visibility: visible;
+}
+
+.laptop-hero[data-zoomed='true'] .laptop__page {
+  will-change: auto;
+}
+
+.laptop-hero[data-zoomed='true'] .laptop__display {
+  box-shadow: none;
+}
+
+/* Yaklaşınca ekran sahneden taşar. Üstte navbar (z-index 50) örter; altta izlek bitince footer'a binmesin.
+   Bölüm tam genişlikte olduğundan yatay taşma da pencerede kesilir (iOS body overflow-x: hidden'a güvenmez).
+   clip kaydırma kapsayıcısı yapmadığından sticky bozulmaz. */
+.laptop-hero.laptop-hero--scrub {
+  overflow: clip;
+}
+
+/* Kapak kapalıyken laptopun üstünde durur, açılırken kaybolur. */
+.laptop-hero__banner {
+  position: absolute;
+  top: 6%;
+  left: 0;
+  right: 0;
+  font-size: clamp(2rem, min(7vw, 9svh), 5.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-align: center;
+  opacity: clamp(0, calc(1 - var(--open) * 3), 1);
+  pointer-events: none;
+}
+
+.laptop-hero__banner strong {
+  display: block;
+}
+
+/* Dikey pencerede ekran alanı kaplamaz. Mac'in geri kalanı yaklaşma boyunca söner, bitişte yalnızca sayfa kalır. */
+.laptop-hero :is(.laptop__base, .laptop__lip) {
+  opacity: calc(1 - var(--z));
+}
+
+/* Yaklaşma sonunda kamera çentiği ve cam yansıması sönmeli. */
+.laptop-hero .laptop__screen::before,
+.laptop-hero .laptop__screen::after {
+  opacity: calc(1 - var(--z));
+}
+
+/* Hareket azaltılmışsa kayma yok; dar ekranda ekrandan taşan giriş bloğuna yerel kaydırmayla ulaşılır. */
+.laptop-hero:not(.laptop-hero--scrub) .laptop__display {
+  overflow-y: auto;
+}
+
+.laptop__page {
+  backface-visibility: hidden;
+  background: var(--white);
+  color: var(--black);
+  opacity: var(--on);
+}
+
+/* Sayfanın geri kalanı pencere genişliğinde düzenlenir (ana sayfadaki gibi) ve ekrana küçültülmüş sığar. Yaklaşma
+   bitince toplam ölçek 1 olur; boyutlar ana sayfayla aynıdır. --rest-w/-k/-gap useScrollProgress.js'ten gelir.
+   Küçültme layout yüksekliğini değiştirmez, fark negatif alt boşlukla kapatılır. */
+.laptop-hero--scrub .laptop__rest {
+  width: var(--rest-w, 100%);
+  margin-bottom: var(--rest-gap, 0px);
+  transform: scale(var(--rest-k, 1));
+  transform-origin: 0 0;
+}
+
+/* flow-root: .laptop__rest'in negatif alt boşluğu sayfanın dışına taşmasın, sayfa yüksekliğini kısaltsın. */
+.laptop-hero--scrub .laptop__page {
+  display: flow-root;
+  transform: translateY(calc(var(--c) * -1px));
+  will-change: transform;
+}
+
+/* İlk ekran tam görüntü alanı kadardır (kapak derinliği eksi üst ve alt çerçeve). */
+.laptop__intro {
+  display: grid;
+  gap: 3cqw;
+  align-content: center;
+  min-height: calc(var(--depth) - var(--bz-top) - var(--bz-bottom));
+  padding: 5cqw;
+  background: var(--screen);
+  color: var(--white);
+}
+
+.laptop__intro-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2cqw;
+}
+
+.laptop__intro .laptop-hero__theme {
+  font-size: max(0.75rem, 1.4cqw);
+}
+
+.laptop__intro .laptop-hero__title {
+  max-width: none;
+  font-size: max(1.5rem, 4.4cqw);
+}
+
+.laptop__intro .laptop-hero__tagline {
+  font-size: max(0.875rem, 1.8cqw);
+}
+
+.laptop__editor {
+  display: none;
+  overflow: hidden;
+  border: 1px solid var(--laptop-body);
+  border-radius: 1cqw;
+  font-family: var(--font-mono);
+  font-size: max(10px, 1.15cqw);
+  line-height: 1.7;
+  color: #e8eaed;
+}
+
+@container (min-width: 640px) {
+  .laptop__intro {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+    align-items: center;
+  }
+
+  .laptop__editor {
+    display: block;
+  }
+}
+
+/* Koyu sahne ile footer arasında Footer'ın 64px üst boşluğu beyaz şerit bırakmasın. */
+.app__main:has(.laptop-hero) + .footer {
+  margin-top: 0;
+}

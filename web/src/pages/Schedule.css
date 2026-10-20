@@ -1,0 +1,56 @@
+.schedule {
+  padding: 48px 0 0;
+}
+
+.schedule__title {
+  margin-bottom: 32px;
+  font-size: clamp(2.25rem, 8vw, 4rem);
+}
+
+.schedule__tabs {
+  display: none;
+}
+
+.schedule__day {
+  margin-bottom: 48px;
+}
+
+.schedule__day-title {
+  margin-bottom: 24px;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.schedule__day-title span {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+/* Masaüstünde gün sekmeleri; mobilde tüm günler alt alta. */
+@media (min-width: 768px) {
+  .schedule__tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .schedule__tab {
+    min-height: 48px;
+    padding: 0 24px;
+    border: 2px solid var(--black);
+    border-radius: var(--radius-pill);
+    background: var(--white);
+    color: var(--black);
+    font: 700 1rem/1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .schedule__tab[aria-selected='true'] {
+    background: var(--yellow);
+  }
+
+  .schedule__day:not(.is-active) {
+    display: none;
+  }
+}
