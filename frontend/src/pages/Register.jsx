@@ -78,8 +78,8 @@ export default function Register() {
         }
       >
         <p className="form-message form-message--success" role="status">
-          <strong>Başarılı:</strong> E-posta adresin doğrulandı ve kaydın iletildi. Hesabın
-          onaylandığında e-posta ile haber vereceğiz. Onaylanana kadar giriş yapamazsın.
+          <strong>Başarılı:</strong> E-posta adresin doğrulandı ve kaydın iletildi. Hesabının
+          onay durumunu giriş ekranından kontrol edebilirsin. Onaylanana kadar giriş yapamazsın.
         </p>
       </AuthLayout>
     )

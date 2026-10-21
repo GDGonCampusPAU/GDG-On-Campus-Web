@@ -31,14 +31,14 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     return () => clearTimeout(timer)
   }, [search])
 
+  const requestKey = `${token}:${page}:${query}`
   useEffect(() => {
     let cancelled = false
-    setState((prev) => ({ ...prev, status: 'loading', error: '' }))
 
     getHackathonApplications({ page, limit: PAGE_SIZE, search: query }, token)
       .then((data) => {
         if (cancelled) return
-        setState({ status: 'ready', items: data.data ?? [], pagination: data.pagination ?? null, error: '' })
+        setState({ key: requestKey, status: 'ready', items: data.data ?? [], pagination: data.pagination ?? null, error: '' })
       })
       .catch((error) => {
         if (cancelled) return
@@ -46,13 +46,13 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
           onUnauthorized?.()
           return
         }
-        setState({ status: 'error', items: [], pagination: null, error: error.message })
+        setState({ key: requestKey, status: 'error', items: [], pagination: null, error: error.message })
       })
 
     return () => {
       cancelled = true
     }
-  }, [page, query, token, onUnauthorized])
+  }, [page, query, token, onUnauthorized, requestKey])
 
   const handleExport = async () => {
     setExporting(true)
@@ -78,7 +78,8 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     }
   }
 
-  const { status, items, pagination, error } = state
+  const { items, pagination, error } = state
+  const status = state.key === requestKey ? state.status : 'loading'
   const total = pagination?.totalItems ?? 0
 
   return (

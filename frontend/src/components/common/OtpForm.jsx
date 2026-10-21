@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import TextField from './TextField.jsx'
 import { validateOtpCode } from '../../lib/validation.js'
 
-const RESEND_SECONDS = 30
+const RESEND_SECONDS = 60
 
 /**
  * 6 haneli e-posta doğrulama kodu formu (kayıt ve giriş akışlarında ortak).

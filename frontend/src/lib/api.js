@@ -18,6 +18,7 @@ async function send(path, { method = 'GET', body, token } = {}) {
 
   try {
     return await fetch(`${API_URL}${API_PREFIX}${path}`, {
+      signal: AbortSignal.timeout(15000),
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -57,6 +58,13 @@ export function sendOtp({ email, fullName }) {
 
 export function verifyEmail({ email, code }) {
   return request('/auth/verify-email', { method: 'POST', body: { email, code } })
+}
+
+export function getUsers(token, page = 1) {
+  return request(`/users?page=${page}`, { token })
+}
+export function updateUserRole(id, role, token) {
+  return request(`/users/${id}/role`, { method: 'PATCH', body: { role }, token })
 }
 
 // --- Hackathon başvuruları (ORGANIZER / ADMIN) -------------------------------

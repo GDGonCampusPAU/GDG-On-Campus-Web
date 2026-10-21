@@ -18,6 +18,10 @@ export default function PanelLayout({ user, onLogout, title, children, actions }
         <div className="panel__stripe" aria-hidden="true" />
       </header>
       <main className="panel__main">
+        <nav aria-label="Panel menüsü">
+          {['ADMIN', 'ORGANIZER'].includes(user.role) && <a href="#/applications">Başvurular</a>}
+          {user.role === 'ADMIN' && <> · <a href="#/users">Ekip ve onaylar</a></>}
+        </nav>
         <div className="panel__heading">
           <h1 className="panel__title">{title}</h1>
           {actions}

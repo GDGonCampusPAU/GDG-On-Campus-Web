@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import Applications from './pages/Applications.jsx'
+import Users from './pages/Users.jsx'
+import PanelLayout from './components/layout/PanelLayout.jsx'
 import { clearSession, loadSession } from './lib/session.js'
 
 // Geçici, bağımlılık gerektirmeyen yönlendirme: #/login, #/register, #/applications.
@@ -10,6 +12,7 @@ function getRoute() {
   const hash = window.location.hash
   if (hash === '#/register') return 'register'
   if (hash === '#/applications') return 'applications'
+  if (hash === '#/users') return 'users'
   return 'login'
 }
 
@@ -25,7 +28,7 @@ export default function App() {
   }, [])
 
   // Giriş yapılmışsa her zaman başvuru listesi, yapılmamışsa giriş ya da kayıt gösterilir.
-  const page = session ? 'applications' : route === 'register' ? 'register' : 'login'
+  const page = session ? (route === 'users' && session.user.role === 'ADMIN' ? 'users' : 'applications') : route === 'register' ? 'register' : 'login'
 
   // Adres çubuğunu gösterilen sayfayla aynı tut (ör. girişsizken #/applications yazılırsa #/login olur).
   useEffect(() => {
@@ -49,6 +52,10 @@ export default function App() {
     setNotice('Oturum süren doldu. Lütfen tekrar giriş yap.')
   }, [])
 
+  if (session && !['ADMIN', 'ORGANIZER'].includes(session.user.role)) {
+    return <PanelLayout user={session.user} onLogout={handleLogout} title="Ekip hesabı"><p>Hesabın açık. Başvuruları yönetmek için ORGANIZER veya ADMIN yetkisi gerekiyor.</p></PanelLayout>
+  }
+  if (page === 'users') return <Users session={session} onLogout={handleLogout} onUnauthorized={handleUnauthorized} />
   if (page === 'applications') {
     return (
       <Applications session={session} onLogout={handleLogout} onUnauthorized={handleUnauthorized} />
