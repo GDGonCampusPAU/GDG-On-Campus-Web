@@ -1,81 +1,20 @@
-# Kurulum ve yapılandırma
+# Kurulum ve kontroller
 
-[← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)
+21 Ekim 2026. Node 24 ve npm kullanılır.
 
-> Güncelleme: 12 Ekim 2026 — `feature/participant-verification` çalışma ağacı. Katılımcı doğrulaması ve testler dahil.
+1. Kök dizinde `npm run setup` çalıştırın. Bu, kök test araçları ile backend/panel/hackaton lockfile'larını kurar.
+2. Backend ve iki ön yüzün `.env.example` dosyalarından, yalnız yoksa `.env` oluşturun. Mevcut dosyaları ezmeyin.
+3. Backend için replica set/Atlas `MONGO_URI`, en az 32 karakterlik `JWT_SECRET`, ayrı güçlü `PARTICIPANT_JWT_SECRET` ve `CLIENT_URLS` tanımlayın. Geliştirme origin'leri `http://localhost:5173,http://localhost:5174`.
+4. Yeni yerel DB gerekiyorsa kökten `docker compose up -d --wait` çalıştırın. Bu dosya mevcut container/volume'ları yönetmek için değildir. 27017 zaten kullanılıyorsa mevcut replica set'i kullanın veya Compose portunu ayrıca ayarlayın. Replica set adı rs0'dır.
+5. `npm run dev`: API 5000, etkinlik 5173, panel 5174. `dev:api`, `dev:panel`, `dev:hackaton` ayrı çalıştırır. Portlar otomatik değişmez; çakışma açık hata verir.
+6. İlk admin gerekiyorsa backend env içinde özel `DEFAULT_ADMIN_PASSWORD` (en az 12 karakter) belirleyip `npm run seed --prefix backend` çalıştırın. Seed veri ekler; gerçek DB'de bilinçli çalıştırın. Sunucu etkinlik sayfası/formunu eksikse oluşturur; mevcut yayını ezmez.
 
-### Yerel geliştirme akışı
+Örnek yerel bağlantı: `mongodb://127.0.0.1:27017/gdg_pau?replicaSet=rs0&directConnection=true`.
 
-MongoDB replica set veya Atlas gerekir. Standalone bağlantı startup’ta reddedilir. Yerel Docker kurulumu ve kernel uyumsuzluğu çözümü [katılımcı rehberinde](KATILIMCI_DOGRULAMA.md) yer alır. Mevcut `.env` dosyanızı örnek dosyayla ezmeyin; yalnız ilk kurulumda kopyalayın.
+`npm run check` bütün lint/test/build kontrolleridir. `npm run setup:browser` Chromium'u kurar; sonra `npm run test:e2e` gerçek tarayıcı testlerini çalıştırır. Linux CI, Playwright sistem bağımlılıklarını `npx playwright install --with-deps chromium` ile kurar. Tarayıcı test sunucusunun test OTP endpoint'leri yalnız `e2e/server.cjs` içinde tanımlıdır; production sunucusunda yoktur.
 
-```bash
-cd backend
-npm ci
-cp .env.example .env
-# .env içindeki bağlantı, JWT ve e-posta ayarlarını düzenleyin.
-npm run dev
-```
+E-posta OTP geliştirmede konsola düşebilir; production gerçek Brevo ayarı ister. Google için backend GOOGLE_CLIENT_ID ve site VITE_GOOGLE_CLIENT_ID eşleşmeli; Console authorized origins tarayıcı origin'iyle tam aynı olmalı. `localhost`, `127.0.0.1`, farklı portlar ve HTTPS farklı origin'lerdir.
 
-İkinci terminal:
+Üretim build'inde her ön yüzde `VITE_API_URL` belirleyin veya aynı origin'de `/api/v1` proxy'sini kurun. SPA rotalarını index.html'e yönlendirin. `TRUST_PROXY_HOPS` yalnız gerçek proxy topolojisine göre belirlenir. `/health` canlılık, `/ready` DB bağlantısı kontrolüdür.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Backend varsayılan portu `5000`; CORS'un varsayılan frontend origin'i `http://localhost:5173`. Vite'ta API proxy'si tanımlı değil. Frontend bağlantısı geliştirildiğinde base URL ayrıca tanımlanmalı; mevcut kodda `VITE_API_URL` kullanan bir yapı yok.
-
-Backend komutları: `npm start`, `npm run dev`, `npm run seed`, `npm test`. Frontend komutları: `npm run dev`, `npm run build`, `npm run lint`, `npm run preview`.
-
-### Ortam değişkenleri
-
-| Değişken | Mevcut varsayılan / davranış |
-| --- | --- |
-| `PORT` | `5000` |
-| `MONGO_URI` | `.env.example`: `mongodb://localhost:27017/gdg_pau?replicaSet=rs0`; yerel Docker için `mongodb://127.0.0.1:27017/gdg_pau?replicaSet=rs0&directConnection=true`. db.js fallback’i standalone URI olsa da server topology kontrolü bunu reddeder. |
-| `JWT_SECRET` | Ekip token anahtarı. Eski ekip JWT helper’ında fallback vardır; ancak startup katılımcı yapılandırması gerçek PARTICIPANT_JWT_SECRET veya JWT_SECRET ister. İki anahtarı da açıkça güçlü değerlerle ayarlayın. |
-| `JWT_EXPIRES_IN` | `7d`; ekip token süresi |
-| `PARTICIPANT_JWT_SECRET` | Boşsa JWT_SECRET; katılımcı imzası ve OTP hash’i için kullanılır |
-| `PARTICIPANT_JWT_EXPIRES_IN` | `1h`; ör. 30s, 15m, 2h, 1d; en az bir saniye |
-| `PARTICIPANT_OTP_TTL_MINUTES` | `10`; pozitif tam sayı |
-| `PARTICIPANT_OTP_COOLDOWN_SECONDS` | `60`; pozitif tam sayı |
-| `PARTICIPANT_OTP_MAX_ATTEMPTS` | `5`; pozitif tam sayı |
-| `GOOGLE_CLIENT_ID` | OAuth Web client ID; yoksa Google endpoint’i 503, e-posta yöntemi kullanılabilir |
-| `CLIENT_URL` | `http://localhost:5173`; tek CORS origin'i |
-| `NODE_ENV` | Log, hata stack'i davranışını etkiler; üretim için `production` |
-| `BREVO_API_KEY` | Geliştirmede eksik/örnek anahtar konsol simülasyonu; production katılımcı OTP endpoint’i 503 ile reddeder. Eski ekip/hackathon servisi hâlâ simülasyona düşebilir. |
-| `BREVO_SENDER_EMAIL` | `noreply@pau.edu.tr` |
-| `BREVO_SENDER_NAME` | `GDG On Campus Pamukkale University` |
-| `BREVO_REPLY_TO` | İsteğe bağlı; serviste var, `.env.example` içinde yok |
-| `ENABLE_HACKATHON_MODULE` | Yalnızca tam olarak `false` metni modülü kapatır; yoksa açık |
-| `DEFAULT_ADMIN_NAME` | Seed admin adı; script fallback'i `GDG PAU Admin` |
-| `DEFAULT_ADMIN_EMAIL` | Seed e-postası; fallback `admin@pau.edu.tr` |
-| `DEFAULT_ADMIN_PASSWORD` | Seed parolası; örnek/sabit değer üretimde kullanılmamalı |
-
-### Seed'in gerçek davranışı
-
-`npm run seed` aynı e-posta yoksa ADMIN oluşturur; tüm içerik koleksiyonu boşsa üç örnek içerik; tüm form koleksiyonu boşsa `hackathon-2026-basvuru` slug'lı yayınlanmış dinamik form oluşturur. Koleksiyonları temizlemez. Mevcut adminin parolasını, rolünü veya doğrulama durumunu düzeltmez.
-
-**Önemli hata:** Oluşturulan ADMIN'de `isEmailVerified: true` set edilmiyor. Model varsayılanı `false` olduğu için seed sonrası ilk login `403` ve e-posta doğrulama isteği üretir. Mevcut adminin giriş yapabilmesi için gerçek OTP doğrulama akışı tamamlanmalı veya seed mantığı düzeltilmeli. Seed ayrıca parolayı konsola yazıyor.
-
-Dinamik hackathon formunun başarı mesajında e-postayla bilgilendirme sözü var; bu formun submit controller'ı e-posta göndermez.
-
-Örnek dosya `backend/.env.example`, çalışma dosyası `backend/.env` olmalıdır; `npm run dev` komutunu backend dizininde çalıştırın. `src/.env.example` veya kopya örnek dosyalar bu akışta dotenv tarafından okunmaz.
-
-### Token süreleri
-
-Env değişikliklerinden sonra backend’i yeniden başlatın. Süre ayarı yalnızca yeni token’ların exp değerini etkiler; eski token kendi süresine kadar geçerlidir. Katılımcı imza anahtarını değiştirmeniz eski katılımcı token’larını ve bekleyen OTP hash’lerini geçersiz kılar. Refresh token yoktur.
-
-### Manuel test ve CORS
-
-```bash
-cd backend/tools
-python3 -m http.server 5173 --bind 127.0.0.1
-```
-
-Tarayıcıda `http://localhost:5173/participant-auth.html` açın. Varsayılan CLIENT_URL ile bu adres eşleşir. `http://127.0.0.1:5173` farklı origin’dir; bu adresi tercih ederseniz CLIENT_URL’yi tam bu değer yapıp backend’i yeniden başlatın. CLIENT_URLS/virgüllü liste desteği şu an yoktur. Frontend ve test aracı aynı portu aynı anda kullanamaz.
-
-Google Cloud Authorized JavaScript origins, sayfanın gerçek origin’ini içermeli; `/participant-auth.html` yolu origin değildir. Backend GOOGLE_CLIENT_ID ve test sayfası Client ID’si aynı Web client’a ait olmalı. Ayrıntılar ve 401/201/409 senaryoları [test rehberinde](KATILIMCI_DOGRULAMA.md).
-
-Testler `npm test` ile geçici replica set açar; mevcut `.env` veya DB kullanılmaz. MongoDB test binary’si ilk çalıştırmada indirilebilir.
+Yedekleme: API yazmalarını durdurarak MongoDB dump'ı ile `backend/uploads` dizinini aynı bakım penceresinde birlikte yedekleyin. Dosyalar özel başvuru verisi içerir; erişimi sınırlayın. Canlıya geri yüklemeden önce ayrı replica set ve ayrı upload dizininde dump/restore, kayıt sayıları ve yetkili dosya indirmeyi doğrulayın. Bu oturumda gerçek veriye yönelik yedek/restore çalıştırılmadı.

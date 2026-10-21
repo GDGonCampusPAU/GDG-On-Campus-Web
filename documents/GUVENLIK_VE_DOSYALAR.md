@@ -1,51 +1,17 @@
-# Dosya yönetimi, güvenlik ve hatalar
+# Güvenlik ve dosyalar
 
-[← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)
+21 Ekim 2026.
 
-> Güncelleme: 12 Ekim 2026 — `feature/participant-verification` çalışma ağacı. Katılımcı doğrulaması ve testler dahil.
+- Ekip ve katılımcı token'ları birbirinin yerine kabul edilmez. Ekip secret'ı zorunludur; fallback anahtar kaldırıldı. Production katılımcı anahtarı da en az 32 karakter olmalıdır.
+- Ekip/legacy hackathon OTP'leri `randomInt` ile üretilir, amaç+e-posta+kod için HMAC saklanır; düz metin eski kayıtlar kabul edilmez ve TTL ile temizlenir. Tek atomik tüketim, 5 deneme ve 60 saniye tekrar gönderim sınırı vardır. Katılımcı OTP'si ayrı model ve yapılandırma kullanır.
+- Admin rol değişimi transaction içinde actor ve hedef kullanıcıyı yazar; eşzamanlı karşılıklı rol düşürmelerinin bütün adminleri kaldırması testle engellenir. Kullanıcı kendi rolünü değiştiremez. Eski `permissions` alanı rol kontrolünün yerine geçmez.
+- Production'da e-posta simülasyonu reddedilir. Gönderim hatasında ilgili challenge temizlenir. Brevo çağrısı zaman aşımına sahiptir. Sağlayıcı kuyruğu ve otomatik retry bu sürümde uygulanmış değildir.
+- Backend CORS açık allowlist kullanır. İsteklere X-Request-ID atanır. Proxy güveni yalnız TRUST_PROXY_HOPS ile ayarlanır.
+- Görseller `uploads/public`, form/CV ekleri `uploads/private` altında tutulur. Özel dosyalara `/api/v1/files/:filename` üzerinden ADMIN/ORGANIZER token'ıyla erişilir; panel indirirken Authorization başlığını ekler ve başka origin'e token göndermez. Eski `/uploads/:filename` özel linkleri de yetki ister; yalnız yayımlanmış Content kapak resmi olarak kayıtlı eski görseller public kalır.
+- Upload tam uzantı, temel içerik imzası, en fazla 5 dosya ve toplam 25 MB kontrolü uygular. Görseller 5 MB, CV 10 MB, form dosyası 15 MB ile sınırlıdır. İmza kontrolü tam kötü amaçlı yazılım taraması değildir.
+- Reddedilen upload'lar temizlenir; form silme ilişkili yanıtlarla transaction kullanır ve kaydedilmiş dosyalarını temizler. Süreç/disk arızaları için işletim takibi ve dönemsel sahipsiz dosya kontrolü gerekir.
+- Form alan türü/seçenek/tarih/kimlik doğrulaması, regex biçim sınırlaması ve tek başvuru/kota kontrolleri sunucudadır. Yanıtlar soru etiketini ve şema tarihini saklar; export geçmiş soruları da korur.
+- CSV formül başlangıçları metin olarak kaçırılır; aramalar sınırlı uzunlukta literal regex'e çevrilir. CSV/JSON export tüm yanıtları belleğe almak yerine cursor kullanır.
+- `/admin` parolası build'e gömülmez; ekip giriş token'ı ve API rol kontrolü gerekir. Taslak kaydı ile kalıcı yayın ayrı işlemlerdir; eski revision yayını reddedilir.
 
-### Dosya davranışı
-
-| Kullanım | Multipart alanı | Dosya başına sınır | Filtrede hedeflenen türler |
-| --- | --- | --- | --- |
-| İçerik afişi | `coverImage` | 5 MiB | jpg/jpeg/png/webp/gif |
-| Hackathon CV | `resume` | 10 MiB | pdf/doc/docx |
-| Form eki | İlgili `fieldId` | 15 MiB | jpg/jpeg/png/webp/gif/pdf/doc/docx/zip/rar/txt |
-
-Dosyalar `backend/uploads/` altına ad + zaman + rastgele ek ile yazılır. DB'de dosya içeriği değil URL/metadata tutulur. Bulut depolama entegrasyonu yoktur. URL `req.protocol` ve istemci Host başlığından üretilir; reverse proxy/TLS ortamı için `trust proxy` ve güvenilir public URL yapılandırması henüz yok.
-
-**CV ve form ekleri de `/uploads` altında token olmadan erişilebilir.** Rastgele dosya adı erişim kontrolü sağlamaz. Filtreler regex ile uzantı/MIME kontrolü yapıyor; özellikle regex'ler tam eşleşmeye sabitlenmediği için beklenmeyen uzantıların geçmesi mümkün. Dosya içeriğinin gerçek türü veya zararlı içerik taranmıyor. Form upload `.any()` kullandığı için şemada bulunmayan alan adlarıyla dosya da kabul edebilir. Dosya adedi/toplam boyut sınırı tanımlanmamış.
-
-Dinamik formda katılımcı middleware’i upload’dan önce kimliği kontrol eder. Alan ve tarih/durum doğrulaması upload’dan sonra yapılır; controller reddedilen başvurunun dosyalarını finally bloğunda silmeye çalışır. Silme/değiştirme rotaları ve özel hackathon başvurusu için aynı dosya yaşam döngüsü güvencesi yoktur; süreç çökmesi ve disk hataları da yetim dosya bırakabilir. Yedekler hem MongoDB'yi hem upload dizinini kapsamalıdır.
-
-### Güvenlik kontrolleri
-
-Helmet başlıkları, tek-origin CORS, JWT doğrulaması, güncel DB rolüne göre erişim, bcrypt ve rate limit var. Genel API limiti IP başına 15 dakikada 200; login/register ek limiti 15 dakikada 30. Katılımcı doğrulama prefix’inde ek IP limiti 15 dakikada 30’dur; e-posta OTP’sinde env’den ayarlanan cooldown vardır. Ekip/hackathon OTP gönderiminde ayrıca e-posta bazlı cooldown yoktur. `/health` ve `/uploads` genel API limiter'ının dışında; `/api/v1/health` içindedir.
-
-CORS erişim yetkilendirmesi değildir. Organizer ile Admin mevcut korumalı işlevlerde aynı yetkiye sahip; form sahibiyle sınırlama yapılmaz. Her Organizer bütün formları/yanıtları görebilir ve değiştirebilir. Kişisel veri erişimi açısından bu yetki modeli ürün gereksinimine göre yeniden değerlendirilmelidir.
-
-Katılımcı OTP endpoint’i production’da Brevo anahtarı eksik/örnek ise 503 verir; gönderim hatasında kod silinir ve 502 döner. Eski ekip/hackathon servisi production’da da konsol simülasyonuna düşebilir ve “gönderildi” diyebilir. E-posta şablonuna kullanıcı metinleri escape edilmeden ekleniyor. Brevo çağrısında açık timeout/retry veya kuyruk yok. Eski VerificationToken kodları DB’de düz metindir. Yeni ParticipantOtp kriptografik rastgele kod, HMAC hash, atomik tüketim, süre ve deneme sınırı kullanır. Geliştirme simülasyonu katılımcı kodunu da konsolda gösterir; API yanıtı kodu içermez.
-
-### Kimlik ve origin sınırları
-
-Ekip ve katılımcı token’ları birbirinin yerine kullanılamaz. Katılımcı JWT HS256, audience `form-participant`, issuer `gdg-pau`, type `participant` ile doğrulanır; DB’de katılımcı mevcut olmalı. Süre dolunca yeni OTP/Google doğrulaması gerekir. İmza anahtarı env ile ayrılabilir.
-
-CORS tek `CLIENT_URL` kullanır. `localhost:5173` ve `127.0.0.1:5173` farklıdır; tarayıcı sayfasının origin’i env ve Google Console ile eşleşmelidir. Çoklu-origin geliştirmesi bekleyen iştir, wildcard açılmamıştır. Google uyarısındaki “origin not allowed” backend CORS’tan ayrı Google istemci yapılandırmasıdır.
-
-### Hata kodları
-
-| HTTP | Mevcut anlam |
-| --- | --- |
-| 200 | Okuma/güncelleme/silme; kayıt için OTP bekleme yanıtı da olabilir |
-| 201 | Kullanıcı, içerik, form veya başvuru oluşturuldu |
-| 400 | Girdi/model doğrulama, geçersiz ObjectId, bozuk JSON, OTP ve Multer hataları |
-| 401 | Token yok/geçersiz/süresi dolmuş, kullanıcı yok veya yanlış giriş bilgileri |
-| 403 | Rol/onay engeli, doğrulanmamış e-posta, kapalı/tarih/kota veya izin verilmeyen doğrulama yöntemi |
-| 404 | Kaynak veya rota yok, hackathon kapalı |
-| 409 | Unique alan çakışması, kayıtlı e-posta, slug, tekrar başvuru veya gönderim sırasında güncellenen form |
-| 429 | IP rate limit veya katılımcı e-posta cooldown |
-| 502 | Katılımcı OTP e-postası gönderilemedi |
-| 503 | Google / production katılımcı e-posta servisi yapılandırılmamış |
-| 500 | Yakalanan diğer hatalar, e-posta servis hataları |
-
-Ortak hata: `{ "success": false, "message": "..." }`. Development modunda stack eklenir. Tüm hata tiplerinin durum kodları tutarlı değil: dosya filtreleri normal Error üretir ve 500'e düşebilir; Multer boyut hatası mesajı her zaman 5 MB der, gerçekte CV 10 ve form 15 MiB sınırındadır. Global handler artık `err.status` değerini kullanır; katılımcı servis hataları ve parser boyut hataları bu yolla taşınır. Dahili hata mesajları üretim yanıtına taşınabilir.
+Eski plaintext OTP'ler için yeniden kod alınması gerekir. Eski hesaplar ve başvurular toplu değiştirilmedi. Gerçek servis, dağıtım, yedek ve içerik kabul kontrolleri [mevcut durum](MEVCUT_PROJE_DURUMU.md) belgesindedir.

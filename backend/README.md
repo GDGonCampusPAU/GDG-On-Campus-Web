@@ -14,7 +14,7 @@ Node 24, Express ve MongoDB replica set/Atlas kullanır. Kök dizindeki `npm run
 - `/event-page/hackathon` etkinlik içeriğinin kalıcı kaynağıdır. GET public, PUT ADMIN/ORGANIZER yetkilidir; `{event, revision}` ister. İçerik ve ilgili form aynı transaction'da yayınlanır. Başlangıç şablonu `shared/hackathon-event.json`; sunucu ilk başlangıçta eksik sayfa/formu oluşturur, mevcut başvuruları ve ayarları ezmez.
 - Yeni etkinlik başvuruları `hackathon-katilim` dinamik formuna yazılır. Eski HackathonApp koleksiyonu ve API'si korunur; panelde ayrı kaynak olarak görünür. `ENABLE_HACKATHON_MODULE=false` yalnız eski modülü kapatır.
 - Form gönderimleri transaction ile kota/tek başvuru/sayaç tutarlılığı sağlar. `_formVersion` gönderilirse eski şemayla başvuru reddedilir. Export eski soru etiketlerini korur ve cursor ile akış halinde üretilir.
-- Public görseller `/uploads/public/` altında, CV/form ekleri özel dizindedir. `/api/v1/files/:filename` ORGANIZER/ADMIN token'ı ister. Eski özel `/uploads/:filename` adresleri de token ister. Dosyalar tam uzantı ve temel içerik imzası, adet ve boyut kontrolünden geçer.
+- Public görseller `/uploads/public/` altında, CV/form ekleri özel dizindedir. `/api/v1/files/:filename` ORGANIZER/ADMIN token'ı ister. Eski özel `/uploads/:filename` adresleri de token ister; kayıtlı eski public kapak görselleri korunur. Dosyalar tam uzantı ve temel içerik imzası, adet ve boyut kontrolünden geçer.
 
 `npm run seed` için yeni admin parolasını `DEFAULT_ADMIN_PASSWORD` ile en az 12 karakter olarak belirleyin. Seed doğrulanmış ADMIN oluşturur; aynı admin tekrar çalıştırıldığında parola değişmez ve loglanmaz. Başka rolü otomatik ADMIN yapmaz.
 

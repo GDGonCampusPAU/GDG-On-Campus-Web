@@ -8,6 +8,7 @@ body{font:16px system-ui;max-width:760px;margin:32px auto;padding:0 20px;color:#
 </style>
 <h1>Katılımcı doğrulama test aracı</h1>
 <p>Yerel geliştirme içindir. Token yalnızca bu sayfanın belleğinde tutulur; sayfa yenilenince silinir. Gerçek kişisel veri kullanmayın.</p>
+<p>Ürün akışını <a href="http://localhost:5173/kayit">etkinlik sitesinde</a> deneyebilirsiniz. Bu araç <code>katilimci-test</code> formunu oluşturmaz; önce <code>participant-flow.http</code> dosyasındaki form oluşturma isteğini çalıştırın. Bu sayfanın origin'ini CLIENT_URLS listesine ayrıca ekleyin.</p>
 <label>API kökü<input id="base" value="http://localhost:5000/api/v1"></label>
 <label>E-posta<input id="email" type="email" placeholder="test@example.com"></label>
 <button id="send">Kod gönder</button>
@@ -18,7 +19,7 @@ body{font:16px system-ui;max-width:760px;margin:32px auto;padding:0 20px;color:#
 <label>Form slug veya ID<input id="slug" value="katilimci-test"></label>
 <button id="schema">Form şemasını getir</button>
 <label>Yanıtlar (fieldId anahtarlarıyla JSON)<textarea id="answers">{"fullName":"Test Katılımcı"}</textarea></label>
-<button id="submit">Token ile gönder</button> <button id="anonymous">Tokensız gönder (401 beklenir)</button>
+<button id="submit" disabled>Token ile gönder</button> <button id="anonymous">Tokensız gönder (401 beklenir)</button>
 <button id="clear">Tokenı sil</button>
 <p id="session">Doğrulanmış oturum yok.</p><pre id="result" aria-live="polite">Yanıtlar burada görünür.</pre>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -29,10 +30,12 @@ const show=value=>{el('result').textContent=JSON.stringify(value,null,2)};
 async function call(path, body, withToken=false){
  try{
   const headers={};if(body!==undefined)headers['Content-Type']='application/json';
+  if(withToken&&!token){show({error:'Önce katılımcıyı doğrulayın.'});return;}
   if(withToken&&token)headers.Authorization='Bearer '+token;
-  const response=await fetch(el('base').value.replace(/\/$/,'')+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});
+  const response=await fetch(el('base').value.replace(/\/$/,'')+path,{signal:AbortSignal.timeout(15000),method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});
   const data=await response.json();show({status:response.status,...data});
-  if(response.ok&&data.token){token=data.token;el('session').textContent=`${data.participant.email} — ${data.verificationMethod} — bitiş: ${data.expiresAt}`;}
+  if(response.status===401&&withToken){token='';el('submit').disabled=true;el('session').textContent='Oturum geçersiz. Yeniden doğrulayın.';}
+  if(response.ok&&data.token){token=data.token;el('submit').disabled=false;el('session').textContent=`${data.participant.email} — ${data.verificationMethod} — bitiş: ${data.expiresAt}`;}
  }catch(error){show({error:error.message})}
 }
 el('send').onclick=()=>call('/participant-auth/email/send-otp',{email:el('email').value});
@@ -46,6 +49,6 @@ const formPath=()=>'/forms/public/'+encodeURIComponent(el('slug').value);
 el('schema').onclick=()=>call(formPath());
 const submit=authenticated=>{try{call(formPath()+'/submit',JSON.parse(el('answers').value),authenticated)}catch(error){show({error:error.message})}};
 el('submit').onclick=()=>submit(true);el('anonymous').onclick=()=>submit(false);
-el('clear').onclick=()=>{token='';el('session').textContent='Doğrulanmış oturum yok.';show({message:'Token silindi.'})};
+el('clear').onclick=()=>{token='';el('submit').disabled=true;el('session').textContent='Doğrulanmış oturum yok.';show({message:'Token silindi.'})};
 </script>
 </html>

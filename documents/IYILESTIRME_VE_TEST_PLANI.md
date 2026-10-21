@@ -1,3 +1,5 @@
+> Uygulama güncellemesi — 21 Ekim 2026: Bu belgedeki ilk bulgular tarihsel olarak korunmuştur. `web` artık `frontend/hackaton` altındadır. Kod düzeltmeleri, entegrasyon, CI ve test altyapısı uygulanmıştır; güncel sonuçlar ve dış ortam kabul kontrolleri [mevcut durum](MEVCUT_PROJE_DURUMU.md) belgesindedir.
+
 # Proje iyileştirme ve test planı
 
 Tarih: 21 Ekim 2026. Bu belge mevcut kaynak kodun incelenmesine ve bu tarihte çalıştırılan kontrollere dayanır. Uygulama kodunda düzeltme yapılmadı; aşağıdaki mimari tercihler öneridir.

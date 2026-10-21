@@ -87,6 +87,18 @@ app.use((req, res, next) => {
 const uploadDir = require('./middleware/uploadMiddleware').uploadDir;
 app.use('/uploads/public', express.static(path.join(uploadDir, 'public')));
 app.use('/api/v1/files', require('./routes/fileRoutes'));
+// Preserve previously published cover images without reopening all legacy uploads.
+app.get('/uploads/:filename', async (req, res, next) => {
+  try {
+    const filename = req.params.filename;
+    if (!/^[a-zA-Z0-9_-]+\.(?:png|jpe?g|webp|gif)$/i.test(filename)) return next();
+    const { literalSearch } = require('./utils/query');
+    const suffix = literalSearch(`/uploads/${filename}`).source;
+    const publicCover = await require('./models/Content').exists({ coverImageUrl: new RegExp(`${suffix}$`, 'i') });
+    if (!publicCover) return next();
+    res.sendFile(path.join(uploadDir, filename), error => { if (error) next(error); });
+  } catch (error) { next(error); }
+});
 // Existing private URLs are retained, but now require the same authorization.
 app.use('/uploads', require('./routes/fileRoutes'));
 

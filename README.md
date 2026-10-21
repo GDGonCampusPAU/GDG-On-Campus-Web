@@ -10,7 +10,7 @@ React/Vite arayüzleri ve Node.js/Express/MongoDB API projesi. Node 24 kullanıl
 
 Kök dizinde `npm run setup` bağımlılıkları kurar. İlk kurulumda örnek env dosyalarını ilgili dizinlerde `.env` olarak kopyalayıp düzenleyin; mevcut dosyaları ezmeyin. Yerel veritabanı gerekiyorsa `docker compose up -d --wait` kullanın. Bu Compose kendi volume'unu oluşturur; mevcut MongoDB 27017 portunu kullanıyorsa mevcut replica set'i kullanın veya portu ayrıca değiştirin.
 
-`npm run dev` üç uygulamayı başlatır. Ayrı çalıştırmak için `dev:api`, `dev:panel`, `dev:hackaton` komutları vardır. `npm run check` lint, test ve iki üretim build'ini çalıştırır. Testler geçici veritabanı kullanır.
+`npm run dev` üç uygulamayı başlatır. Ayrı çalıştırmak için `dev:api`, `dev:panel`, `dev:hackaton` komutları vardır. `npm run check` üç paketin lint/test kontrollerini ve iki üretim build'ini çalıştırır. `npm run setup:browser` ardından `npm run test:e2e` gerçek Chromium akışlarını kontrol eder. Testler geçici veritabanı kullanır.
 
 - [Mevcut proje durumu ve dokümantasyon haritası](documents/MEVCUT_PROJE_DURUMU.md)
 - [Katılımcı doğrulaması ve test araçları](documents/KATILIMCI_DOGRULAMA.md)

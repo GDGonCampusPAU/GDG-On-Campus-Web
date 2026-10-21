@@ -1,44 +1,26 @@
-# GDG On Campus Pamukkale University — Mevcut Proje Durumu
+# Mevcut proje durumu
 
-**Güncelleme:** 12 Ekim 2026
+21 Ekim 2026. Bu belge önceki 12 Ekim incelemesinin yerine güncel durumu anlatır.
 
-**Kapsam:** `feature/participant-verification` dalının mevcut çalışma ağacı; yeni katılımcı doğrulaması dahil.
-
-Proje backend ağırlıklı geliştirme aşamasında. Katılımcı Google/e-posta doğrulaması ve form gönderiminde kimlik, tek başvuru ve kota kontrolü eklendi. Ürün frontend’i hâlâ React/Vite başlangıç ekranı. Manuel test HTML’i ayrı bir geliştirici aracıdır.
-
-## Dokümantasyon haritası
-
-| Belge | İçerik |
+| Dizin | Sorumluluk |
 | --- | --- |
-| [Katılımcı doğrulaması](KATILIMCI_DOGRULAMA.md) | Yeni akış, token/OTP ayarları, test araçları, Google ve MongoDB kurulumu |
-| [Uygulama mimarisi](architecture.md) | Katmanlar, modüller ve kimlik sınırları |
-| [Kurulum](KURULUM.md) | Replica set, env, seed, CORS ve yerel geliştirme |
-| [API kılavuzu](API.md) | 29 endpoint, yetki, parametreler ve istek örnekleri |
-| [Veritabanı](DATABASE.md) | Sekiz model, ilişkiler, indeksler ve transaction |
-| [Güvenlik ve dosyalar](GUVENLIK_VE_DOSYALAR.md) | Dosya erişimi, OTP/token güvenceleri ve hatalar |
-| [Sorunlar](SORUNLAR.md) | Çözülen maddeler, inceleme noktaları ve kalan geliştirmeler |
-| [İnceleme kapsamı](INCELEME_KAPSAMI.md) | Test kanıtları, sınırlar ve kaynak kod haritası |
+| `frontend/` | Ekip kaydı, OTP, giriş, yönetici onayı, başvuru listesi ve CSV |
+| `frontend/hackaton/` | Etkinlik sitesi, katılımcı doğrulaması, başvuru ve yetkili içerik editörü |
+| `backend/` | Ekip/katılımcı kimlikleri, içerik ve form API'si, kota ve dosyalar |
+| `shared/` | Başlangıç etkinlik şablonu ve istemci/sunucu ortak içerik doğrulayıcısı |
+| `e2e/` | Gerçek Chromium, izole API ve geçici replica set ile tarayıcı regresyonları |
 
-## Mevcut durum
+Eski `web/` taşındı. Yeni başvurular `FormResponse` içinde, eski takım başvuruları `HackathonApp` içinde kalır. Panel kaynak seçimiyle ikisini de gösterebilir; canlı veride toplu taşıma/silme yapılmadı.
 
-| Alan | Mevcut | Kalan |
-| --- | --- | --- |
-| Ekip kimliği | Kayıt OTP, email doğrulama, şifre/JWT, rol kontrolü | ADMIN onayı API’si, seed doğrulama düzeltmesi, şifre sıfırlama/revocation |
-| Katılımcı kimliği | Participant, Google / EMAIL_OTP, ayrı JWT, env süreleri | Gerçek hesap/teslimat doğrulaması; token yenileme yok |
-| İçerik | Public/featured liste, POST/PUT/DELETE | Ürün ekranları, detay GET’i ve yayın durumu |
-| Form | Şema, yayın/tarih/kota, kimlik ve tek başvuru, CSV/JSON | Şema sürümleme, kapsamlı alan doğrulama, etkinlik ilişkisi |
-| Veritabanı | Sekiz model, indeksler, submit transaction’ı | Transaction ile silme, tüm canlı indeks ve performans kontrolü |
-| Hackathon | Ayrı lider OTP ve HackathonApp | Dinamik form ile başvuru havuzunun birleştirilmesi |
-| Frontend | React/Vite iskeleti | Landing page, yönetim/katılımcı ekranları |
-| Testler | 20 otomatik test geçti; HTML ve HTTP araçları var | Browser CORS, gerçek Google/Brevo ve daha geniş regresyon kapsamı |
-| Operasyon | Health, log/rate limit, replica set startup kontrolü | CI/CD, readiness, deployment ve yedekleme |
+Düzeltildi: eksik ekip/hackathon OTP metotları, hash/tek kullanımlılık/deneme/cooldown, PENDING şema uyumsuzluğu, eski hackathon şema/API uyumsuzluğu, admin onay API ve ekranı, güvenli seed, çoklu-origin CORS, özel dosya indirme ve upload doğrulaması, form alan doğrulaması, transaction ile silme, şema değişse de export, CSV/arama korumaları, cursor export, gerçek katılımcı form entegrasyonu, sunucuda yetkili ve sürümlü içerik yayını, panel lint hatası ve font dosyaları.
 
-## Gözden geçirme için önemli noktalar
+Yerel doğrulama:
 
-- Eski alanı eksik formlar da verificationRequired varsayılan true ile doğrulama ister. Anonim formların ayarları açıkça güncellenmeli.
-- MongoDB replica set / Atlas zorunlu; yerel kernel uyumsuzluğu container ortamında geçici rseq ayarıyla çözüldü.
-- CORS hâlâ tek CLIENT_URL kullanıyor. localhost ve 127.0.0.1 farklı origin; çoklu-origin desteği uygulanmadı.
-- Yüklenen CV/form ekleri hâlâ public. Katılımcı submit dosya temizliği bu erişim riskini çözmez.
-- Katılımcı OTP’si güçlendirildi; eski ekip/hackathon OTP’si aynı güvenceye sahip değil.
+- `npm run check`: üç paketin lint kontrolü, 37 backend testi, 7 panel testi, 210 etkinlik sitesi testi ve iki üretim build'i geçti.
+- `npm run test:e2e`: doğrulanmış başvuru → panel → CSV, ekip kaydı → admin onayı → giriş, içerik yayınının ikinci sekmede görünmesi ve 3 ekran boyutunda layout olmak üzere 4 Chromium testi geçti.
+- `docker compose config --quiet`: yapılandırma geçerli. Gerçek mevcut Docker veritabanı üzerinde kurulum/seed/migration çalıştırılmadı.
+- Testler gerçek `.env`, gerçek veri tabanı ve e-posta/Google hesaplarından ayrıdır.
 
-`proje_taslagi_v2.md` hedef/karar taslağıdır; uygulanmış özellik sözleşmesi değildir. Tailwind, Cloudinary ve Bevy senkronizasyonu mevcut uygulamada yok; Excel export CSV’dir, xlsx üretilmez.
+Dış ortamda tamamlanacak kabul kontrolleri: gerçek Google hesabıyla origin/client ID eşleşmesi, gerçek Brevo teslimatı, deployment origin/proxy/SPA ayarları, gerçek içerikler ve organizasyonun veri metinleri, DB + upload yedeğinin ayrı test ortamına geri yüklenmesi. Lokal test başarısı bu kontrollerin yerine geçmez.
+
+Başlangıç: [kök README](../README.md), [kurulum](KURULUM.md), [API](API.md), [mimari](architecture.md), [güvenlik ve dosyalar](GUVENLIK_VE_DOSYALAR.md). İlk inceleme ve aşamalar [test planında](IYILESTIRME_VE_TEST_PLANI.md) korunur.

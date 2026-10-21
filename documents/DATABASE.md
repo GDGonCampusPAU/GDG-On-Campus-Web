@@ -1,3 +1,9 @@
+# 21 Ekim model güncellemesi
+
+User rol listesine PENDING eklendi; eşzamanlı admin işlemleri için roleChangeVersion kullanılır. VerificationToken yeni challenge'larda düz kod yerine codeHash, attempts ve resendAfter saklar; hash alanlı kayıtlar için email+purpose unique partial index vardır. Eski plaintext challenge'lar doğrulanmaz. HackathonApp, controller'ın takım/lider alanlarını kabul eder ve eski referans alanlarını korur. Form eventKey ve isteğe bağlı Content referansı taşır. FormResponse schemaVersion ve soru etiketi snapshot'ıyla geçmiş export'u korur. Yeni EventPage, yayınlanan etkinlik JSON'u, formSlug, revision ve updatedBy saklar. Başlangıç yalnız eksik sayfa/form ekler; canlı kayıtları toplu taşımaz.
+
+> Bu belgenin aşağıdaki incelemesi 12 Ekim 2026 tarihli geçmiş kayıttır. 21 Ekim düzeltmeleri için [güncel durum](MEVCUT_PROJE_DURUMU.md), [backend README](../backend/README.md) ve [kurulum](KURULUM.md) geçerlidir.
+
 # Veritabanı mimarisi
 
 [← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)

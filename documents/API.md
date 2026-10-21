@@ -1,3 +1,22 @@
+# 21 Ekim 2026 API ekleri ve davranış değişiklikleri
+
+Kök `/api/v1`. Aşağıdaki ekler günceldir; devamındaki eski endpoint örneklerini bu davranışlarla birlikte değerlendirin.
+
+| Metot / yol | Yetki | İşlev |
+| --- | --- | --- |
+| GET `/users?page=1&role=PENDING` | ADMIN | Parola hash'i içermeyen sayfalı kullanıcı listesi |
+| PATCH `/users/:id/role` | ADMIN | `{role}` ile onay/rol değişimi; kendini değiştirme ve eşzamanlı admin kaybı engellenir |
+| GET `/event-page/hackathon` | Public | `{data: {event, revision, formSlug, formId}}` yayınlanan içerik |
+| PUT `/event-page/hackathon` | ADMIN/ORGANIZER | `{event, revision}` ile içerik + form transaction yayını; eski revision 409 |
+| GET `/files/:filename` | ADMIN/ORGANIZER | Özel başvuru dosyasını attachment indirir |
+| GET `/ready` (API prefix'i olmadan) | Public | DB bağlıysa 200, değilse 503 |
+
+Ekip ve eski hackathon OTP akışları yeniden çalışır; hash, tek kullanımlılık, süre, 5 deneme ve 60 saniye bekleme uygular. Kayıt PENDING üretir; yönetici onayı gerekir. Üretimde eksik mail servisi 503 döner. Yeni etkinlik kayıt kanalı `POST /forms/public/hackathon-katilim/submit` olup katılımcı Bearer token ister; `{success:true,responseId}` kalıcı kayıt onayıdır. İsteğe bağlı `_formVersion` ISO tarihi eski UI şemasını reddetmek için kullanılır.
+
+`GET /forms/:id/responses` ve export `search` ile literal arama yapabilir. JSON/CSV export akış halinde üretilir; silinmiş/yeniden adlandırılmış soruların eski yanıtları korunur. Form alanları, seçenekler ve durum/tarih aralıkları sunucuda doğrulanır. Özel eski `/uploads/:filename` linkleri de artık token ister; public görseller `/uploads/public/` altındadır. Sunucu istek/hata yanıtlarında request ID sağlar.
+
+---
+
 # API kullanım kılavuzu
 
 [← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)

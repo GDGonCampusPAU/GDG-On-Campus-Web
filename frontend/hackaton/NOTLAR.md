@@ -1,3 +1,5 @@
+> 21 Ekim güncellemesi: Fontlar repodaki TTF dosyalarıyla tamamlandı. İçerik editörü artık ekip hesabıyla sunucuya yayın yapıyor. Aşağıdaki notlar geçmiş tasarım kararlarını korur; güncel kurulum için README geçerlidir. Ana sayfadaki sabit CTA kararı değiştirilmedi.
+
 # Notlar (13 Ekim 2026)
 
 Konuşmada anlaşılmayan iki maddenin açıklaması. Karar ve dosya bekleyen şeyler burada duruyor.

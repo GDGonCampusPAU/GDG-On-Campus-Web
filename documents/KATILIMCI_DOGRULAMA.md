@@ -1,3 +1,5 @@
+> Bu belgenin aşağıdaki incelemesi 12 Ekim 2026 tarihli geçmiş kayıttır. 21 Ekim düzeltmeleri için [güncel durum](MEVCUT_PROJE_DURUMU.md), [backend README](../backend/README.md) ve [kurulum](KURULUM.md) geçerlidir.
+
 # Katılımcı doğrulaması — kullanım ve test
 
 Bu belge `feature/participant-verification` dalındaki yeni davranışı anlatır. API, mimari ve veritabanı belgeleri de bu çalışma ağacına göre güncellenmiştir.

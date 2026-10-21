@@ -7,6 +7,7 @@ const positiveInteger = (name, fallback) => {
 const getConfig = () => {
   const secret = process.env.PARTICIPANT_JWT_SECRET || process.env.JWT_SECRET;
   if (!secret || secret === 'your_jwt_secret_key_here') throw new Error('PARTICIPANT_JWT_SECRET veya gerçek JWT_SECRET ayarlanmalıdır.');
+  if (process.env.NODE_ENV === 'production' && secret.length < 32) throw new Error('Katılımcı JWT anahtarı en az 32 karakter olmalıdır.');
   const expiresIn = process.env.PARTICIPANT_JWT_EXPIRES_IN || '1h';
   // Fail at startup for invalid duration strings, rather than after consuming an OTP.
   if (!/^\d+(?:ms|s|m|h|d|w)$/.test(expiresIn)) throw new Error('PARTICIPANT_JWT_EXPIRES_IN örneğin 15m veya 1h olmalıdır.');

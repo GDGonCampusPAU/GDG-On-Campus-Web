@@ -15,6 +15,7 @@ const app = require('../src/app');
 const User = require('../src/models/User');
 const Form = require('../src/models/Form');
 const Response = require('../src/models/FormResponse');
+const Content = require('../src/models/Content');
 const { generateToken } = require('../src/utils/jwt');
 let repl, token;
 before(async () => {
@@ -41,6 +42,13 @@ test('CORS permits both frontends, supports preflight and rejects other origins'
   }
   assert.equal((await request(app).get('/health').set('Origin', 'https://attacker.example')).status, 403);
   assert.equal((await request(app).get('/ready')).status, 200);
+});
+test('legacy published cover images stay public without exposing unrelated uploads', async () => {
+  await fs.writeFile(path.join(process.env.UPLOAD_DIR, 'legacy-cover.png'), Buffer.from('legacy image'));
+  await fs.writeFile(path.join(process.env.UPLOAD_DIR, 'private-resume.pdf'), Buffer.from('private document'));
+  await Content.create({ title: 'Legacy content', description: 'Published image', type: 'EVENT', coverImageUrl: 'http://localhost:5000/uploads/legacy-cover.png' });
+  assert.equal((await request(app).get('/uploads/legacy-cover.png')).status, 200);
+  assert.equal((await request(app).get('/uploads/private-resume.pdf')).status, 401);
 });
 test('private file submission downloads only with staff auth and invalid files are removed', async () => {
   await makeForm([{ fieldId: 'cv', label: 'CV', type: 'file', required: true }]);

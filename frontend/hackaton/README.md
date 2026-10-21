@@ -12,6 +12,6 @@ Site içerikleri `/api/v1/event-page/hackathon` üzerinden yüklenir. İlk kurul
 
 Fontlar repodaki mevcut TTF dosyalarından `public/fonts/` altına alındı. Sponsor logoları ve kişi fotoğrafları editörden URL verilerek eklenir; mevcut yer tutucu içerikler etkinlik ekibi tarafından gerçek içerikle değiştirilmelidir.
 
-Komutlar: `npm test`, `npm run lint`, `npm run build`. Build `dist/` ve SPA fallback `404.html` üretir. Netlify/Cloudflare `_redirects`, Vercel rewrite dosyası korunur. Yayında `/kayit`, `/admin` gibi rotaları yenilemenin çalıştığını ayrıca doğrulayın. `npm run check:layout` mevcut özel layout aracıdır; canlı API bağlantısı ve Chrome gerektirir. Asıl tarayıcı regresyon testleri kökten `npm run test:e2e` ile çalışır.
+Komutlar: `npm test`, `npm run lint`, `npm run build`. Build `dist/` ve SPA fallback `404.html` üretir. Netlify/Cloudflare `_redirects`, Vercel rewrite dosyası korunur. Yayında `/kayit`, `/admin` gibi rotaları yenilemenin çalıştığını ayrıca doğrulayın. `npm run check:layout` üç ekran boyutunu izole API ve Chromium ile kontrol eder. Tüm tarayıcı regresyon testleri kökten `npm run test:e2e` ile çalışır. Önce kök bağımlılıklarını ve `npm run setup:browser` ile Chromium'u kurun.
 
 Kişisel veri metinleri, gerçek sponsorlar/tarih ve kayıtların saklama süresi organizasyonun yayın öncesi içerik kararlarıdır.

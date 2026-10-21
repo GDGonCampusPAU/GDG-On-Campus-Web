@@ -1,3 +1,5 @@
+> Bu belgenin aşağıdaki incelemesi 12 Ekim 2026 tarihli geçmiş kayıttır. 21 Ekim düzeltmeleri için [güncel durum](MEVCUT_PROJE_DURUMU.md), [backend README](../backend/README.md) ve [kurulum](KURULUM.md) geçerlidir.
+
 # İnceleme kapsamı ve kaynak haritası
 
 [← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)

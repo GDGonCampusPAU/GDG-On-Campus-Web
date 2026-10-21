@@ -1,62 +1,33 @@
 # Uygulama mimarisi
 
-[← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)
-
-> Güncelleme: 12 Ekim 2026 — `feature/participant-verification` çalışma ağacı. Katılımcı doğrulaması ve testler dahil.
-
-Backend tek Express süreci ve tek MongoDB bağlantısı kullanan katmanlı bir monolittir. Hackathon ayrı klasörde modülerleştirilmiştir; ayrı servis veya ayrı veritabanı değildir.
+21 Ekim 2026. Tek Express API ve MongoDB bağlantısı kullanılır; hackathon bağımsız servis değildir.
 
 ```mermaid
 flowchart LR
-    Browser[React iskeleti / manuel test sayfası] --> API[Express API]
-    API --> Security[Helmet / CORS / rate limit]
-    Security --> Team[Ekip JWT ve rol kontrolü]
-    Security --> Verify[Katılımcı doğrulama modülü]
-    Verify --> Google[Google ID token doğrulama]
-    Verify --> Email[Brevo / e-posta OTP]
-    Verify --> Identity[(Participant / ParticipantOtp)]
-    Security --> FormGate[Form katılımcı middleware]
-    FormGate --> Upload[Multer]
-    Upload --> Controller[Form controller]
-    Controller --> Submit[FormSubmissionService]
-    Submit --> Transaction[(MongoDB replica set / transaction)]
-    Team --> CMS[İçerik ve form yönetimi]
-    Security --> Hackathon[Bağımsız hackathon akışı]
-    API --> Static[Public uploads erişimi]
+  Site[frontend/hackaton: etkinlik sitesi] --> API[Express API]
+  Panel[frontend: ekip paneli] --> API
+  Shared[shared: başlangıç şablonu ve doğrulayıcı] --> Site
+  Shared --> API
+  API --> Team[Ekip JWT ve rol kontrolü]
+  API --> Participant[Katılımcı OTP / Google ve ayrı JWT]
+  Participant --> Form[Dinamik Form / FormResponse]
+  Team --> CMS[EventPage / içerik yayını]
+  Team --> Lists[Başvurular / CSV / özel dosya indirme]
+  CMS --> Transaction[MongoDB replica set transaction]
+  Form --> Transaction
+  API --> Legacy[Korunan eski HackathonApp API]
 ```
 
-### Klasörlerin sorumlulukları
-
-| Yol | Sorumluluk |
+| Sınır | Davranış |
 | --- | --- |
-| `frontend/src/App.jsx` | Şu an Vite/React örnek ekranı; API çağrısı yok |
-| `backend/src/server.js` | `.env`, katılımcı config kontrolü, DB topology/replica set kontrolü, yeni indeksleri bekleme, HTTP başlatma/kapanış |
-| `backend/src/app.js` | HTTP middleware, statik dosyalar, route mount, sağlık ve hata yanıtları |
-| `backend/src/config/db.js` | Mongoose bağlantısı |
-| `backend/src/routes/` | HTTP metodu, yol, auth/rol/upload middleware bağlama |
-| `backend/src/controllers/` | Auth, içerik ve form iş kuralları ile sorgular |
-| `backend/src/models/` | Veri şemaları ve bazı model metotları |
-| `backend/src/modules/participantAuth/` | Katılımcı config, modeller, OTP/Google/token servisleri, controller/router ve form kimlik middleware’i |
-| `backend/src/services/formSubmissionService.js` | Transaction içinde kota, tek başvuru ve yanıt kaydı |
-| `backend/tests/` | İzole MongoDB ve Google doğrulama otomatik testleri |
-| `backend/tools/` | Elle çalıştırılan HTML ve HTTP test araçları; Express tarafından sunulmaz |
-| `backend/src/modules/hackathon/` | Hackathon route/controller/model ve açma-kapama koşulu |
-| `backend/src/services/emailService.js` | Brevo REST çağrısı ve OTP e-posta şablonları |
-| `backend/src/utils/` | JWT, girdi doğrulayıcıları ve seed |
-| `backend/uploads/` | Dosyaların yerel diskte tutulduğu alan |
+| Ekip User | PENDING, MEMBER, ORGANIZER, ADMIN; admin onayı ve listeleme sunucuda korunur |
+| Participant | Parolasız e-posta/Google doğrulaması; ayrı token audience/issuer/type; ekip yönetimine giriş vermez |
+| Yeni başvuru | `hackathon-katilim` dinamik formu; tek katılımcı/tek başvuru, transaction ile kota ve sayaç |
+| Eski başvuru | HackathonApp koleksiyonu; panelde kaynak seçimi; otomatik veri taşıma yok |
+| Etkinlik içeriği | EventPage kalıcı kaynak; ilk örnek `shared/hackathon-event.json`; revision kontrolü ile form şemasıyla birlikte yayın |
+| Dosya | Public görseller ve özel başvuru ekleri ayrı; özel indirme staff token'ı ister |
+| Test | Node test runner + Supertest + geçici replica set; UI Vitest/Testing Library; E2E Playwright |
 
-Hackathon için eski `controllers/hackathonController.js`, `routes/hackathonRoutes.js`, `models/HackathonApp.js` dosyaları yeni modüle yönlendiren proxy dosyalardır. İkinci bir uygulama veya ikinci koleksiyon oluşturmazlar.
+`frontend/hackaton` fiziksel olarak frontend altında bulunan ayrı Vite uygulamasıdır. Bu taşıma otomatik bir `/hackaton` URL alt yolu oluşturmaz. Geliştirmede iki ayrı origin kullanılır; production aynı origin veya ayrı origin ile açıkça yapılandırılabilir.
 
-Katılımcı modülünde HTTP controller’ı OTP, Google doğrulama ve token servislerine delegasyon yapar. Form route’unda katılımcı middleware’i dosya yazılmadan önce kimliği denetler. Controller soru cevaplarını doğrular; kayıt ve kota işini FormSubmissionService yürütür. Mevcut içerik/ekip controller’ları ve form export/alan doğrulaması hâlâ daha fazla sorumluluk taşır.
-
-### Kimlik ve modül sınırları
-
-Ekip User hesabı ADMIN/ORGANIZER/PENDING rol sistemine bağlıdır. Participant hesabı etkinlik katılımı içindir; ekip onayı veya parola istemez. Katılımcı JWT’sinde ayrı audience, issuer ve type vardır; ekip middleware’i bu token’ı reddeder. `JWT_EXPIRES_IN` ekip, `PARTICIPANT_JWT_EXPIRES_IN` katılımcı süresidir. Ayrı imza anahtarı yapılandırılabilir.
-
-Dinamik hackathon formu bu katılımcı doğrulamasını kullanır; özel hackathon modülü eski lider OTP’sini ve HackathonApp koleksiyonunu kullanır. Modülü kapatmak dinamik formu kapatmaz. Form ile Content arasında doğrudan etkinlik ilişkisi henüz yoktur.
-
-Manuel test sayfası ürün frontend’i değildir. CORS tek CLIENT_URL origin’iyle çalışır; birden fazla origin desteği henüz eklenmedi.
-
-### Teknolojiler
-
-Backend: Node.js, CommonJS, Express 5, Mongoose 9, MongoDB, bcryptjs, jsonwebtoken, multer, cors, helmet, morgan ve express-rate-limit; Google için google-auth-library. Testlerde Node test runner, Supertest ve mongodb-memory-server kullanılır. Frontend: React 19, Vite 8, ES modules ve ESLint. Sürümler `package.json` bağımlılık aralıklarına dayanır; backend bağımlılıkları kuruldu ve testler çalıştırıldı; frontend kurulumu/build’i bu özellik kapsamında doğrulanmadı. Backend lockfile var, frontend lockfile yok. Projede `engines` ile Node sürümü sabitlenmemiş; eski README'deki “Node 18+” ifadesi tüm mevcut bağımlılıkların uyumluluğunun kanıtı değildir.
+Kök komutları ve CI üç paketi birlikte kontrol eder. Manuel HTML/HTTP araçları geliştirici içindir; ürün akışları gerçek ön yüzlerde bulunur. Ek ayrıntılar [backend README](../backend/README.md) ve [mevcut durum](MEVCUT_PROJE_DURUMU.md) belgesindedir.
