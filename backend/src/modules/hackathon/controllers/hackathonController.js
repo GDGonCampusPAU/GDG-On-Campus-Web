@@ -1,16 +1,15 @@
+const { escapeCsvCell, literalSearch } = require('../../../utils/query');
 const HackathonApp = require('../models/HackathonApp');
 const VerificationToken = require('../../../models/VerificationToken');
 const { validateHackathonInput, isValidEmail } = require('../../../utils/validators');
-const { sendHackathonOtpEmail } = require('../../../services/emailService');
+const { sendTeamOtp } = require('../../../services/teamOtpService');
 
 /**
  * Helper to resolve resume URL from file upload or body
  */
 const resolveResumeUrl = (req) => {
   if (req.file) {
-    const protocol = req.protocol;
-    const host = req.get('host');
-    return `${protocol}://${host}/uploads/${req.file.filename}`;
+    return `/api/v1/files/${req.file.filename}`;
   }
   return req.body.resumeUrl || null;
 };
@@ -18,11 +17,7 @@ const resolveResumeUrl = (req) => {
 /**
  * Helper to escape CSV cell value
  */
-const escapeCsvCell = (val) => {
-  if (val === null || val === undefined) return '""';
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
-};
+
 
 /**
  * @desc    Send verification code to hackathon team leader email
@@ -32,6 +27,7 @@ const escapeCsvCell = (val) => {
 const sendHackathonVerification = async (req, res, next) => {
   try {
     const { leaderEmail, leaderName, teamName } = req.body;
+    if ([leaderName, teamName].some(value => value != null && typeof value !== 'string')) return res.status(400).json({ message: 'İsim alanları metin olmalıdır.' });
 
     if (!leaderEmail || !isValidEmail(leaderEmail)) {
       return res.status(400).json({
@@ -43,15 +39,11 @@ const sendHackathonVerification = async (req, res, next) => {
     const normalizedEmail = leaderEmail.toLowerCase().trim();
 
     // Generate 6-digit OTP code (10 min TTL)
-    const code = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
-
-    // Send email via Brevo
-    await sendHackathonOtpEmail({
-      email: normalizedEmail,
+    await sendTeamOtp({
+      email: normalizedEmail, purpose: 'HACKATHON_APPLY',
       leaderName: leaderName ? leaderName.trim() : 'Takım Lideri',
-      teamName: teamName ? teamName.trim() : '',
-      code
-    });
+      teamName: teamName ? teamName.trim() : ''
+      });
 
     return res.status(200).json({
       success: true,
@@ -104,12 +96,10 @@ const applyHackathon = async (req, res, next) => {
     // 2. Validate Verification Code
     if (!inputCode) {
       // If code was not entered, auto-send code and prompt user to enter it
-      const otpCode = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
-      await sendHackathonOtpEmail({
-        email: normalizedEmail,
+      await sendTeamOtp({
+        email: normalizedEmail, purpose: 'HACKATHON_APPLY',
         leaderName: leaderName.trim(),
-        teamName: teamName.trim(),
-        code: otpCode
+        teamName: teamName.trim()
       });
 
       return res.status(400).json({
@@ -171,7 +161,7 @@ const getApplications = async (req, res, next) => {
     const filter = {};
 
     if (req.query.search && typeof req.query.search === 'string') {
-      const searchRegex = new RegExp(req.query.search.trim(), 'i');
+      const searchRegex = literalSearch(req.query.search);
       filter.$or = [
         { teamName: searchRegex },
         { leaderName: searchRegex },
@@ -214,51 +204,26 @@ const getApplications = async (req, res, next) => {
  */
 const exportApplications = async (req, res, next) => {
   try {
-    const format = (req.query.format || 'csv').toLowerCase();
-
-    const applications = await HackathonApp.find()
-      .sort({ appliedAt: -1 })
-      .lean();
-
+    const { write, streamJson } = require('../../../utils/streamExport');
+    const format = req.query.format || 'csv';
+    if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
+    const cursor = HackathonApp.find().sort({ appliedAt: -1 }).lean().cursor();
+    res.setHeader('Content-Disposition', `attachment; filename="hackathon_applications.${format}"`);
     if (format === 'json') {
-      res.setHeader('Content-Disposition', 'attachment; filename="hackathon_applications.json"');
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      return res.status(200).send(JSON.stringify(applications, null, 2));
+      return await streamJson(res, cursor);
     }
-
-    const headers = [
-      'ID',
-      'Takım Adı',
-      'Lider Adı',
-      'Lider E-posta',
-      'Lider Telefon',
-      'Üye Sayısı',
-      'Proje Fikri',
-      'Özgeçmiş / CV Linki',
-      'Başvuru Tarihi'
-    ];
-
-    const rows = applications.map((app) => [
-      escapeCsvCell(app._id),
-      escapeCsvCell(app.teamName),
-      escapeCsvCell(app.leaderName),
-      escapeCsvCell(app.leaderEmail),
-      escapeCsvCell(app.leaderPhone),
-      escapeCsvCell(app.memberCount),
-      escapeCsvCell(app.projectIdea),
-      escapeCsvCell(app.resumeUrl || ''),
-      escapeCsvCell(new Date(app.appliedAt).toISOString())
-    ]);
-
-    const csvContent =
-      '\uFEFF' + [headers.map(escapeCsvCell).join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="hackathon_applications.csv"');
-    return res.status(200).send(csvContent);
-  } catch (error) {
-    next(error);
-  }
+    try {
+      await write(res, '\uFEFF' + ['ID', 'Takım Adı', 'Lider Adı', 'Lider E-posta', 'Lider Telefon', 'Üye Sayısı', 'Proje Fikri', 'Özgeçmiş / CV Linki', 'Başvuru Tarihi'].map(escapeCsvCell).join(',') + '\r\n');
+      for await (const application of cursor) {
+        await write(res, [application._id, application.teamName, application.leaderName || application.fullName,
+          application.leaderEmail, application.leaderPhone, application.memberCount, application.projectIdea || application.motivation,
+          application.resumeUrl, new Date(application.appliedAt).toISOString()].map(escapeCsvCell).join(',') + '\r\n');
+      }
+    } finally { await cursor.close(); }
+    res.end();
+  } catch (error) { next(error); }
 };
 
 module.exports = {

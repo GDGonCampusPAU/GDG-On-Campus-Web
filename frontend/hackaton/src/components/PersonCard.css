@@ -1,0 +1,41 @@
+.person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  text-align: center;
+  background: var(--tone-pastel);
+  border-radius: var(--radius-lg);
+}
+
+.person__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--tone);
+  color: var(--black);
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.person__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.person__name {
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.person__title {
+  font-size: 0.9375rem;
+}

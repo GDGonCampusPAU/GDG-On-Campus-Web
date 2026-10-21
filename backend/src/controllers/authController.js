@@ -3,7 +3,7 @@ const User = require('../models/User');
 const VerificationToken = require('../models/VerificationToken');
 const { generateToken } = require('../utils/jwt');
 const { validateRegisterInput, validateLoginInput, isValidPauOrGmail } = require('../utils/validators');
-const { sendRegistrationOtpEmail } = require('../services/emailService');
+const { sendTeamOtp } = require('../services/teamOtpService');
 
 /**
  * @desc    Send 2FA / Verification code to email before or during registration
@@ -13,6 +13,7 @@ const { sendRegistrationOtpEmail } = require('../services/emailService');
 const sendRegisterOtp = async (req, res, next) => {
   try {
     const { email, fullName } = req.body;
+    if (fullName != null && typeof fullName !== 'string') return res.status(400).json({ message: 'Ad soyad metin olmalıdır.' });
 
     if (!email || !isValidPauOrGmail(email)) {
       return res.status(400).json({
@@ -33,14 +34,10 @@ const sendRegisterOtp = async (req, res, next) => {
     }
 
     // Generate 6-digit OTP code (10 min TTL)
-    const code = await VerificationToken.generateOtp(normalizedEmail, 'REGISTER', 10);
-
-    // Send via Brevo Email Service
-    await sendRegistrationOtpEmail({
-      email: normalizedEmail,
-      fullName: fullName ? fullName.trim() : 'Core Team Adayı',
-      code
-    });
+    await sendTeamOtp({
+      email: normalizedEmail, purpose: 'REGISTER',
+      fullName: fullName ? fullName.trim() : 'Core Team Adayı'
+      });
 
     return res.status(200).json({
       success: true,
@@ -82,11 +79,9 @@ const register = async (req, res, next) => {
 
     // If code is not provided, send OTP and ask user to submit code
     if (!code) {
-      const otpCode = await VerificationToken.generateOtp(normalizedEmail, 'REGISTER', 10);
-      await sendRegistrationOtpEmail({
-        email: normalizedEmail,
-        fullName: fullName.trim(),
-        code: otpCode
+      await sendTeamOtp({
+        email: normalizedEmail, purpose: 'REGISTER',
+        fullName: fullName.trim()
       });
 
       return res.status(200).json({
@@ -154,7 +149,7 @@ const verifyEmail = async (req, res, next) => {
   try {
     const { email, code } = req.body;
 
-    if (!email || !code) {
+    if (typeof email !== 'string' || typeof code !== 'string') {
       return res.status(400).json({
         success: false,
         message: 'E-posta adresi ve 6 haneli doğrulama kodu zorunludur.'
@@ -172,6 +167,7 @@ const verifyEmail = async (req, res, next) => {
     }
 
     const user = await User.findOne({ email: normalizedEmail });
+    if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı.' });
     if (user) {
       user.isEmailVerified = true;
       await user.save();
@@ -224,11 +220,9 @@ const login = async (req, res, next) => {
     // 1. Check if email was verified
     if (!user.isEmailVerified) {
       // Send fresh OTP so user can verify easily
-      const code = await VerificationToken.generateOtp(normalizedEmail, 'REGISTER', 10);
-      await sendRegistrationOtpEmail({
-        email: normalizedEmail,
-        fullName: user.fullName,
-        code
+      await sendTeamOtp({
+        email: normalizedEmail, purpose: 'REGISTER',
+        fullName: user.fullName
       });
 
       return res.status(403).json({

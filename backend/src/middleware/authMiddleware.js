@@ -28,6 +28,7 @@ const authMiddleware = async (req, res, next) => {
     let decoded;
     try {
       decoded = verifyToken(token);
+      if (decoded.type === 'participant' || !decoded.id) throw new Error('Ekip tokenı gerekli.');
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
         return res.status(401).json({

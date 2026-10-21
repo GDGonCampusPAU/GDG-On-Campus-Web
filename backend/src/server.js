@@ -7,8 +7,23 @@ const PORT = process.env.PORT || 5000;
 // Start server after connecting to database
 const startServer = async () => {
   try {
+    require('./utils/jwt').getTeamConfig();
+    require('./modules/participantAuth/config').getConfig();
+
     // Connect to MongoDB
-    await connectDB();
+    const connection = await connectDB();
+    const topology = await connection.connection.db.admin().command({ hello: 1 });
+    if (!topology.setName && topology.msg !== 'isdbgrid') {
+      throw new Error('Form işlemleri MongoDB replica set gerektirir. MONGO_URI yapılandırmasını kontrol edin.');
+    }
+    await Promise.all([
+      require('./modules/participantAuth/models/Participant').init(),
+      require('./modules/participantAuth/models/ParticipantOtp').init(),
+      require('./models/FormResponse').init(),
+      require('./models/VerificationToken').init(),
+      require('./models/User').init()
+    ]);
+    await require('./services/eventPageService').ensureHackathonPage();
 
     const server = app.listen(PORT, () => {
       console.log('====================================================');
@@ -22,9 +37,12 @@ const startServer = async () => {
     // Graceful Shutdown on termination signals
     const shutdown = (signal) => {
       console.log(`\n[Server] Received ${signal}. Gracefully shutting down...`);
-      server.close(() => {
+      const deadline = setTimeout(() => process.exit(1), 10000);
+      deadline.unref();
+      server.close(async () => {
+        await require('mongoose').disconnect();
+        clearTimeout(deadline);
         console.log('[Server] HTTP server closed.');
-        process.exit(0);
       });
     };
 

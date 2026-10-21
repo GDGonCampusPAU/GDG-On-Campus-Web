@@ -1,170 +1,21 @@
-# GDG On Campus Pamukkale University - Backend API
+# GDG PAU API
 
-Google Developer Groups on Campus Pamukkale Üniversitesi web platformu için geliştirilmiş modüler RESTful API servisidir.
+Node 24, Express ve MongoDB replica set/Atlas kullanır. Kök dizindeki `npm run setup` bütün uygulamaları kurar. Backend tek başına `npm ci`, `npm test`, `npm start` veya `npm run dev` ile çalışır; repo lint araçları kök kurulumdan gelir.
 
-Bu backend servisi şu ana alanları destekler:
-1. **Public Landing Page:** Etkinlikler ve Duyurular (`/api/v1/content/public`, `/api/v1/content/featured`)
-2. **Core Team Administration & CMS:** İçerik Yönetimi ve Ekip Yetkilendirmesi (`/api/v1/auth`, `/api/v1/content`)
-3. **Dinamik Form Yönetimi (Google Forms Mantığı):** Her amaca uygun dinamik form oluşturma, soru ekleme/çıkarma, yanıt toplama ve Excel/CSV dışa aktarma (`/api/v1/forms`)
-4. **İzole Hackathon Modülü:** Ayrı bir modül olarak tutulan, hackathon bittiğinde tek satırla gizlenebilen veya silinebilen modül (`/api/v1/hackathon`)
+İlk kurulumda `.env.example` dosyasını `.env` olarak kopyalayın; mevcut ayarları ezmeyin. `JWT_SECRET` en az 32 karakterlik özel bir anahtar olmalı. `PARTICIPANT_JWT_SECRET` için de ayrı güçlü anahtar önerilir. Anahtar üretmek için `openssl rand -hex 32` kullanılabilir. MongoDB standalone bağlantısı kabul edilmez. Kök dizindeki Compose, yeni yerel geliştirme veritabanı için replica set kurar; mevcut veritabanı/volume üzerinde çalıştırmak gerekmez.
 
----
+- API: `http://localhost:5000/api/v1`; `/health` süreç canlılığını, `/ready` DB bağlantısını bildirir.
+- `CLIENT_URLS=http://localhost:5173,http://localhost:5174` iki ön yüze izin verir. Eski `CLIENT_URL` tek-origin ayarı geriye uyumludur. `localhost` ve `127.0.0.1` farklı origin'lerdir.
+- Ters proxy arkasında doğru `TRUST_PROXY_HOPS` değerini ayarlayın; varsayılan 0'dır.
+- Ekip `/auth/register` → e-posta OTP → `PENDING` → ADMIN `/users/:id/role` onayı → `/auth/login` akışını kullanır. Roller PENDING, MEMBER, ORGANIZER, ADMIN'dir. Yönetim yetkisi sunucuda rol üzerinden uygulanır; eski `permissions` alanı bu sürümde yetki vermek için kullanılmaz.
+- Katılımcı `/participant-auth/email/send-otp` + `/email/verify` veya `/google` ile ayrı token alır. Ekip token'ı katılımcı formu yerine geçmez.
+- Ekip ve eski hackathon OTP'leri hash, tek kullanımlılık, 5 deneme, 10 dakika süre ve 60 saniye tekrar gönderim beklemesi uygular. Katılımcı süreleri env üzerinden ayarlanır.
+- Production'da Brevo ayarı yoksa e-posta simülasyonu başarılı sayılmaz. Geliştirmede kod konsola yazılır. Gerçek servis çağrısı 10 saniye zaman aşımı kullanır.
+- `/event-page/hackathon` etkinlik içeriğinin kalıcı kaynağıdır. GET public, PUT ADMIN/ORGANIZER yetkilidir; `{event, revision}` ister. İçerik ve ilgili form aynı transaction'da yayınlanır. Başlangıç şablonu `shared/hackathon-event.json`; sunucu ilk başlangıçta eksik sayfa/formu oluşturur, mevcut başvuruları ve ayarları ezmez.
+- Yeni etkinlik başvuruları `hackathon-katilim` dinamik formuna yazılır. Eski HackathonApp koleksiyonu ve API'si korunur; panelde ayrı kaynak olarak görünür. `ENABLE_HACKATHON_MODULE=false` yalnız eski modülü kapatır.
+- Form gönderimleri transaction ile kota/tek başvuru/sayaç tutarlılığı sağlar. `_formVersion` gönderilirse eski şemayla başvuru reddedilir. Export eski soru etiketlerini korur ve cursor ile akış halinde üretilir.
+- Public görseller `/uploads/public/` altında, CV/form ekleri özel dizindedir. `/api/v1/files/:filename` ORGANIZER/ADMIN token'ı ister. Eski özel `/uploads/:filename` adresleri de token ister; kayıtlı eski public kapak görselleri korunur. Dosyalar tam uzantı ve temel içerik imzası, adet ve boyut kontrolünden geçer.
 
-## 🚀 Teknolojiler (Tech Stack)
+`npm run seed` için yeni admin parolasını `DEFAULT_ADMIN_PASSWORD` ile en az 12 karakter olarak belirleyin. Seed doğrulanmış ADMIN oluşturur; aynı admin tekrar çalıştırıldığında parola değişmez ve loglanmaz. Başka rolü otomatik ADMIN yapmaz.
 
-- **Runtime:** Node.js (v18+)
-- **Framework:** Express.js 5.x
-- **Veritabanı:** MongoDB & Mongoose ORM
-- **Kimlik Doğrulama:** JWT (JSON Web Tokens) & `bcryptjs`
-- **Güvenlik:** `helmet`, `cors`, `express-rate-limit`
-- **Dosya Yükleme:** `multer` (Görseller, dinamik form belgeleri ve CV'ler için)
-- **Loglama:** `morgan`
-
----
-
-## 📁 Proje Klasör Mimarisi
-
-```text
-/backend
-  ├── /src
-  │     ├── /config          # Veritabanı bağlantısı (db.js)
-  │     ├── /controllers     # Controller katmanı (auth, content, form)
-  │     ├── /middleware      # authMiddleware, roleMiddleware, uploadMiddleware, errorHandler
-  │     ├── /models          # Mongoose modelleri (User, Content, Form, FormResponse)
-  │     ├── /modules         # Bağımsız / İzole modüller
-  │     │     └── /hackathon # İzole Hackathon Modülü (models, controllers, routes, index.js)
-  │     ├── /routes          # API rotaları (authRoutes, contentRoutes, formRoutes)
-  │     ├── /utils           # JWT yardımcısı, girdi doğrulayıcılar, seed scripti
-  │     ├── app.js           # Express uygulama yapılandırması
-  │     └── server.js        # Uygulama başlangıç ve dinleme noktası
-  ├── /uploads               # Yüklenen medya, CV ve form dosyaları
-  ├── .env                   # Ortam değişkenleri (gizli)
-  ├── .env.example           # Örnek ortam değişkenleri şablonu
-  ├── package.json           # Bağımlılıklar ve npm scriptleri
-  └── README.md              # Dokümantasyon
-```
-
----
-
-## ⚙️ Kurulum ve Çalıştırma
-
-### 1. Bağımlılıkları Yükleyin
-```bash
-cd backend
-npm install
-```
-
-### 2. Ortam Değişkenlerini Ayarlayın
-`.env.example` dosyasını kopyalayarak `.env` oluşturun:
-```bash
-cp .env.example .env
-```
-
-Örnek `.env` içeriği:
-```env
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/gdg_pau
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRES_IN=7d
-CLIENT_URL=http://localhost:5173
-NODE_ENV=development
-
-# Hackathon modülü bittiğinde false yaparak API'yi gizleyebilirsiniz
-ENABLE_HACKATHON_MODULE=true
-
-# Seed Admin Bilgileri
-DEFAULT_ADMIN_NAME=GDG Admin
-DEFAULT_ADMIN_EMAIL=admin@pau.edu.tr
-DEFAULT_ADMIN_PASSWORD=Admin123456!
-```
-
-### 3. Başlangıç Verilerini (Seed) Yükleyin
-Varsayılan **ADMIN** kullanıcısını, örnek etkinlikleri ve **Hackathon Başvuru Formu Şablonunu** yüklemek için:
-```bash
-npm run seed
-```
-> **Varsayılan Yönetici Bilgileri:**  
-> - **E-posta:** `admin@pau.edu.tr`  
-> - **Şifre:** `Admin123456!`  
-> - **Rol:** `ADMIN`
-
-### 4. Sunucuyu Başlatın
-- **Geliştirme Modu (Hot Reload):** `npm run dev`
-- **Prodüksiyon Modu:** `npm start`
-
----
-
-## 📋 Dinamik Form Yönetimi (Google Forms Mantığı)
-
-Formlar tamamen dinamiktir. Her türlü etkinlik kaydı, geri bildirim anketi, hackathon başvurusu vb. için soru ekleyip çıkarabilir, sıralayabilir ve yanıtları Excel/CSV olarak indirebilirsiniz.
-
-### Desteklenen Soru Tipleri (`fields[].type`):
-- `text`: Kısa metin
-- `textarea`: Uzun metin
-- `number`: Sayısal değer (min/max doğrulama destekli)
-- `email`: E-posta formatı doğrulamalı
-- `phone`: Telefon numarası
-- `select`: Açılır liste (dropdown)
-- `radio`: Tekli seçim
-- `checkbox`: Çoklu seçim
-- `file`: Dosya / CV / Belge yükleme (PDF, DOCX, ZIP, Resim)
-- `date`: Tarih seçici
-
-### Form Rotaları (`/api/v1/forms`)
-
-| Metot | Uç Nokta | Yetki | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/forms/public/:slugOrId` | Herkese Açık | Aktif formu ve soru şemasını getirir |
-| `POST` | `/api/v1/forms/public/:slugOrId/submit` | Herkese Açık | Form yanıtı gönderir (Dosya yükleme destekli: `multipart/form-data`) |
-| `GET` | `/api/v1/forms` | `ORGANIZER`, `ADMIN` | Tüm formları listeler |
-| `POST` | `/api/v1/forms` | `ORGANIZER`, `ADMIN` | Yeni form ve soru listesi oluşturur |
-| `GET` | `/api/v1/forms/:id` | `ORGANIZER`, `ADMIN` | Form detayını ve soru şemasını getirir |
-| `PUT` | `/api/v1/forms/:id` | `ORGANIZER`, `ADMIN` | Formu ve sorularını günceller |
-| `PATCH`| `/api/v1/forms/:id/status` | `ORGANIZER`, `ADMIN` | Durumu günceller (`DRAFT`, `PUBLISHED`, `CLOSED`, `ARCHIVED`) |
-| `DELETE`| `/api/v1/forms/:id` | `ORGANIZER`, `ADMIN` | Formu ve ilişkili yanıtlarını siler |
-| `GET` | `/api/v1/forms/:id/responses` | `ORGANIZER`, `ADMIN` | Form yanıtlarını listeler |
-| `GET` | `/api/v1/forms/:id/responses/export` | `ORGANIZER`, `ADMIN` | Yanıtları her soru bir sütun olacak şekilde CSV veya JSON olarak indirir (`?format=csv` veya `?format=json`) |
-
----
-
-## 🧩 İzole Hackathon Modülü (`/src/modules/hackathon`)
-
-Hackathon işlemleri ana kod tabanından tamamen ayrı bir klasörde (`src/modules/hackathon/`) tutulmaktadır.
-
-- **Geçici Olarak Gizleme:** `.env` dosyasına `ENABLE_HACKATHON_MODULE=false` yazıldığında hackathon API rotaları otomatik olarak kapanır.
-- **Tamamen Silme / Kaldırma:** Hackathon bittiğinde `src/modules/hackathon/` klasörü doğrudan silinebilir.
-
-### Hackathon Uç Noktaları (`/api/v1/hackathon`)
-
-| Metot | Uç Nokta | Yetki | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/hackathon/send-verification` | Herkese Açık | Takım lideri e-posta adresine Brevo ile 6 haneli doğrulama kodu gönderir |
-| `POST` | `/api/v1/hackathon/apply` | Herkese Açık | Hackathon başvuru formu gönderme (**`verificationCode` zorunludur**, CV destekli) |
-| `GET` | `/api/v1/hackathon/applications` | `ORGANIZER`, `ADMIN` | Başvuruları listeleme |
-| `GET` | `/api/v1/hackathon/applications/export` | `ORGANIZER`, `ADMIN` | Başvuruları CSV/JSON dışa aktarma |
-
----
-
-## 🔒 Kimlik Doğrulama & 2FA / E-posta Doğrulama (`/api/v1/auth`)
-
-Core Team kayıtlarında ve hesap güvenliğinde Brevo destekli 6 haneli OTP kodu kullanılır:
-
-| Metot | Uç Nokta | Yetki | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/auth/send-otp` | Herkese Açık | Kayıt öncesi e-postaya 6 haneli doğrulama kodu gönderir |
-| `POST` | `/api/v1/auth/register` | Herkese Açık | Doğrulama koduyla (`code`) güvenli kayıt tamamlama |
-| `POST` | `/api/v1/auth/verify-email` | Herkese Açık | Mevcut bekleyen hesabı kod ile doğrulama |
-| `POST` | `/api/v1/auth/login` | Herkese Açık | Giriş yapma ve JWT alma (E-posta doğrulaması ve yönetici onayı şarttır) |
-| `GET` | `/api/v1/auth/me` | Giriş Yapmış | Kullanıcı profil bilgileri |
-
----
-
-## 📰 İçerik ve Etkinlik Yönetimi (`/api/v1/content`)
-
-| Metot | Uç Nokta | Yetki | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/content/public` | Herkese Açık | Sayfalamalı ve filtreli etkinlik/duyuru listesi |
-| `GET` | `/api/v1/content/featured` | Herkese Açık | Anasayfa slider'ı için öne çıkanlar |
-| `POST` | `/api/v1/content` | `ORGANIZER`, `ADMIN` | Yeni içerik ekleme (Görsel yükleme destekli: `coverImage`) |
-| `PUT` | `/api/v1/content/:id` | `ORGANIZER`, `ADMIN` | İçerik güncelleme |
-| `DELETE`| `/api/v1/content/:id` | `ORGANIZER`, `ADMIN` | İçerik silme |
+Otomatik testler geçici MongoDB kullanır; gerçek `.env`, Google hesabı ve Brevo teslimatı kullanılmaz. Tarayıcı testleri kökten `npm run test:e2e` ile çalışır. Güncel sonuçlar [mevcut durum](../documents/MEVCUT_PROJE_DURUMU.md) belgesindedir.

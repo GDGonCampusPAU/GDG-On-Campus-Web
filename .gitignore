@@ -10,6 +10,7 @@
 *.env
 *.env.*
 !.env.example
+!.env.docker.example
 !backend/.env.example
 
 # Certificates & Private Keys
@@ -88,3 +89,16 @@ desktop.ini
 !.vscode/extensions.json
 *.swp
 *~
+
+# ==========================================
+# Hackathon web (frontend)
+# ==========================================
+.claude/
+.superpowers/
+.vercel/
+Docs/*.pdf
+Docs/superpowers/
+
+# Browser test artifacts
+playwright-report/
+test-results/

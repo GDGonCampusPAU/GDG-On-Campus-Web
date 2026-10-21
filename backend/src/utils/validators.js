@@ -122,7 +122,7 @@ const validateHackathonInput = (data) => {
   }
 
   const count = Number(memberCount);
-  if (isNaN(count) || count < 1 || count > 5) {
+  if (!Number.isInteger(count) || count < 1 || count > 5) {
     errors.push('Takım üye sayısı 1 ile 5 arasında olmalıdır.');
   }
 

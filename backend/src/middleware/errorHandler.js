@@ -3,7 +3,7 @@
  * Ensures consistent JSON error responses across the application
  */
 const errorHandler = (err, req, res, next) => {
-  let statusCode = res.statusCode !== 200 ? res.statusCode : 500;
+  let statusCode = err.status || (res.statusCode !== 200 ? res.statusCode : 500);
   let message = err.message || 'Sunucu içi bir hata oluştu.';
 
   // Handle Mongoose Bad ObjectId (CastError)
@@ -30,7 +30,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'MulterError') {
     statusCode = 400;
     if (err.code === 'LIMIT_FILE_SIZE') {
-      message = 'Yüklenen dosya boyutu izin verilen sınırı aşıyor (Maksimum 5MB).';
+      message = 'Yüklenen dosya boyutu izin verilen sınırı aşıyor (ilgili yükleme sınırına bakınız).';
     } else {
       message = `Dosya yükleme hatası: ${err.message}`;
     }
@@ -42,8 +42,10 @@ const errorHandler = (err, req, res, next) => {
     message = 'Geçersiz JSON formatı gönderildi.';
   }
 
+  if (res.headersSent) return next(err);
   res.status(statusCode).json({
     success: false,
+    requestId: req.requestId,
     message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });

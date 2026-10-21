@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { safePattern } = require('../utils/formValidation');
 
 const formFieldSchema = new mongoose.Schema(
   {
@@ -22,16 +23,8 @@ const formFieldSchema = new mongoose.Schema(
       required: [true, 'Soru tipi zorunludur.'],
       enum: {
         values: [
-          'text',
-          'textarea',
-          'number',
-          'email',
-          'phone',
-          'select',
-          'radio',
-          'checkbox',
-          'file',
-          'date'
+          'text', 'textarea', 'number', 'email', 'phone', 
+          'select', 'radio', 'checkbox', 'file', 'date'
         ],
         message: 'Geçersiz soru tipi: {VALUE}'
       },
@@ -53,7 +46,7 @@ const formFieldSchema = new mongoose.Schema(
     validation: {
       min: { type: Number, default: null },
       max: { type: Number, default: null },
-      regex: { type: String, default: null }
+      regex: { type: String, default: null, validate: { validator: value => value == null || safePattern(value), message: 'Regex desteklenen güvenli biçimde olmalıdır.' } }
     },
     order: {
       type: Number,
@@ -98,6 +91,8 @@ const formSchema = new mongoose.Schema(
       default: 'GENERAL',
       index: true
     },
+    eventKey: { type: String, default: null, index: true },
+    event: { type: mongoose.Schema.Types.ObjectId, ref: 'Content', default: null },
     bannerImageUrl: {
       type: String,
       trim: true,
@@ -113,6 +108,7 @@ const formSchema = new mongoose.Schema(
     },
     maxSubmissions: {
       type: Number,
+      min: 1,
       default: null
     },
     submissionCount: {
@@ -124,6 +120,13 @@ const formSchema = new mongoose.Schema(
       default: []
     },
     settings: {
+      verificationRequired: { type: Boolean, default: true },
+      verificationMethods: {
+        type: [{ type: String, enum: ['GOOGLE', 'EMAIL_OTP'] }],
+        default: ['GOOGLE', 'EMAIL_OTP'],
+        validate: { validator: value => Array.isArray(value) && value.length > 0,
+          message: 'En az bir doğrulama yöntemi seçilmelidir.' }
+      },
       allowMultipleSubmissions: {
         type: Boolean,
         default: true
@@ -149,11 +152,17 @@ const formSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
 formSchema.index({ status: 1, createdAt: -1 });
 formSchema.index({ category: 1, status: 1 });
+formSchema.pre('validate', function () {
+  const ids = this.fields.map(field => field.fieldId);
+  if (ids.some(id => !/^[a-zA-Z][a-zA-Z0-9_]{0,99}$/.test(id)) || new Set(ids).size !== ids.length) this.invalidate('fields', 'Alan kimlikleri geçerli ve benzersiz olmalıdır.');
+  for (const field of this.fields) {
+    if (['select', 'radio', 'checkbox'].includes(field.type) && (!field.options.length || field.options.some(value => !value.trim()) || new Set(field.options).size !== field.options.length)) this.invalidate('fields', 'Seçenekler dolu ve benzersiz olmalıdır.');
+    if (field.validation?.min != null && field.validation?.max != null && field.validation.min > field.validation.max) this.invalidate('fields', 'Minimum maksimumdan büyük olamaz.');
+  }
+  if (this.startDate && this.endDate && this.startDate > this.endDate) this.invalidate('endDate', 'Bitiş başlangıçtan önce olamaz.');
+});
 
 const Form = mongoose.model('Form', formSchema);
-
 module.exports = Form;
-

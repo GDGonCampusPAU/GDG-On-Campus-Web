@@ -4,7 +4,7 @@ const answerSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     label: {
       type: String,
@@ -22,19 +22,19 @@ const uploadedFileSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     originalName: {
       type: String,
-      required: true
+      required: [true, 'Orijinal dosya adı zorunludur.']
     },
     filename: {
       type: String,
-      required: true
+      required: [true, 'Dosya adı zorunludur.']
     },
     url: {
       type: String,
-      required: true
+      required: [true, 'Dosya URL adresi zorunludur.']
     },
     size: {
       type: Number,
@@ -52,15 +52,21 @@ const formResponseSchema = new mongoose.Schema(
       required: [true, 'Form referansı zorunludur.'],
       index: true
     },
+    participant: { type: mongoose.Schema.Types.ObjectId, ref: 'Participant', default: null },
+    verifiedEmail: { type: String, default: null },
+    verificationMethod: { type: String, enum: ['GOOGLE', 'EMAIL_OTP', null], default: null },
+    verifiedAt: { type: Date, default: null },
+    singleSubmissionKey: { type: String },
     formSlug: {
       type: String,
-      required: true,
+      required: [true, 'Form URL adresi (slug) zorunludur.'],
       index: true
     },
     answers: {
       type: [answerSchema],
       default: []
     },
+    schemaVersion: { type: Date, default: null },
     uploadedFiles: {
       type: [uploadedFileSchema],
       default: []
@@ -91,11 +97,7 @@ const formResponseSchema = new mongoose.Schema(
     versionKey: false
   }
 );
-
-// Indexes
 formResponseSchema.index({ form: 1, submittedAt: -1 });
 
 const FormResponse = mongoose.model('FormResponse', formResponseSchema);
-
 module.exports = FormResponse;
-

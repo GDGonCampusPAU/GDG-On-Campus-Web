@@ -1,3 +1,8 @@
+const mongoose = require('mongoose');
+const { answerError } = require('../utils/formValidation');
+const { escapeCsvCell, literalSearch } = require('../utils/query');
+const { saveSubmission } = require('../services/formSubmissionService');
+const { unlink } = require('node:fs/promises');
 const Form = require('../models/Form');
 const FormResponse = require('../models/FormResponse');
 
@@ -23,16 +28,7 @@ const generateSlug = (text) => {
 /**
  * Helper to escape CSV values
  */
-const escapeCsvCell = (val) => {
-  if (val === null || val === undefined) return '""';
-  if (Array.isArray(val)) {
-    val = val.join(', ');
-  } else if (typeof val === 'object') {
-    val = JSON.stringify(val);
-  }
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
-};
+
 
 // =========================================================================
 // ORGANIZER / ADMIN CONTROLLERS
@@ -136,7 +132,7 @@ const getAllForms = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search.trim(), 'i');
+      const searchRegex = literalSearch(req.query.search);
       filter.$or = [{ title: searchRegex }, { description: searchRegex }, { slug: searchRegex }];
     }
 
@@ -230,7 +226,7 @@ const updateForm = async (req, res, next) => {
     if (startDate !== undefined) form.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) form.endDate = endDate ? new Date(endDate) : null;
     if (maxSubmissions !== undefined) form.maxSubmissions = maxSubmissions ? Number(maxSubmissions) : null;
-    if (settings !== undefined) form.settings = { ...form.settings, ...settings };
+    if (settings !== undefined) form.set('settings', { ...form.toObject().settings, ...settings });
 
     // Update slug if explicitly passed and different
     if (slug && slug !== form.slug) {
@@ -287,7 +283,8 @@ const updateFormStatus = async (req, res, next) => {
       });
     }
 
-    const form = await Form.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    const form = await Form.findById(req.params.id);
+    if (form) { form.status = status; await form.save(); }
     if (!form) {
       return res.status(404).json({
         success: false,
@@ -320,10 +317,17 @@ const deleteForm = async (req, res, next) => {
       });
     }
 
-    await Promise.all([
-      Form.findByIdAndDelete(form._id),
-      FormResponse.deleteMany({ form: form._id })
-    ]);
+    if (form.eventKey && await require('../models/EventPage').exists({ formSlug: form.slug })) return res.status(409).json({ message: 'Yayınlanan etkinliğin formunu silmek yerine kapatın.' });
+    let files = [];
+    await mongoose.connection.transaction(async session => {
+      // Write the form first, matching the serialization point used by submit.
+      await Form.findByIdAndDelete(form._id, { session });
+      files = await FormResponse.find({ form: form._id }).select('uploadedFiles').session(session).lean();
+      await FormResponse.deleteMany({ form: form._id }).session(session);
+    });
+    const { uploadDir } = require('../middleware/uploadMiddleware');
+    const path = require('node:path');
+    await Promise.all(files.flatMap(response => response.uploadedFiles).map(file => unlink(path.join(uploadDir, 'private', path.basename(file.filename))).catch(() => {})));
 
     return res.status(200).json({
       success: true,
@@ -353,13 +357,15 @@ const getFormResponses = async (req, res, next) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
+    const filter = { form: form._id };
+    if (typeof req.query.search === 'string' && req.query.search.trim()) filter.$or = [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }];
     const [responses, totalItems] = await Promise.all([
-      FormResponse.find({ form: form._id })
+      FormResponse.find(filter)
         .sort({ submittedAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      FormResponse.countDocuments({ form: form._id })
+      FormResponse.countDocuments(filter)
     ]);
 
     const totalPages = Math.ceil(totalItems / limit) || 1;
@@ -395,71 +401,39 @@ const getFormResponses = async (req, res, next) => {
 const exportFormResponses = async (req, res, next) => {
   try {
     const form = await Form.findById(req.params.id);
-    if (!form) {
-      return res.status(404).json({
-        success: false,
-        message: 'Form bulunamadı.'
-      });
-    }
-
-    const format = (req.query.format || 'csv').toLowerCase();
-    const responses = await FormResponse.find({ form: form._id })
-      .sort({ submittedAt: -1 })
-      .lean();
-
+    if (!form) return res.status(404).json({ message: 'Form bulunamadı.' });
+    const { write, streamJson } = require('../utils/streamExport');
+    const filter = { form: form._id };
+    if (typeof req.query.search === 'string' && req.query.search.trim()) filter.$or = [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }];
+    const format = req.query.format || 'csv';
+    if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
+    res.setHeader('Content-Disposition', `attachment; filename="${form.slug}-responses.${format}"`);
     if (format === 'json') {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${form.slug}-responses.json"`
-      );
-      return res.status(200).send(JSON.stringify(responses, null, 2));
+      return await streamJson(res, FormResponse.find(filter).sort({ submittedAt: -1 }).lean().cursor());
     }
-
-    // Dynamic CSV generation: each question becomes a dedicated column header!
-    const sortedFields = [...(form.fields || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    const standardHeaders = ['Yanıt ID', 'Tarih', 'IP Adresi'];
-    const questionHeaders = sortedFields.map((f) => f.label || f.fieldId);
-    const fileHeaders = ['Eklenen Dosyalar'];
-    const allHeaders = [...standardHeaders, ...questionHeaders, ...fileHeaders];
-
-    const rows = responses.map((resp) => {
-      const answersMap = {};
-      (resp.answers || []).forEach((ans) => {
-        answersMap[ans.fieldId] = ans.value;
-      });
-
-      const rowValues = [
-        resp._id,
-        new Date(resp.submittedAt).toISOString(),
-        resp.respondent?.ip || ''
-      ];
-
-      // Add answer for each question column
-      sortedFields.forEach((f) => {
-        rowValues.push(answersMap[f.fieldId] !== undefined ? answersMap[f.fieldId] : '');
-      });
-
-      // Add file URLs
-      const fileUrls = (resp.uploadedFiles || []).map((fl) => fl.url).join(' | ');
-      rowValues.push(fileUrls);
-
-      return rowValues.map(escapeCsvCell).join(',');
-    });
-
-    const csvContent =
-      '\uFEFF' + [allHeaders.map(escapeCsvCell).join(','), ...rows].join('\r\n');
-
+    // First pass reads only question identities. Deleted/renamed questions remain exportable.
+    const columnKey = field => JSON.stringify([field.fieldId, field.label]);
+    const columns = new Map();
+    for await (const response of FormResponse.find(filter).select('answers.fieldId answers.label').sort({ submittedAt: -1 }).lean().cursor()) {
+      for (const answer of response.answers || []) columns.set(columnKey(answer), answer);
+    }
+    if (!columns.size) for (const field of form.fields || []) columns.set(columnKey(field), field);
+    const fields = [...columns.values()];
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${form.slug}-responses.csv"`
-    );
-    return res.status(200).send(csvContent);
-  } catch (error) {
-    next(error);
-  }
+    await write(res, '\uFEFF' + ['Yanıt ID', 'Tarih', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi', ...fields.map(field => field.label || field.fieldId), 'Eklenen Dosyalar'].map(escapeCsvCell).join(',') + '\r\n');
+    const cursor = FormResponse.find(filter).sort({ submittedAt: -1 }).lean().cursor();
+    try {
+      for await (const response of cursor) {
+        const answers = new Map((response.answers || []).map(answer => [columnKey(answer), answer.value]));
+        const row = [response._id, new Date(response.submittedAt).toISOString(), response.respondent?.ip || '',
+          response.verifiedEmail || '', response.verificationMethod || '', ...fields.map(field => answers.get(columnKey(field)) ?? ''),
+          (response.uploadedFiles || []).map(file => file.url).join(' | ')];
+        await write(res, row.map(escapeCsvCell).join(',') + '\r\n');
+      }
+    } finally { await cursor.close(); }
+    res.end();
+  } catch (error) { next(error); }
 };
 
 // =========================================================================
@@ -481,7 +455,7 @@ const getPublicForm = async (req, res, next) => {
       query = { $or: [{ slug: slugOrId }, { _id: slugOrId }] };
     }
 
-    const form = await Form.findOne(query).lean();
+    const form = await Form.findOne(query);
     if (!form) {
       return res.status(404).json({
         success: false,
@@ -528,6 +502,7 @@ const getPublicForm = async (req, res, next) => {
       slug: form.slug,
       category: form.category,
       bannerImageUrl: form.bannerImageUrl,
+      schemaVersion: form.updatedAt,
       startDate: form.startDate,
       endDate: form.endDate,
       settings: form.settings,
@@ -550,21 +525,10 @@ const getPublicForm = async (req, res, next) => {
  */
 const submitFormResponse = async (req, res, next) => {
   try {
-    const { slugOrId } = req.params;
-
-    let query = { slug: slugOrId };
-    if (/^[0-9a-fA-F]{24}$/.test(slugOrId)) {
-      query = { $or: [{ slug: slugOrId }, { _id: slugOrId }] };
-    }
-
-    const form = await Form.findOne(query);
-    if (!form) {
-      return res.status(404).json({
-        success: false,
-        message: 'Form bulunamadı.'
-      });
-    }
-
+    // Identity middleware loads the form and authenticates before any file is written.
+    const form = req.submissionForm;
+    const schemaUpdatedAt = form.updatedAt.getTime();
+    if (req.body._formVersion && Date.parse(req.body._formVersion) !== schemaUpdatedAt) return res.status(409).json({ message: 'Form güncellendi. Sayfayı yenileyip tekrar deneyiniz.' });
     const now = new Date();
 
     if (form.status !== 'PUBLISHED') {
@@ -601,14 +565,12 @@ const submitFormResponse = async (req, res, next) => {
     if (typeof rawAnswers.answers === 'string') {
       try {
         rawAnswers = { ...rawAnswers, ...JSON.parse(rawAnswers.answers) };
-      } catch (e) {
-        // keep rawAnswers as is
+      } catch {
+        return res.status(400).json({ message: 'Yanıtlar geçerli bir JSON nesnesi olmalıdır.' });
       }
     }
 
     // Map uploaded files by fieldId
-    const protocol = req.protocol;
-    const host = req.get('host');
     const uploadedFiles = [];
     const filesByField = {};
 
@@ -618,7 +580,7 @@ const submitFormResponse = async (req, res, next) => {
           fieldId: file.fieldname,
           originalName: file.originalname,
           filename: file.filename,
-          url: `${protocol}://${host}/uploads/${file.filename}`,
+          url: `/api/v1/files/${file.filename}`,
           size: file.size
         };
         uploadedFiles.push(fileInfo);
@@ -629,6 +591,8 @@ const submitFormResponse = async (req, res, next) => {
     // Validate answers against form schema
     const structuredAnswers = [];
     const validationErrors = [];
+    const fileFields = (form.fields || []).filter(field => field.type === 'file').map(field => field.fieldId);
+    if (uploadedFiles.some(file => !fileFields.includes(file.fieldId)) || new Set(uploadedFiles.map(file => file.fieldId)).size !== uploadedFiles.length) validationErrors.push('Beklenmeyen veya yinelenen dosya alanı.');
 
     for (const field of form.fields || []) {
       const fieldId = field.fieldId;
@@ -636,44 +600,11 @@ const submitFormResponse = async (req, res, next) => {
 
       // If it's a file field, check filesByField or string URL
       if (field.type === 'file') {
-        val = filesByField[fieldId] || val || null;
+        val = filesByField[fieldId] || null;
       }
 
-      // Check required
-      if (field.required) {
-        const isEmpty =
-          val === undefined ||
-          val === null ||
-          (typeof val === 'string' && val.trim().length === 0) ||
-          (Array.isArray(val) && val.length === 0);
-
-        if (isEmpty) {
-          validationErrors.push(`'${field.label}' alanı zorunludur.`);
-          continue;
-        }
-      }
-
-      // Basic type validation if present
-      if (val !== undefined && val !== null && val !== '') {
-        if (field.type === 'email' && typeof val === 'string') {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(val.trim())) {
-            validationErrors.push(`'${field.label}' için geçerli bir e-posta adresi giriniz.`);
-          }
-        } else if (field.type === 'number') {
-          const num = Number(val);
-          if (isNaN(num)) {
-            validationErrors.push(`'${field.label}' sayısal bir değer olmalıdır.`);
-          } else {
-            if (field.validation?.min !== undefined && num < field.validation.min) {
-              validationErrors.push(`'${field.label}' en az ${field.validation.min} olmalıdır.`);
-            }
-            if (field.validation?.max !== undefined && num > field.validation.max) {
-              validationErrors.push(`'${field.label}' en fazla ${field.validation.max} olabilir.`);
-            }
-          }
-        }
-      }
+      const message = answerError(field, val);
+      if (message) validationErrors.push(`'${field.label}' ${message}.`);
 
       structuredAnswers.push({
         fieldId,
@@ -690,10 +621,16 @@ const submitFormResponse = async (req, res, next) => {
     }
 
     // Save response
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+    const clientIp = req.ip || req.socket.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
 
-    const response = await FormResponse.create({
+    const response = await saveSubmission(form._id, {
+      schemaUpdatedAt,
+      schemaVersion: form.updatedAt,
+      participant: req.participant?._id || null,
+      verifiedEmail: req.participant?.email || null,
+      verificationMethod: req.participantVerification?.method || null,
+      verifiedAt: req.participantVerification?.verifiedAt || null,
       form: form._id,
       formSlug: form.slug,
       answers: structuredAnswers,
@@ -703,11 +640,8 @@ const submitFormResponse = async (req, res, next) => {
         userAgent,
         user: req.user ? req.user._id : null
       }
-    });
-
-    // Increment submission count
-    form.submissionCount += 1;
-    await form.save();
+    }, req.participant);
+    req.submissionSaved = true;
 
     return res.status(201).json({
       success: true,
@@ -716,6 +650,10 @@ const submitFormResponse = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  } finally {
+    if (!req.submissionSaved && Array.isArray(req.files)) {
+      await Promise.all(req.files.map(file => unlink(file.path).catch(() => {})));
+    }
   }
 };
 

@@ -1,0 +1,78 @@
+# VS Code REST Client veya JetBrains HTTP Client ile çalıştırın.
+# TOKEN alanlarını ilgili yanıtın token değeriyle değiştirin.
+@base = http://localhost:5000/api/v1
+@participantToken = KATILIMCI_TOKEN
+@teamToken = EKIP_TOKEN
+@slug = katilimci-test
+@email = test@example.com
+@otp = 123456
+@googleIdToken = GOOGLE_ID_TOKEN
+
+### 1. E-posta kodu iste (geliştirmede Brevo yoksa backend terminalinde kod görünür)
+POST {{base}}/participant-auth/email/send-otp
+Content-Type: application/json
+
+{"email":"{{email}}"}
+
+### 2. Gerçek kodu @otp yerine koy: token ve expiresAt dönmeli
+POST {{base}}/participant-auth/email/verify
+Content-Type: application/json
+
+{"email":"{{email}}","code":"{{otp}}"}
+
+### Alternatif: gerçek Google Identity Services credential değeri
+POST {{base}}/participant-auth/google
+Content-Type: application/json
+
+{"idToken":"{{googleIdToken}}"}
+
+### 3. Ekip tokenı al (var olan, doğrulanmış ADMIN / ORGANIZER hesabı)
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{"email":"admin@pau.edu.tr","password":"GERCEK_PAROLA"}
+
+### 4. Ekip tokenıyla test formu oluştur; dönen slug'ı @slug'a kopyala
+POST {{base}}/forms
+Authorization: Bearer {{teamToken}}
+Content-Type: application/json
+
+{
+  "title":"Katılımcı Test Formu",
+  "slug":"katilimci-test",
+  "status":"PUBLISHED",
+  "maxSubmissions":10,
+  "settings":{
+    "verificationRequired":true,
+    "verificationMethods":["GOOGLE","EMAIL_OTP"],
+    "allowMultipleSubmissions":false
+  },
+  "fields":[{"fieldId":"fullName","label":"Ad Soyad","type":"text","required":true}]
+}
+
+### 5. Şema okunabilir: 200
+GET {{base}}/forms/public/{{slug}}
+
+### 6. Token olmadan: 401
+POST {{base}}/forms/public/{{slug}}/submit
+Content-Type: application/json
+
+{"fullName":"Test Katılımcı"}
+
+### 7. Katılımcı tokenı ile: ilk sefer 201; tekrar gönderimde 409
+POST {{base}}/forms/public/{{slug}}/submit
+Authorization: Bearer {{participantToken}}
+Content-Type: application/json
+
+{"fullName":"Test Katılımcı","verifiedEmail":"bu-alan-kimligi-degistiremez@example.com"}
+
+### 8. Katılımcı tokenıyla ekip hesabına erişim: 401
+GET {{base}}/auth/me
+Authorization: Bearer {{participantToken}}
+
+### 9. Ekip tokenıyla katılımcı formuna başvuru: 401
+POST {{base}}/forms/public/{{slug}}/submit
+Authorization: Bearer {{teamToken}}
+Content-Type: application/json
+
+{"fullName":"Test Katılımcı"}
