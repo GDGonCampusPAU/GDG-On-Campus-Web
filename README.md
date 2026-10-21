@@ -8,7 +8,11 @@ React/Vite arayüzleri ve Node.js/Express/MongoDB API projesi. Node 24 kullanıl
 | `frontend/hackaton/` | Hackathon etkinlik sitesi (eski `web/`) | http://localhost:5173 |
 | `backend/` | API | http://localhost:5000 |
 
-Kök dizinde `npm run setup` bağımlılıkları kurar. İlk kurulumda örnek env dosyalarını ilgili dizinlerde `.env` olarak kopyalayıp düzenleyin; mevcut dosyaları ezmeyin. Yerel veritabanı gerekiyorsa `docker compose up -d --wait` kullanın. Bu Compose kendi volume'unu oluşturur; mevcut MongoDB 27017 portunu kullanıyorsa mevcut replica set'i kullanın veya portu ayrıca değiştirin.
+Yerel geliştirmede Docker ile tüm projeyi başlatmak için `backend/.env` ayarlarını hazırlayıp kökte `docker compose up -d --build --wait` çalıştırın. MongoDB, API ve iki ön yüz birlikte başlar; bilgisayarınızda Node/npm kurulumu gerekmez. Uygulama adresleri yukarıdaki tablodadır. Kaynak değişiklikleri container'lara yansır; paket bağımlılığı değişirse yeniden build gerekir.
+
+Compose kendi MongoDB volume'unu ve kalıcı `backend/uploads` dizinini kullanır. Mevcut MongoDB 27017 portunu kullanıyorsa kökteki `.env` dosyasında `MONGO_PORT` değiştirilebilir; diğer portlar ve tarayıcı API/CORS ayarları için [.env.docker.example](.env.docker.example) dosyasına bakın. `docker compose logs -f` logları gösterir; `docker compose down` servisleri durdurur ve veritabanı volume'unu korur. İlk admin için `DEFAULT_ADMIN_PASSWORD` ayarlandıktan sonra `docker compose exec backend npm run seed` çalıştırılır.
+
+Docker olmadan geliştirme için kökte `npm run setup` bağımlılıkları kurar. İlk kurulumda örnek env dosyalarını ilgili dizinlerde `.env` olarak kopyalayıp düzenleyin; mevcut dosyaları ezmeyin. Sadece MongoDB'yi Compose ile çalıştırmak için `docker compose up -d --wait mongo` kullanabilirsiniz.
 
 `npm run dev` üç uygulamayı başlatır. Ayrı çalıştırmak için `dev:api`, `dev:panel`, `dev:hackaton` komutları vardır. `npm run check` üç paketin lint/test kontrollerini ve iki üretim build'ini çalıştırır. `npm run setup:browser` ardından `npm run test:e2e` gerçek Chromium akışlarını kontrol eder. Testler geçici veritabanı kullanır.
 

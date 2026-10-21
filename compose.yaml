@@ -1,15 +1,99 @@
 services:
   mongo:
-    image: mongo:8.0
+    image: mongo:8.0.34
+    restart: unless-stopped
+    environment:
+      # MongoDB 8 / Linux 6.19+ rseq uyumsuzluğunda glibc rseq kaydı
+      # TCMalloc'un sorunlu per-CPU yoluna girmesini önler (yerel geliştirme).
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
     command: [mongod, --replSet, rs0, --bind_ip_all]
-    ports: ["127.0.0.1:27017:27017"]
+    ports: ["127.0.0.1:${MONGO_PORT:-27017}:27017"]
     volumes: [mongo-data:/data/db]
     healthcheck:
       test:
         - CMD-SHELL
-        - "mongosh --quiet --eval 'try { if (!rs.status().ok) quit(1) } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"localhost:27017\"}]}); quit(1) } if (!db.hello().isWritablePrimary) quit(1)'"
+        - "mongosh --quiet --eval 'try { if (!rs.status().ok) quit(1) } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongo:27017\"}]}); quit(1) } if (!db.hello().isWritablePrimary) quit(1)'"
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      target: backend
+    restart: unless-stopped
+    init: true
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: development
+      PORT: "5000"
+      # Container içindeki localhost, MongoDB container'ını göstermez.
+      MONGO_URI: mongodb://mongo:27017/gdg_pau?replicaSet=rs0&directConnection=true
+      CLIENT_URLS: ${CLIENT_URLS:-http://localhost:${HACKATON_PORT:-5173},http://localhost:${PANEL_PORT:-5174}}
+    ports: ["127.0.0.1:${API_PORT:-5000}:5000"]
+    volumes:
+      - ./backend/src:/app/backend/src:ro
+      - ./shared:/app/shared:ro
+      - ${UPLOADS_PATH:-./backend/uploads}:/app/backend/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5000/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  panel:
+    build:
+      context: .
+      target: panel
+    restart: unless-stopped
+    init: true
+    environment:
+      # Vite değişkenini tarayıcı okur; Docker servis adı burada kullanılamaz.
+      VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:${API_PORT:-5000}}
+    ports: ["127.0.0.1:${PANEL_PORT:-5174}:5174"]
+    volumes:
+      - ./frontend/src:/app/frontend/src:ro
+      - ./frontend/public:/app/frontend/public:ro
+      - ./frontend/vite.config.js:/app/frontend/vite.config.js:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5174/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  hackaton:
+    build:
+      context: .
+      target: hackaton
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: ./frontend/hackaton/.env
+        required: false
+    environment:
+      VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:${API_PORT:-5000}}
+    ports: ["127.0.0.1:${HACKATON_PORT:-5173}:5173"]
+    volumes:
+      - ./frontend/hackaton/src:/app/frontend/hackaton/src:ro
+      - ./frontend/hackaton/public:/app/frontend/hackaton/public:ro
+      - ./frontend/hackaton/vite.config.js:/app/frontend/hackaton/vite.config.js:ro
+      - ./shared:/app/shared:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5173/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   mongo-data:

@@ -18,7 +18,7 @@ Yerel doğrulama:
 
 - `npm run check`: üç paketin lint kontrolü, 37 backend testi, 7 panel testi, 210 etkinlik sitesi testi ve iki üretim build'i geçti.
 - `npm run test:e2e`: doğrulanmış başvuru → panel → CSV, ekip kaydı → admin onayı → giriş, içerik yayınının ikinci sekmede görünmesi ve 3 ekran boyutunda layout olmak üzere 4 Chromium testi geçti.
-- `docker compose config --quiet`: yapılandırma geçerli. Gerçek mevcut Docker veritabanı üzerinde kurulum/seed/migration çalıştırılmadı.
+- `docker compose up -d --build --wait`: dört servis izole test projesinde sağlıklı başladı. Chromium ile API/CORS, panel, hackaton kayıt ve admin ekranları doğrulandı. MongoDB 8.0.34 rs0 primary; per-CPU cache kapalı ve restart sayısı 0. Gerçek mevcut veritabanına seed/migration uygulanmadı.
 - Testler gerçek `.env`, gerçek veri tabanı ve e-posta/Google hesaplarından ayrıdır.
 
 Dış ortamda tamamlanacak kabul kontrolleri: gerçek Google hesabıyla origin/client ID eşleşmesi, gerçek Brevo teslimatı, deployment origin/proxy/SPA ayarları, gerçek içerikler ve organizasyonun veri metinleri, DB + upload yedeğinin ayrı test ortamına geri yüklenmesi. Lokal test başarısı bu kontrollerin yerine geçmez.

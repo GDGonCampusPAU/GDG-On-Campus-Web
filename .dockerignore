@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+**/uploads
+test-results
+playwright-report
+.cache
+*.log
+documents
+design folders
