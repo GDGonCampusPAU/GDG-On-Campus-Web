@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="tr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Katılımcı doğrulama test aracı</title>
+<style>
+body{font:16px system-ui;max-width:760px;margin:32px auto;padding:0 20px;color:#18233b}label{display:block;margin:14px 0}input,textarea{display:block;width:100%;box-sizing:border-box;padding:9px;margin-top:5px}button{padding:10px 15px;margin:5px 0;cursor:pointer}pre{background:#f1f4f8;padding:15px;white-space:pre-wrap;overflow-wrap:anywhere}textarea{min-height:90px}
+</style>
+<h1>Katılımcı doğrulama test aracı</h1>
+<p>Yerel geliştirme içindir. Token yalnızca bu sayfanın belleğinde tutulur; sayfa yenilenince silinir. Gerçek kişisel veri kullanmayın.</p>
+<label>API kökü<input id="base" value="http://localhost:5000/api/v1"></label>
+<label>E-posta<input id="email" type="email" placeholder="test@example.com"></label>
+<button id="send">Kod gönder</button>
+<label>6 haneli kod<input id="code" inputmode="numeric" maxlength="6"></label>
+<button id="verify">E-postayı doğrula</button>
+<label>Google Web Client ID<input id="client" placeholder="…apps.googleusercontent.com"></label>
+<button id="googleInit">Google giriş düğmesini yükle</button><div id="googleButton"></div>
+<label>Form slug veya ID<input id="slug" value="katilimci-test"></label>
+<button id="schema">Form şemasını getir</button>
+<label>Yanıtlar (fieldId anahtarlarıyla JSON)<textarea id="answers">{"fullName":"Test Katılımcı"}</textarea></label>
+<button id="submit">Token ile gönder</button> <button id="anonymous">Tokensız gönder (401 beklenir)</button>
+<button id="clear">Tokenı sil</button>
+<p id="session">Doğrulanmış oturum yok.</p><pre id="result" aria-live="polite">Yanıtlar burada görünür.</pre>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+let token='';
+const el=id=>document.getElementById(id);
+const show=value=>{el('result').textContent=JSON.stringify(value,null,2)};
+async function call(path, body, withToken=false){
+ try{
+  const headers={};if(body!==undefined)headers['Content-Type']='application/json';
+  if(withToken&&token)headers.Authorization='Bearer '+token;
+  const response=await fetch(el('base').value.replace(/\/$/,'')+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});
+  const data=await response.json();show({status:response.status,...data});
+  if(response.ok&&data.token){token=data.token;el('session').textContent=`${data.participant.email} — ${data.verificationMethod} — bitiş: ${data.expiresAt}`;}
+ }catch(error){show({error:error.message})}
+}
+el('send').onclick=()=>call('/participant-auth/email/send-otp',{email:el('email').value});
+el('verify').onclick=()=>call('/participant-auth/email/verify',{email:el('email').value,code:el('code').value});
+el('googleInit').onclick=()=>{
+ if(!window.google||!el('client').value){show({error:'Google kütüphanesi yüklenmeli ve Web Client ID girilmelidir.'});return;}
+ google.accounts.id.initialize({client_id:el('client').value,callback:result=>call('/participant-auth/google',{idToken:result.credential})});
+ el('googleButton').replaceChildren();google.accounts.id.renderButton(el('googleButton'),{theme:'outline',size:'large'});
+};
+const formPath=()=>'/forms/public/'+encodeURIComponent(el('slug').value);
+el('schema').onclick=()=>call(formPath());
+const submit=authenticated=>{try{call(formPath()+'/submit',JSON.parse(el('answers').value),authenticated)}catch(error){show({error:error.message})}};
+el('submit').onclick=()=>submit(true);el('anonymous').onclick=()=>submit(false);
+el('clear').onclick=()=>{token='';el('session').textContent='Doğrulanmış oturum yok.';show({message:'Token silindi.'})};
+</script>
+</html>

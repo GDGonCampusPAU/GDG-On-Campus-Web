@@ -1,4 +1,6 @@
 # GDG ON CAMPUS PAMUKKALE UNIVERSITY WEB SİTESİ
+
+> Bu dosya hedefler ve seçenekler içeren taslaktır. Güncel uygulanmış mimari ve API için [mevcut proje durumunu](MEVCUT_PROJE_DURUMU.md) okuyun.
 > **Proje Raporu, Teknik Mimari ve Geliştirici Kılavuzu**  
 > **Sürüm:** v2.1  
 

@@ -84,6 +84,7 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // 9. API Routes
+app.use('/api/v1/participant-auth', require('./modules/participantAuth/routes/participantAuthRoutes'));
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/forms', formRoutes);

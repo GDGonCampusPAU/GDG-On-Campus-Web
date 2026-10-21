@@ -1,0 +1,445 @@
+{
+  "organizer": "GDG On Campus PAU",
+  "name": "PAU Hackathon 2026",
+  "tagline": "Fikrini bir hafta sonunda çalışan bir ürüne dönüştür.",
+  "theme": "Kampüs için Yapay Zeka",
+  "startsAt": "2026-12-12T09:00:00+03:00",
+  "location": "Konum yakında açıklanacak",
+  "about": [
+    {
+      "title": "Ne?",
+      "text": "Takımlar halinde 2 gün boyunca bir fikri prototipe dönüştürdüğümüz hackathon.",
+      "color": "blue"
+    },
+    {
+      "title": "Kim için?",
+      "text": "Bölümü ve seviyesi fark etmez; kod yazan, tasarlayan ve fikri olan herkes.",
+      "color": "green"
+    },
+    {
+      "title": "Neden?",
+      "text": "Mentorlardan geri bildirim, ödüller ve yeni bir takım arkadaşı kazanırsın.",
+      "color": "yellow"
+    }
+  ],
+  "marquee": [
+    "Kodla",
+    "Tasarla",
+    "Paylaş",
+    "Yapay Zeka",
+    "Takım Kur",
+    "Prototiple",
+    "GDG On Campus PAU"
+  ],
+  "prizes": [
+    {
+      "place": "1.",
+      "title": "Birincilik",
+      "description": "Ödül detayları yakında açıklanacak.",
+      "color": "yellow"
+    },
+    {
+      "place": "2.",
+      "title": "İkincilik",
+      "description": "Ödül detayları yakında açıklanacak.",
+      "color": "blue"
+    },
+    {
+      "place": "3.",
+      "title": "Üçüncülük",
+      "description": "Ödül detayları yakında açıklanacak.",
+      "color": "green"
+    }
+  ],
+  "days": [
+    {
+      "label": "1. Gün",
+      "date": "12 Aralık 2026",
+      "items": [
+        {
+          "time": "09:00",
+          "title": "Açılış ve tanışma",
+          "description": "Etkinliğin tanıtımı, kurallar ve takım eşleşmeleri.",
+          "type": "opening"
+        },
+        {
+          "time": "10:30",
+          "title": "Yapay Zeka workshop",
+          "description": "Başlangıç seviyesinde uygulamalı oturum.",
+          "type": "workshop"
+        },
+        {
+          "time": "13:00",
+          "title": "Kodlama başlıyor",
+          "description": "Takımlar projelerine başlar, mentorlar sahada.",
+          "type": "coding"
+        }
+      ]
+    },
+    {
+      "label": "2. Gün",
+      "date": "13 Aralık 2026",
+      "items": [
+        {
+          "time": "12:00",
+          "title": "Proje teslimi",
+          "description": "Son commit ve sunum dosyalarının yüklenmesi.",
+          "type": "submission"
+        },
+        {
+          "time": "14:00",
+          "title": "Jüri sunumları",
+          "description": "Her takım 5 dakikada projesini anlatır.",
+          "type": "jury"
+        },
+        {
+          "time": "17:00",
+          "title": "Ödül töreni",
+          "description": "Sonuçların açıklanması ve kapanış.",
+          "type": "awards"
+        }
+      ]
+    }
+  ],
+  "people": {
+    "jury": [
+      {
+        "name": "Jüri Üyesi Bir",
+        "title": "Unvan yakında",
+        "photo": null
+      },
+      {
+        "name": "Jüri Üyesi İki",
+        "title": "Unvan yakında",
+        "photo": null
+      },
+      {
+        "name": "Jüri Üyesi Üç",
+        "title": "Unvan yakında",
+        "photo": null
+      }
+    ],
+    "mentors": [
+      {
+        "name": "Mentor Bir",
+        "title": "Unvan yakında",
+        "photo": null
+      },
+      {
+        "name": "Mentor İki",
+        "title": "Unvan yakında",
+        "photo": null
+      }
+    ]
+  },
+  "sponsors": [
+    {
+      "name": "Ana Sponsor",
+      "tier": "main",
+      "logo": null,
+      "url": null
+    },
+    {
+      "name": "Destek Sponsor 1",
+      "tier": "support",
+      "logo": null,
+      "url": null
+    },
+    {
+      "name": "Destek Sponsor 2",
+      "tier": "support",
+      "logo": null,
+      "url": null
+    }
+  ],
+  "register": {
+    "title": "Kayıt",
+    "status": "open",
+    "closedMessage": "Kayıtlar şu an kapalı. Duyurular için sosyal medya hesaplarımızı takip et.",
+    "successTitle": "Kaydın alındı!",
+    "successText": "Kaydın alındı. Programa göz atmayı unutma.",
+    "steps": [
+      {
+        "title": "Katılımcı bilgileri",
+        "fields": [
+          {
+            "id": "fullName",
+            "label": "Ad soyad",
+            "kind": "text",
+            "required": "yes",
+            "hint": "",
+            "options": []
+          },
+          {
+            "id": "email",
+            "label": "E-posta",
+            "kind": "email",
+            "required": "yes",
+            "hint": "",
+            "options": []
+          },
+          {
+            "id": "phone",
+            "label": "Telefon",
+            "kind": "tel",
+            "required": "yes",
+            "hint": "",
+            "options": []
+          },
+          {
+            "id": "education",
+            "label": "Eğitim durumun",
+            "kind": "select",
+            "required": "yes",
+            "hint": "",
+            "options": [
+              {
+                "value": "highschool",
+                "label": "Ortaöğretim"
+              },
+              {
+                "value": "associate",
+                "label": "Ön lisans"
+              },
+              {
+                "value": "bachelor",
+                "label": "Lisans"
+              },
+              {
+                "value": "master",
+                "label": "Yüksek lisans"
+              },
+              {
+                "value": "phd",
+                "label": "Doktora"
+              },
+              {
+                "value": "graduate",
+                "label": "Mezun"
+              },
+              {
+                "value": "other",
+                "label": "Diğer"
+              }
+            ]
+          },
+          {
+            "id": "department",
+            "label": "Bölüm",
+            "kind": "text",
+            "required": "yes",
+            "hint": "",
+            "options": []
+          },
+          {
+            "id": "year",
+            "label": "Sınıf",
+            "kind": "select",
+            "required": "yes",
+            "hint": "",
+            "options": [
+              {
+                "value": "prep",
+                "label": "Hazırlık"
+              },
+              {
+                "value": "1",
+                "label": "1. sınıf"
+              },
+              {
+                "value": "2",
+                "label": "2. sınıf"
+              },
+              {
+                "value": "3",
+                "label": "3. sınıf"
+              },
+              {
+                "value": "4",
+                "label": "4. sınıf"
+              },
+              {
+                "value": "grad",
+                "label": "Yüksek lisans / Doktora"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Takım durumu",
+        "fields": [
+          {
+            "id": "teamName",
+            "label": "Takım adı",
+            "kind": "text",
+            "required": "no",
+            "hint": "Takım arıyorsan boş bırakabilirsin.",
+            "options": []
+          },
+          {
+            "id": "teamRole",
+            "label": "Hackathon'a nasıl katılmayı düşünüyorsun?",
+            "kind": "select",
+            "required": "yes",
+            "hint": "",
+            "options": [
+              {
+                "value": "looking",
+                "label": "Bireysel katılacağım, ekip arıyorum"
+              },
+              {
+                "value": "ready",
+                "label": "Hazır bir ekibimiz var (en fazla 4 kişilik ekip olabilirsiniz)"
+              },
+              {
+                "value": "incomplete",
+                "label": "Birkaç arkadaşımla katılacağım, ekibimizi tamamlamak istiyoruz"
+              }
+            ]
+          },
+          {
+            "id": "teammates",
+            "label": "Takım arkadaşları",
+            "kind": "text",
+            "required": "no",
+            "hint": "İsimleri virgülle ayırarak yazabilirsin.",
+            "options": []
+          }
+        ]
+      },
+      {
+        "title": "Teknik yetkinlikler ve ilgi alanları",
+        "fields": [
+          {
+            "id": "interests",
+            "label": "İlgi alanların",
+            "kind": "checkbox",
+            "required": "yes",
+            "hint": "",
+            "options": [
+              {
+                "value": "web",
+                "label": "Web"
+              },
+              {
+                "value": "mobile",
+                "label": "Mobil"
+              },
+              {
+                "value": "ai",
+                "label": "Yapay Zeka"
+              },
+              {
+                "value": "game",
+                "label": "Oyun"
+              },
+              {
+                "value": "cloud",
+                "label": "Bulut"
+              }
+            ]
+          },
+          {
+            "id": "level",
+            "label": "Kendini hangi seviyede görüyorsun?",
+            "kind": "select",
+            "required": "yes",
+            "hint": "",
+            "options": [
+              {
+                "value": "beginner",
+                "label": "Yeni başlıyorum"
+              },
+              {
+                "value": "basic",
+                "label": "Temel bilgim var"
+              },
+              {
+                "value": "project",
+                "label": "Proje geliştirebiliyorum"
+              },
+              {
+                "value": "advanced",
+                "label": "İleri seviyedeyim"
+              }
+            ]
+          },
+          {
+            "id": "hackathonBefore",
+            "label": "Daha önce hiç hackathon'a katıldın mı?",
+            "kind": "select",
+            "required": "yes",
+            "hint": "",
+            "options": [
+              {
+                "value": "yes",
+                "label": "Evet"
+              },
+              {
+                "value": "no",
+                "label": "Hayır"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Katılım beklentisi",
+        "fields": [
+          {
+            "id": "motivation",
+            "label": "Hackathon'a katılma motivasyonun nedir?",
+            "kind": "textarea",
+            "required": "yes",
+            "hint": "",
+            "options": []
+          },
+          {
+            "id": "availability",
+            "label": "Etkinliğin planlanan tüm süresince katılım sağlayabilir misin?",
+            "kind": "select",
+            "required": "yes",
+            "hint": "",
+            "options": [
+              {
+                "value": "yes",
+                "label": "Evet"
+              },
+              {
+                "value": "no",
+                "label": "Hayır"
+              },
+              {
+                "value": "unsure",
+                "label": "Emin değilim"
+              }
+            ]
+          },
+          {
+            "id": "heardFrom",
+            "label": "Hackathon'u nereden duydun?",
+            "kind": "text",
+            "required": "no",
+            "hint": "",
+            "options": []
+          }
+        ]
+      }
+    ]
+  },
+  "socials": [
+    {
+      "label": "Instagram",
+      "url": "https://www.instagram.com/"
+    },
+    {
+      "label": "LinkedIn",
+      "url": "https://www.linkedin.com/"
+    },
+    {
+      "label": "X",
+      "url": "https://x.com/"
+    }
+  ]
+}

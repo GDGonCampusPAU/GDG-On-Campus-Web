@@ -1,0 +1,255 @@
+/* Giriş yapmış Core Team sayfalarının stilleri. Renkler theme.css token'larından gelir. */
+
+.panel {
+  min-height: 100svh;
+  background: var(--page-bg);
+}
+
+.panel__bar {
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel__bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.panel__brand {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gdg-blue-halftone);
+}
+
+.panel__user {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.panel__user-name {
+  font-weight: 500;
+}
+
+.panel__badge {
+  display: inline-block;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gdg-yellow-halftone);
+  border: 1px solid var(--gdg-yellow);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.panel__stripe {
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    var(--gdg-blue) 0 25%,
+    var(--gdg-red) 25% 50%,
+    var(--gdg-yellow) 50% 75%,
+    var(--gdg-green) 75% 100%
+  );
+}
+
+.panel__main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-6);
+}
+
+.panel__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+/* Başlıklara renk/font açıkça verilir: index.css'teki Vite şablonu h1/h2 rengini sisteme göre değiştiriyor. */
+.panel__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--text-strong);
+}
+
+.panel__state {
+  margin: var(--space-6) 0;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Düğmenin içi boş (çerçeveli) varyantı */
+.btn--outline {
+  color: var(--text-strong);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.btn--outline:hover:not(:disabled) {
+  filter: none;
+  border-color: var(--gdg-blue-halftone);
+}
+
+/* Arama çubuğu */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.toolbar__search {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.toolbar__count {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Başvuru kartları */
+.app-grid {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .app-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.app-card {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card-sm);
+}
+
+.app-card__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.app-card__team {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.app-card__leader {
+  margin: 0;
+  font-weight: 500;
+}
+
+.app-card__contact {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.app-card a,
+.panel__main a {
+  color: var(--gdg-blue-halftone);
+}
+
+.app-card a:focus-visible,
+.panel__main a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.app-card__idea {
+  margin-top: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.app-card__idea summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.app-card__idea summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.app-card__idea p {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 0.875rem;
+}
+
+.app-card__date {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* Sayfalama */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.pager__info {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}

@@ -1,0 +1,14 @@
+.app__main {
+  min-height: 60vh;
+  scroll-margin-top: var(--nav-h);
+}
+
+.app__main:focus {
+  outline: none;
+}
+
+@media (max-width: 767px) {
+  .app--has-cta {
+    padding-bottom: 76px;
+  }
+}

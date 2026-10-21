@@ -105,6 +105,7 @@ const formSchema = new mongoose.Schema(
     },
     maxSubmissions: {
       type: Number,
+      min: 1,
       default: null
     },
     submissionCount: {
@@ -116,6 +117,13 @@ const formSchema = new mongoose.Schema(
       default: []
     },
     settings: {
+      verificationRequired: { type: Boolean, default: true },
+      verificationMethods: {
+        type: [{ type: String, enum: ['GOOGLE', 'EMAIL_OTP'] }],
+        default: ['GOOGLE', 'EMAIL_OTP'],
+        validate: { validator: value => Array.isArray(value) && value.length > 0,
+          message: 'En az bir doğrulama yöntemi seçilmelidir.' }
+      },
       allowMultipleSubmissions: {
         type: Boolean,
         default: true

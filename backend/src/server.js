@@ -7,8 +7,19 @@ const PORT = process.env.PORT || 5000;
 // Start server after connecting to database
 const startServer = async () => {
   try {
+    require('./modules/participantAuth/config').getConfig();
+
     // Connect to MongoDB
-    await connectDB();
+    const connection = await connectDB();
+    const topology = await connection.connection.db.admin().command({ hello: 1 });
+    if (!topology.setName && topology.msg !== 'isdbgrid') {
+      throw new Error('Form işlemleri MongoDB replica set gerektirir. MONGO_URI yapılandırmasını kontrol edin.');
+    }
+    await Promise.all([
+      require('./modules/participantAuth/models/Participant').init(),
+      require('./modules/participantAuth/models/ParticipantOtp').init(),
+      require('./models/FormResponse').init()
+    ]);
 
     const server = app.listen(PORT, () => {
       console.log('====================================================');

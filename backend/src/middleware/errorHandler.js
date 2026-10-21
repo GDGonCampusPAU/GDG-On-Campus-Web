@@ -3,7 +3,7 @@
  * Ensures consistent JSON error responses across the application
  */
 const errorHandler = (err, req, res, next) => {
-  let statusCode = res.statusCode !== 200 ? res.statusCode : 500;
+  let statusCode = err.status || (res.statusCode !== 200 ? res.statusCode : 500);
   let message = err.message || 'Sunucu içi bir hata oluştu.';
 
   // Handle Mongoose Bad ObjectId (CastError)

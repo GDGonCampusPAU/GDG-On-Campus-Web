@@ -1,0 +1,25 @@
+/* Font dosyaları public/fonts/ içine konmalı (README'ye bak). Yoksa fallback fontlar kullanılır. */
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans'), url('/fonts/GoogleSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans Bold'), url('/fonts/GoogleSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans Mono';
+  src: local('Google Sans Mono'), url('/fonts/GoogleSansMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans Mono';
+  src: local('Google Sans Mono Bold'), url('/fonts/GoogleSansMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}

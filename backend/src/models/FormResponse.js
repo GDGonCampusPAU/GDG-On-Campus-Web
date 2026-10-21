@@ -52,6 +52,11 @@ const formResponseSchema = new mongoose.Schema(
       required: [true, 'Form referansı zorunludur.'],
       index: true
     },
+    participant: { type: mongoose.Schema.Types.ObjectId, ref: 'Participant', default: null },
+    verifiedEmail: { type: String, default: null },
+    verificationMethod: { type: String, enum: ['GOOGLE', 'EMAIL_OTP', null], default: null },
+    verifiedAt: { type: Date, default: null },
+    singleSubmissionKey: { type: String },
     formSlug: {
       type: String,
       required: [true, 'Form URL adresi (slug) zorunludur.'],
@@ -91,7 +96,6 @@ const formResponseSchema = new mongoose.Schema(
     versionKey: false
   }
 );
-
 formResponseSchema.index({ form: 1, submittedAt: -1 });
 
 const FormResponse = mongoose.model('FormResponse', formResponseSchema);
