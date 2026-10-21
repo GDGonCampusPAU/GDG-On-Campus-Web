@@ -53,11 +53,8 @@ const contentSchema = new mongoose.Schema(
   }
 );
 
-// Helpful index for querying featured contents and public listing
 contentSchema.index({ type: 1, createdAt: -1 });
 contentSchema.index({ isFeatured: 1, createdAt: -1 });
 
 const Content = mongoose.model('Content', contentSchema);
-
 module.exports = Content;
-

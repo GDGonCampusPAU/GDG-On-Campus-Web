@@ -22,16 +22,8 @@ const formFieldSchema = new mongoose.Schema(
       required: [true, 'Soru tipi zorunludur.'],
       enum: {
         values: [
-          'text',
-          'textarea',
-          'number',
-          'email',
-          'phone',
-          'select',
-          'radio',
-          'checkbox',
-          'file',
-          'date'
+          'text', 'textarea', 'number', 'email', 'phone', 
+          'select', 'radio', 'checkbox', 'file', 'date'
         ],
         message: 'Geçersiz soru tipi: {VALUE}'
       },
@@ -157,11 +149,8 @@ const formSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
 formSchema.index({ status: 1, createdAt: -1 });
 formSchema.index({ category: 1, status: 1 });
 
 const Form = mongoose.model('Form', formSchema);
-
 module.exports = Form;
-

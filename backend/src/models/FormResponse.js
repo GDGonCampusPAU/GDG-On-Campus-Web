@@ -4,7 +4,7 @@ const answerSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     label: {
       type: String,
@@ -22,19 +22,19 @@ const uploadedFileSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     originalName: {
       type: String,
-      required: true
+      required: [true, 'Orijinal dosya adı zorunludur.']
     },
     filename: {
       type: String,
-      required: true
+      required: [true, 'Dosya adı zorunludur.']
     },
     url: {
       type: String,
-      required: true
+      required: [true, 'Dosya URL adresi zorunludur.']
     },
     size: {
       type: Number,
@@ -59,7 +59,7 @@ const formResponseSchema = new mongoose.Schema(
     singleSubmissionKey: { type: String },
     formSlug: {
       type: String,
-      required: true,
+      required: [true, 'Form URL adresi (slug) zorunludur.'],
       index: true
     },
     answers: {
@@ -96,16 +96,7 @@ const formResponseSchema = new mongoose.Schema(
     versionKey: false
   }
 );
-
-// Only single-submission responses carry this key; anonymous/multiple responses do not.
-formResponseSchema.index({ form: 1, singleSubmissionKey: 1 }, {
-  unique: true, partialFilterExpression: { singleSubmissionKey: { $type: 'string' } }
-});
-
-// Indexes
 formResponseSchema.index({ form: 1, submittedAt: -1 });
 
 const FormResponse = mongoose.model('FormResponse', formResponseSchema);
-
 module.exports = FormResponse;
-
