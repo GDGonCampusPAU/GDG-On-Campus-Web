@@ -1,16 +1,15 @@
+const { escapeCsvCell, literalSearch } = require('../../../utils/query');
 const HackathonApp = require('../models/HackathonApp');
 const VerificationToken = require('../../../models/VerificationToken');
 const { validateHackathonInput, isValidEmail } = require('../../../utils/validators');
-const { sendHackathonOtpEmail } = require('../../../services/emailService');
+const { sendTeamOtp } = require('../../../services/teamOtpService');
 
 /**
  * Helper to resolve resume URL from file upload or body
  */
 const resolveResumeUrl = (req) => {
   if (req.file) {
-    const protocol = req.protocol;
-    const host = req.get('host');
-    return `${protocol}://${host}/uploads/${req.file.filename}`;
+    return `/api/v1/files/${req.file.filename}`;
   }
   return req.body.resumeUrl || null;
 };
@@ -18,11 +17,7 @@ const resolveResumeUrl = (req) => {
 /**
  * Helper to escape CSV cell value
  */
-const escapeCsvCell = (val) => {
-  if (val === null || val === undefined) return '""';
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
-};
+
 
 /**
  * @desc    Send verification code to hackathon team leader email
@@ -43,15 +38,11 @@ const sendHackathonVerification = async (req, res, next) => {
     const normalizedEmail = leaderEmail.toLowerCase().trim();
 
     // Generate 6-digit OTP code (10 min TTL)
-    const code = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
-
-    // Send email via Brevo
-    await sendHackathonOtpEmail({
-      email: normalizedEmail,
+    await sendTeamOtp({
+      email: normalizedEmail, purpose: 'HACKATHON_APPLY',
       leaderName: leaderName ? leaderName.trim() : 'Takım Lideri',
-      teamName: teamName ? teamName.trim() : '',
-      code
-    });
+      teamName: teamName ? teamName.trim() : ''
+      });
 
     return res.status(200).json({
       success: true,
@@ -104,12 +95,10 @@ const applyHackathon = async (req, res, next) => {
     // 2. Validate Verification Code
     if (!inputCode) {
       // If code was not entered, auto-send code and prompt user to enter it
-      const otpCode = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
-      await sendHackathonOtpEmail({
-        email: normalizedEmail,
+      await sendTeamOtp({
+        email: normalizedEmail, purpose: 'HACKATHON_APPLY',
         leaderName: leaderName.trim(),
-        teamName: teamName.trim(),
-        code: otpCode
+        teamName: teamName.trim()
       });
 
       return res.status(400).json({
@@ -171,7 +160,7 @@ const getApplications = async (req, res, next) => {
     const filter = {};
 
     if (req.query.search && typeof req.query.search === 'string') {
-      const searchRegex = new RegExp(req.query.search.trim(), 'i');
+      const searchRegex = literalSearch(req.query.search);
       filter.$or = [
         { teamName: searchRegex },
         { leaderName: searchRegex },

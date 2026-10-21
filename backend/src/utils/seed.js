@@ -1,7 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
+const { ensureAdmin } = require('../services/seedAdminService');
 const Content = require('../models/Content');
 const Form = require('../models/Form');
 
@@ -14,32 +13,8 @@ const seedDatabase = async () => {
     console.log('[Seed] Connected to MongoDB.');
 
     // 1. Seed Default ADMIN User
-    const adminEmail = (process.env.DEFAULT_ADMIN_EMAIL || 'admin@pau.edu.tr').toLowerCase().trim();
-    const adminFullName = process.env.DEFAULT_ADMIN_NAME || 'GDG PAU Admin';
-    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin123456!';
-
-    let admin = await User.findOne({ email: adminEmail });
-
-    if (!admin) {
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(adminPassword, salt);
-
-      admin = await User.create({
-        fullName: adminFullName,
-        email: adminEmail,
-        passwordHash,
-        role: 'ADMIN'
-      });
-
-      console.log('--------------------------------------------------');
-      console.log(' Default ADMIN user successfully created:');
-      console.log(`   Email:    ${adminEmail}`);
-      console.log(`   Password: ${adminPassword}`);
-      console.log(`   Role:     ADMIN`);
-      console.log('--------------------------------------------------');
-    } else {
-      console.log(`[Seed] Admin user (${adminEmail}) already exists. Role: ${admin.role}`);
-    }
+    const admin = await ensureAdmin();
+    console.log(`[Seed] Verified ADMIN ready: ${admin.email}`);
 
     // 2. Seed Sample Content if none exists
     const contentCount = await Content.countDocuments();

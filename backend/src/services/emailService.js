@@ -16,6 +16,7 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
 
   // Development Fallback: If Brevo API key is not yet provided, log email preview to console
   if (!apiKey || apiKey === 'your_brevo_api_key_here') {
+    if (process.env.NODE_ENV === 'production') throw Object.assign(new Error('E-posta servisi yapılandırılmamış.'), { status: 503 });
     console.log('\n=============================================================');
     console.log('📨 [BREVO EMAIL SIMULATOR - API Key Not Configured]');
     console.log(` To:      ${to}`);
@@ -47,6 +48,7 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
     };
 
     const response = await fetch(BREVO_API_URL, {
+      signal: AbortSignal.timeout(10000),
       method: 'POST',
       headers: {
         'api-key': apiKey,

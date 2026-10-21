@@ -66,6 +66,7 @@ const formResponseSchema = new mongoose.Schema(
       type: [answerSchema],
       default: []
     },
+    schemaVersion: { type: Date, default: null },
     uploadedFiles: {
       type: [uploadedFileSchema],
       default: []

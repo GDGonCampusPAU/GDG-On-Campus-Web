@@ -1,3 +1,4 @@
+const { literalSearch } = require('../utils/query');
 const Content = require('../models/Content');
 const { validateContentInput } = require('../utils/validators');
 
@@ -8,7 +9,7 @@ const resolveCoverImageUrl = (req) => {
   if (req.file) {
     const protocol = req.protocol;
     const host = req.get('host');
-    return `${protocol}://${host}/uploads/${req.file.filename}`;
+    return `${protocol}://${host}/uploads/public/${req.file.filename}`;
   }
   return req.body.coverImageUrl || null;
 };
@@ -33,7 +34,7 @@ const getPublicContent = async (req, res, next) => {
 
     // Optional keyword search in title & description
     if (req.query.search && typeof req.query.search === 'string') {
-      const searchRegex = new RegExp(req.query.search.trim(), 'i');
+      const searchRegex = literalSearch(req.query.search);
       filter.$or = [{ title: searchRegex }, { description: searchRegex }];
     }
 

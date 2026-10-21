@@ -44,10 +44,10 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['MEMBER', 'ORGANIZER', 'ADMIN'],
+        values: ['PENDING', 'MEMBER', 'ORGANIZER', 'ADMIN'],
         message: 'Geçersiz rol tipi: {VALUE}'
       },
-      default: 'MEMBER'
+      default: 'PENDING'
     },
     permissions: {
       type: permissionSchema,

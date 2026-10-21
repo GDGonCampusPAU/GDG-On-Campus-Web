@@ -30,7 +30,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.name === 'MulterError') {
     statusCode = 400;
     if (err.code === 'LIMIT_FILE_SIZE') {
-      message = 'Yüklenen dosya boyutu izin verilen sınırı aşıyor (Maksimum 5MB).';
+      message = 'Yüklenen dosya boyutu izin verilen sınırı aşıyor (ilgili yükleme sınırına bakınız).';
     } else {
       message = `Dosya yükleme hatası: ${err.message}`;
     }
@@ -42,6 +42,7 @@ const errorHandler = (err, req, res, next) => {
     message = 'Geçersiz JSON formatı gönderildi.';
   }
 
+  if (res.headersSent) return next(err);
   res.status(statusCode).json({
     success: false,
     message,

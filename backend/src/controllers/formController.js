@@ -1,3 +1,6 @@
+const mongoose = require('mongoose');
+const { answerError } = require('../utils/formValidation');
+const { escapeCsvCell, literalSearch } = require('../utils/query');
 const { saveSubmission } = require('../services/formSubmissionService');
 const { unlink } = require('node:fs/promises');
 const Form = require('../models/Form');
@@ -25,16 +28,7 @@ const generateSlug = (text) => {
 /**
  * Helper to escape CSV values
  */
-const escapeCsvCell = (val) => {
-  if (val === null || val === undefined) return '""';
-  if (Array.isArray(val)) {
-    val = val.join(', ');
-  } else if (typeof val === 'object') {
-    val = JSON.stringify(val);
-  }
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
-};
+
 
 // =========================================================================
 // ORGANIZER / ADMIN CONTROLLERS
@@ -138,7 +132,7 @@ const getAllForms = async (req, res, next) => {
     }
 
     if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search.trim(), 'i');
+      const searchRegex = literalSearch(req.query.search);
       filter.$or = [{ title: searchRegex }, { description: searchRegex }, { slug: searchRegex }];
     }
 
@@ -289,7 +283,8 @@ const updateFormStatus = async (req, res, next) => {
       });
     }
 
-    const form = await Form.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    const form = await Form.findById(req.params.id);
+    if (form) { form.status = status; await form.save(); }
     if (!form) {
       return res.status(404).json({
         success: false,
@@ -322,10 +317,16 @@ const deleteForm = async (req, res, next) => {
       });
     }
 
-    await Promise.all([
-      Form.findByIdAndDelete(form._id),
-      FormResponse.deleteMany({ form: form._id })
-    ]);
+    let files = [];
+    await mongoose.connection.transaction(async session => {
+      // Write the form first, matching the serialization point used by submit.
+      await Form.findByIdAndDelete(form._id, { session });
+      files = await FormResponse.find({ form: form._id }).select('uploadedFiles').session(session).lean();
+      await FormResponse.deleteMany({ form: form._id }).session(session);
+    });
+    const { uploadDir } = require('../middleware/uploadMiddleware');
+    const path = require('node:path');
+    await Promise.all(files.flatMap(response => response.uploadedFiles).map(file => unlink(path.join(uploadDir, 'private', path.basename(file.filename))).catch(() => {})));
 
     return res.status(200).json({
       success: true,
@@ -419,7 +420,11 @@ const exportFormResponses = async (req, res, next) => {
     }
 
     // Dynamic CSV generation: each question becomes a dedicated column header!
-    const sortedFields = [...(form.fields || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const columnKey = field => JSON.stringify([field.fieldId, field.label]);
+    const columns = new Map();
+    for (const response of responses) for (const answer of response.answers || []) columns.set(columnKey(answer), answer);
+    if (!columns.size) for (const field of form.fields || []) columns.set(columnKey(field), field);
+    const sortedFields = [...columns.values()];
 
     const standardHeaders = ['Yanıt ID', 'Tarih', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi'];
     const questionHeaders = sortedFields.map((f) => f.label || f.fieldId);
@@ -429,7 +434,7 @@ const exportFormResponses = async (req, res, next) => {
     const rows = responses.map((resp) => {
       const answersMap = {};
       (resp.answers || []).forEach((ans) => {
-        answersMap[ans.fieldId] = ans.value;
+        answersMap[columnKey(ans)] = ans.value;
       });
 
       const rowValues = [
@@ -442,7 +447,7 @@ const exportFormResponses = async (req, res, next) => {
 
       // Add answer for each question column
       sortedFields.forEach((f) => {
-        rowValues.push(answersMap[f.fieldId] !== undefined ? answersMap[f.fieldId] : '');
+        rowValues.push(answersMap[columnKey(f)] !== undefined ? answersMap[columnKey(f)] : '');
       });
 
       // Add file URLs
@@ -593,14 +598,12 @@ const submitFormResponse = async (req, res, next) => {
     if (typeof rawAnswers.answers === 'string') {
       try {
         rawAnswers = { ...rawAnswers, ...JSON.parse(rawAnswers.answers) };
-      } catch (e) {
-        // keep rawAnswers as is
+      } catch {
+        return res.status(400).json({ message: 'Yanıtlar geçerli bir JSON nesnesi olmalıdır.' });
       }
     }
 
     // Map uploaded files by fieldId
-    const protocol = req.protocol;
-    const host = req.get('host');
     const uploadedFiles = [];
     const filesByField = {};
 
@@ -610,7 +613,7 @@ const submitFormResponse = async (req, res, next) => {
           fieldId: file.fieldname,
           originalName: file.originalname,
           filename: file.filename,
-          url: `${protocol}://${host}/uploads/${file.filename}`,
+          url: `/api/v1/files/${file.filename}`,
           size: file.size
         };
         uploadedFiles.push(fileInfo);
@@ -621,6 +624,8 @@ const submitFormResponse = async (req, res, next) => {
     // Validate answers against form schema
     const structuredAnswers = [];
     const validationErrors = [];
+    const fileFields = (form.fields || []).filter(field => field.type === 'file').map(field => field.fieldId);
+    if (uploadedFiles.some(file => !fileFields.includes(file.fieldId)) || new Set(uploadedFiles.map(file => file.fieldId)).size !== uploadedFiles.length) validationErrors.push('Beklenmeyen veya yinelenen dosya alanı.');
 
     for (const field of form.fields || []) {
       const fieldId = field.fieldId;
@@ -628,44 +633,11 @@ const submitFormResponse = async (req, res, next) => {
 
       // If it's a file field, check filesByField or string URL
       if (field.type === 'file') {
-        val = filesByField[fieldId] || val || null;
+        val = filesByField[fieldId] || null;
       }
 
-      // Check required
-      if (field.required) {
-        const isEmpty =
-          val === undefined ||
-          val === null ||
-          (typeof val === 'string' && val.trim().length === 0) ||
-          (Array.isArray(val) && val.length === 0);
-
-        if (isEmpty) {
-          validationErrors.push(`'${field.label}' alanı zorunludur.`);
-          continue;
-        }
-      }
-
-      // Basic type validation if present
-      if (val !== undefined && val !== null && val !== '') {
-        if (field.type === 'email' && typeof val === 'string') {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(val.trim())) {
-            validationErrors.push(`'${field.label}' için geçerli bir e-posta adresi giriniz.`);
-          }
-        } else if (field.type === 'number') {
-          const num = Number(val);
-          if (isNaN(num)) {
-            validationErrors.push(`'${field.label}' sayısal bir değer olmalıdır.`);
-          } else {
-            if (field.validation?.min != null && num < field.validation.min) {
-              validationErrors.push(`'${field.label}' en az ${field.validation.min} olmalıdır.`);
-            }
-            if (field.validation?.max != null && num > field.validation.max) {
-              validationErrors.push(`'${field.label}' en fazla ${field.validation.max} olabilir.`);
-            }
-          }
-        }
-      }
+      const message = answerError(field, val);
+      if (message) validationErrors.push(`'${field.label}' ${message}.`);
 
       structuredAnswers.push({
         fieldId,
@@ -687,6 +659,7 @@ const submitFormResponse = async (req, res, next) => {
 
     const response = await saveSubmission(form._id, {
       schemaUpdatedAt,
+      schemaVersion: form.updatedAt,
       participant: req.participant?._id || null,
       verifiedEmail: req.participant?.email || null,
       verificationMethod: req.participantVerification?.method || null,

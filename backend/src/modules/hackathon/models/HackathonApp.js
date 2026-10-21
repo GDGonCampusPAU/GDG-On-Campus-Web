@@ -4,24 +4,32 @@ const hackathonAppSchema = new mongoose.Schema(
   {
     fullName: {
       type: String,
-      required: [true, 'Ad ve soyad alanı zorunludur.'],
+      required: false,
       trim: true
     },
     teamId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Team',
-      required: [true, 'Takım ID alanı zorunludur.']
+      required: false
     },
     mailId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'VerificationToken',
-      required: [true, 'Mail doğrulama ID alanı zorunludur.']
+      required: false
     },
     motivation: {
       type: String,
-      required: [true, 'Katılım nedeni (motivasyon) zorunludur.'],
+      required: false,
       trim: true
     },
+    // Keep old reference-based records readable while matching the existing API payload.
+    teamName: { type: String, trim: true, required: function () { return !this.teamId; } },
+    leaderName: { type: String, trim: true, required: function () { return !this.teamId; } },
+    leaderEmail: { type: String, lowercase: true, trim: true, required: function () { return !this.teamId; } },
+    leaderPhone: { type: String, trim: true, required: function () { return !this.teamId; } },
+    memberCount: { type: Number, min: 1, max: 5, validate: Number.isInteger },
+    projectIdea: { type: String, trim: true },
+    resumeUrl: { type: String, default: null },
     appliedAt: {
       type: Date,
       default: Date.now,

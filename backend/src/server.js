@@ -7,6 +7,7 @@ const PORT = process.env.PORT || 5000;
 // Start server after connecting to database
 const startServer = async () => {
   try {
+    require('./utils/jwt').getTeamConfig();
     require('./modules/participantAuth/config').getConfig();
 
     // Connect to MongoDB
@@ -18,7 +19,9 @@ const startServer = async () => {
     await Promise.all([
       require('./modules/participantAuth/models/Participant').init(),
       require('./modules/participantAuth/models/ParticipantOtp').init(),
-      require('./models/FormResponse').init()
+      require('./models/FormResponse').init(),
+      require('./models/VerificationToken').init(),
+      require('./models/User').init()
     ]);
 
     const server = app.listen(PORT, () => {

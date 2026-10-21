@@ -21,9 +21,13 @@ app.use(
 );
 
 // Frontend'in çalıştığı adrese izin veriyoruz
+const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:5174')
+  .split(',').map(value => value.trim()).filter(Boolean);
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173', // Frontend adresi
-  credentials: true
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(Object.assign(new Error('Bu origin için erişim izni yok.'), { status: 403 }));
+  }
 }));
 
 // 3. HTTP Request Logging (morgan)
@@ -57,14 +61,20 @@ const authLimiter = rateLimit({
 });
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', authLimiter);
+app.use('/api/v1/auth/send-otp', authLimiter);
+app.use('/api/v1/auth/verify-email', authLimiter);
+app.use('/api/v1/hackathon/send-verification', authLimiter);
 
 // 6. Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 7. Static File Serving for Uploaded Assets
-const uploadDir = path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadDir));
+const uploadDir = require('./middleware/uploadMiddleware').uploadDir;
+app.use('/uploads/public', express.static(path.join(uploadDir, 'public')));
+app.use('/api/v1/files', require('./routes/fileRoutes'));
+// Existing private URLs are retained, but now require the same authorization.
+app.use('/uploads', require('./routes/fileRoutes'));
 
 // 8. API Health Check
 app.get('/health', (req, res) => {
@@ -73,6 +83,10 @@ app.get('/health', (req, res) => {
     message: 'GDG On Campus Pamukkale University Backend API is running.',
     timestamp: new Date().toISOString()
   });
+});
+app.get('/ready', (req, res) => {
+  const ready = require('mongoose').connection.readyState === 1;
+  res.status(ready ? 200 : 503).json({ success: ready });
 });
 
 app.get('/api/v1/health', (req, res) => {
@@ -86,6 +100,7 @@ app.get('/api/v1/health', (req, res) => {
 // 9. API Routes
 app.use('/api/v1/participant-auth', require('./modules/participantAuth/routes/participantAuthRoutes'));
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', require('./routes/userRoutes'));
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/forms', formRoutes);
 
