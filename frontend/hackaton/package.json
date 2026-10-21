@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:layout": "npm run build && node scripts/check-layout.mjs"
+    "check:layout": "node scripts/check-layout.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -23,6 +23,7 @@ const startServer = async () => {
       require('./models/VerificationToken').init(),
       require('./models/User').init()
     ]);
+    await require('./services/eventPageService').ensureHackathonPage();
 
     const server = app.listen(PORT, () => {
       console.log('====================================================');
@@ -36,9 +37,12 @@ const startServer = async () => {
     // Graceful Shutdown on termination signals
     const shutdown = (signal) => {
       console.log(`\n[Server] Received ${signal}. Gracefully shutting down...`);
-      server.close(() => {
+      const deadline = setTimeout(() => process.exit(1), 10000);
+      deadline.unref();
+      server.close(async () => {
+        await require('mongoose').disconnect();
+        clearTimeout(deadline);
         console.log('[Server] HTTP server closed.');
-        process.exit(0);
       });
     };
 

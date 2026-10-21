@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../components/Button.jsx'
 import Field from '../components/Field.jsx'
-import base from '../data/event.json'
+import base from '../data/base.js'
 import { choices, clearDraft, isEventShape, readDraft, typeLabels, writeDraft } from '../lib/content.js'
 import './Admin.css'
+import { loginEditor, getEventPage, publishEventPage } from '../lib/eventApi.js'
 
 const labels = {
   organizer: 'Organizatör',
@@ -105,7 +106,6 @@ const tabs = [
   ['Kayıt', ['register']],
 ]
 // shortcut: client-side check, the value ships in the bundle; replace with real auth when the backend exists
-const PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || '123'
 const UNLOCK_KEY = 'hackathon-admin-unlocked'
 
 // Kart başlığı öğenin kendi alanlarından gelir; boşsa sıra adı kullanılır.
@@ -226,29 +226,42 @@ function Node({ name, title, path, value, update }) {
 }
 
 function Gate({ onUnlock }) {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [wrong, setWrong] = useState(false)
-
-  const submit = (e) => {
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async e => {
     e.preventDefault()
-    if (password === PASSWORD) return onUnlock()
-    setPassword('')
-    setWrong(true)
+    if (busy) return
+    setBusy(true); setError('')
+    try { onUnlock(await loginEditor(email.trim(), password)) }
+    catch (error) { setPassword(''); setError(error.message) }
+    finally { setBusy(false) }
   }
-
   return (
     <form className="admin__gate" onSubmit={submit}>
       <h1>İçerik paneli</h1>
-      <Field id="password" label="Şifre">
-        <input id="password" type="password" autoComplete="current-password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
-      </Field>
-      {wrong && <p role="alert" className="admin__status">Şifre yanlış.</p>}
-      <Button type="submit">Giriş</Button>
+      <p>Core Team yönetim hesabınla giriş yap.</p>
+      <Field id="editor-email" label="E-posta"><input id="editor-email" type="email" autoComplete="username" required value={email} disabled={busy} onChange={e => setEmail(e.target.value)} /></Field>
+      <Field id="password" label="Şifre"><input id="password" type="password" autoComplete="current-password" required value={password} disabled={busy} onChange={e => setPassword(e.target.value)} /></Field>
+      {error && <p role="alert" className="admin__status">{error}</p>}
+      <Button type="submit" disabled={busy}>{busy ? 'Bekleyin…' : 'Giriş'}</Button>
     </form>
   )
 }
 
-function Editor() {
+function Editor({ session, onLock }) {
+  const [revision, setRevision] = useState(null)
+  const [publishing, setPublishing] = useState(false)
+  useEffect(() => {
+    let active = true
+    getEventPage().then(page => {
+      if (!active) return
+      setRevision(page.revision)
+      if (!readDraft(base)) setDraft(page.event)
+    }).catch(error => { if (active) setNote({ text: error.message, bad: true }) })
+    return () => { active = false }
+  }, [])
   const [draft, setDraft] = useState(() => readDraft(base) ?? base)
   // readDraft taslak yoksa base'i döndürür; kimlik karşılaştırması "kayıtlı taslak var mı"yı verir.
   const [saved, setSaved] = useState(() => draft !== base)
@@ -269,6 +282,19 @@ function Editor() {
     setNote({ text: 'Taslak kaydedildi. Değişiklikler yalnızca bu tarayıcıda, siteyi açtığında görünür.' })
   }
 
+  const publish = async () => {
+    if (!isEventShape(base, draft)) return setNote({ text: 'Yayınlanmadı: etkinlik verisi geçersiz.', bad: true })
+    setPublishing(true)
+    try {
+      const page = await publishEventPage(draft, revision, session.token)
+      setRevision(page.revision); clearDraft(); setSaved(false)
+      setNote({ text: 'Yayınlandı. Etkinlik bilgileri ve başvuru alanları tüm ziyaretçiler için güncellendi.' })
+    } catch (error) {
+      writeDraft(base, draft)
+      if (error.status === 401) onLock()
+      else setNote({ text: error.message, bad: true })
+    } finally { setPublishing(false) }
+  }
   const download = () => {
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' }))
@@ -304,6 +330,8 @@ function Editor() {
         <div className="admin__actions">
           <h1>İçerik paneli</h1>
           <Button onClick={save}>Kaydet</Button>
+          <Button onClick={publish} disabled={publishing || revision == null}>{publishing ? 'Yayınlanıyor…' : 'Yayınla'}</Button>
+          <Button variant="ghost" onClick={onLock}>Çıkış</Button>
           <Button variant="ghost" href="/">
             Siteyi gör
           </Button>
@@ -334,11 +362,10 @@ function Editor() {
       <details className="admin__note">
         <summary>Nasıl çalışır?</summary>
         <p>
-          Kaydet yalnızca bu tarayıcıdaki önizlemeyi günceller. Ziyaretçiler değişikliği, indirdiğin event.json
-          src/data/event.json ile değiştirilip site yeniden yayınlandıktan sonra görür.
+          Kaydet bu tarayıcıda taslak saklar. Yayınla, içeriği ve başvuru alanlarını sunucuda birlikte günceller. Ziyaretçiler sayfayı yenilediğinde yayınlanan içeriği görür.
         </p>
       </details>
-      {saved && <p className="admin__banner">Kayıtlı bir taslak bu tarayıcıda siteye uygulanıyor.</p>}
+      {saved && <p className="admin__banner">Kayıtlı bir taslak bu tarayıcıda editörde korunuyor.</p>}
       <div className="admin__tabs" role="group" aria-label="Bölümler">
         {tabs.map(([label], i) => (
           <button key={label} type="button" aria-pressed={i === tab} className="admin__tab" onClick={() => setTab(i)}>
@@ -354,11 +381,12 @@ function Editor() {
 }
 
 export default function Admin() {
-  const [unlocked, setUnlocked] = useState(() => {
+  const [session, setSession] = useState(() => {
     try {
-      return window.sessionStorage.getItem(UNLOCK_KEY) === '1'
+      const value = JSON.parse(window.sessionStorage.getItem(UNLOCK_KEY))
+      return value?.token ? value : null
     } catch {
-      return false
+      return null
     }
   })
 
@@ -375,14 +403,18 @@ export default function Admin() {
     }
   }, [])
 
-  const unlock = () => {
+  const unlock = (value) => {
     try {
-      window.sessionStorage.setItem(UNLOCK_KEY, '1')
+      window.sessionStorage.setItem(UNLOCK_KEY, JSON.stringify(value))
     } catch {
       // Hatırlanamazsa bu oturumda yine açılır; yenilemede şifre tekrar sorulur.
     }
-    setUnlocked(true)
+    setSession(value)
   }
 
-  return <main className="admin container">{unlocked ? <Editor /> : <Gate onUnlock={unlock} />}</main>
+  const lock = () => {
+    try { window.sessionStorage.removeItem(UNLOCK_KEY) } catch { /* storage unavailable */ }
+    setSession(null)
+  }
+  return <main className="admin container">{session ? <Editor session={session} onLock={lock} /> : <Gate onUnlock={unlock} />}</main>
 }

@@ -10,8 +10,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
             frontend/hackaton/package-lock.json
       - run: npm run setup
       - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

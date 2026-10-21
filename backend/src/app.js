@@ -12,6 +12,15 @@ const hackathonModule = require('./modules/hackathon');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+const { randomUUID } = require('node:crypto');
+app.use((req, res, next) => {
+  req.requestId = randomUUID();
+  res.setHeader('X-Request-ID', req.requestId);
+  next();
+});
+const proxyHops = Number(process.env.TRUST_PROXY_HOPS || 0);
+if (!Number.isSafeInteger(proxyHops) || proxyHops < 0) throw new Error('TRUST_PROXY_HOPS negatif olmayan tam sayı olmalıdır.');
+if (proxyHops) app.set('trust proxy', proxyHops);
 
 // 1. Security Headers via Helmet
 app.use(
@@ -68,6 +77,11 @@ app.use('/api/v1/hackathon/send-verification', authLimiter);
 // 6. Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use((req, res, next) => {
+  if (req.body != null && (typeof req.body !== 'object' || Array.isArray(req.body))) return res.status(400).json({ message: 'İstek gövdesi JSON nesnesi olmalıdır.' });
+  req.body ||= {};
+  next();
+});
 
 // 7. Static File Serving for Uploaded Assets
 const uploadDir = require('./middleware/uploadMiddleware').uploadDir;
@@ -102,6 +116,7 @@ app.use('/api/v1/participant-auth', require('./modules/participantAuth/routes/pa
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', require('./routes/userRoutes'));
 app.use('/api/v1/content', contentRoutes);
+app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
@@ -117,7 +132,7 @@ if (hackathonModule.isEnabled()) {
 }
 
 // 10. 404 Route Not Found Handler
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `İstenen kaynak bulunamadı: ${req.method} ${req.originalUrl}`

@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const auth = require('../middleware/authMiddleware');
 const { requireRoles } = require('../middleware/roleMiddleware');
 const router = express.Router();
@@ -22,13 +23,18 @@ router.patch('/:id/role', async (req, res, next) => {
   try {
     const { role } = req.body;
     if (!User.schema.path('role').enumValues.includes(role)) return res.status(400).json({ message: 'Geçersiz rol.' });
-    // Do not allow admins to lock themselves out; also prevents concurrent last-admin removal.
     if (String(req.user._id) === req.params.id) return res.status(400).json({ message: 'Kendi rolünüzü değiştiremezsiniz.' });
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
-    if (!user.isEmailVerified && role !== 'PENDING') return res.status(400).json({ message: 'Önce e-posta doğrulanmalıdır.' });
-    user.role = role;
-    await user.save();
+    let user;
+    await mongoose.connection.transaction(async session => {
+      // Writing actor and target serializes concurrent cross-demotions.
+      const actor = await User.updateOne({ _id: req.user._id, role: 'ADMIN' }, { $inc: { roleChangeVersion: 1 } }, { session });
+      if (!actor.matchedCount) throw Object.assign(new Error('Yönetim yetkisi artık geçerli değil.'), { status: 403 });
+      user = await User.findById(req.params.id).session(session);
+      if (!user) throw Object.assign(new Error('Kullanıcı bulunamadı.'), { status: 404 });
+      if (!user.isEmailVerified && role !== 'PENDING') throw Object.assign(new Error('Önce e-posta doğrulanmalıdır.'), { status: 400 });
+      user.role = role;
+      await user.save({ session });
+    });
     res.json({ success: true, user });
   } catch (error) { next(error); }
 });

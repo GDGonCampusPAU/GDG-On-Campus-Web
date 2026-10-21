@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../components/Button.jsx'
 import StepForm from '../components/StepForm.jsx'
-import { event } from '../data/event.js'
+import { event, formSlug } from '../data/event.js'
+import ParticipantVerification from '../components/ParticipantVerification.jsx'
+import { API_URL } from '../lib/eventApi.js'
 import { submitRegistration } from '../lib/registration.js'
 import './Register.css'
-
-const endpoint = import.meta.env.VITE_REGISTER_ENDPOINT
 
 export default function Register({ data = event }) {
   const { register } = data
   const [done, setDone] = useState(false)
+  const [identity, setIdentity] = useState(null)
+  const [draftValues, setDraftValues] = useState({})
   const successHeadingRef = useRef(null)
 
   useEffect(() => {
@@ -36,8 +38,19 @@ export default function Register({ data = event }) {
           <p>{register.successText}</p>
           <Button to="/program">Programı Gör</Button>
         </section>
+      ) : !identity ? (
+        <ParticipantVerification slug={formSlug} onVerified={setIdentity} />
       ) : (
-        <StepForm steps={register.steps} onSubmit={(values) => submitRegistration(values, { endpoint })} onSuccess={() => setDone(true)} />
+        <>
+          <p>Doğrulanan adres: {identity.participant.email}</p>
+          <StepForm steps={register.steps} initialData={{ ...draftValues, email: identity.participant.email }} lockedFields={['email']}
+            onSubmit={async values => {
+              setDraftValues(values)
+              const result = await submitRegistration(values, { endpoint: `${API_URL}/api/v1/forms/public/${encodeURIComponent(formSlug)}/submit`, token: identity.token, formVersion: identity.formVersion })
+              if (result.status === 401) setIdentity(null)
+              return result
+            }} onSuccess={() => setDone(true)} />
+        </>
       )}
     </div>
   )

@@ -69,18 +69,34 @@ export function updateUserRole(id, role, token) {
 
 // --- Hackathon başvuruları (ORGANIZER / ADMIN) -------------------------------
 
-export function getHackathonApplications({ page = 1, limit = 10, search = '' }, token) {
+export async function getHackathonApplications({ page = 1, limit = 10, search = '', source = 'forms' }, token) {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) })
   if (search.trim()) params.set('search', search.trim())
-  return request(`/hackathon/applications?${params}`, { token })
+  if (source === 'legacy') return request(`/hackathon/applications?${params}`, { token })
+  const pageData = await request('/event-page/hackathon')
+  return request(`/forms/${pageData.data.formId}/responses?${params}`, { token })
 }
 
 // CSV dosyasını Authorization başlığı gerektiği için fetch ile indirip Blob olarak döndürür.
-export async function downloadHackathonApplicationsCsv(token) {
-  const response = await send('/hackathon/applications/export?format=csv', { token })
+export async function downloadHackathonApplicationsCsv(token, { source = 'forms', search = '' } = {}) {
+  let path = '/hackathon/applications/export?format=csv'
+  if (source !== 'legacy') {
+    const page = await request('/event-page/hackathon')
+    path = `/forms/${page.data.formId}/responses/export?format=csv&search=${encodeURIComponent(search)}`
+  }
+  const response = await send(path, { token })
   if (!response.ok) {
     const data = await response.json().catch(() => ({}))
     throw new ApiError(data.message ?? 'CSV dosyası indirilemedi.', response.status, data)
   }
+  return response.blob()
+}
+
+export async function downloadPrivateFile(url, token) {
+  const base = new URL(API_URL || window.location.origin)
+  const target = new URL(url, base)
+  if (target.origin !== base.origin || !/^\/(?:api\/v1\/files|uploads)\/[a-zA-Z0-9._-]+$/.test(target.pathname)) throw new ApiError('Dosya adresi geçersiz.')
+  const response = await fetch(target.href, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) })
+  if (!response.ok) throw new ApiError('Dosya indirilemedi.', response.status)
   return response.blob()
 }

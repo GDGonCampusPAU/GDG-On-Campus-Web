@@ -97,3 +97,7 @@ desktop.ini
 .vercel/
 Docs/*.pdf
 Docs/superpowers/
+
+# Browser test artifacts
+playwright-report/
+test-results/

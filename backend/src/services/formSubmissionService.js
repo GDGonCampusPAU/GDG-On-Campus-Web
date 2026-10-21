@@ -26,7 +26,8 @@ const saveSubmission = async (formId, responseData, participant) => {
         throw failure(409, 'Bu forma daha önce başvurdunuz.');
       }
     }
-    const { schemaUpdatedAt, ...data } = responseData;
+    const data = { ...responseData };
+    delete data.schemaUpdatedAt;
     const created = await FormResponse.create([{ ...data,
       ...(!form.settings.allowMultipleSubmissions ? { singleSubmissionKey: String(participant._id) } : {})
     }], { session });

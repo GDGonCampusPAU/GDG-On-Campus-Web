@@ -3,6 +3,7 @@ import PanelLayout from '../components/layout/PanelLayout.jsx'
 import {
   downloadHackathonApplicationsCsv,
   getHackathonApplications,
+  downloadPrivateFile,
 } from '../lib/api.js'
 
 const PAGE_SIZE = 10
@@ -18,6 +19,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('') // gecikmeli arama metni
   const [page, setPage] = useState(1)
+  const [source, setSource] = useState('forms')
   const [state, setState] = useState({ status: 'loading', items: [], pagination: null, error: '' })
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
@@ -31,11 +33,11 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     return () => clearTimeout(timer)
   }, [search])
 
-  const requestKey = `${token}:${page}:${query}`
+  const requestKey = `${token}:${source}:${page}:${query}`
   useEffect(() => {
     let cancelled = false
 
-    getHackathonApplications({ page, limit: PAGE_SIZE, search: query }, token)
+    getHackathonApplications({ page, limit: PAGE_SIZE, search: query, source }, token)
       .then((data) => {
         if (cancelled) return
         setState({ key: requestKey, status: 'ready', items: data.data ?? [], pagination: data.pagination ?? null, error: '' })
@@ -52,13 +54,13 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     return () => {
       cancelled = true
     }
-  }, [page, query, token, onUnauthorized, requestKey])
+  }, [page, query, token, source, onUnauthorized, requestKey])
 
   const handleExport = async () => {
     setExporting(true)
     setExportError('')
     try {
-      const blob = await downloadHackathonApplicationsCsv(token)
+      const blob = await downloadHackathonApplicationsCsv(token, { source, search: query })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -78,6 +80,14 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     }
   }
 
+  const downloadFile = async (url, filename = 'dosya') => {
+    try {
+      const blob = await downloadPrivateFile(url, token)
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a'); link.href = objectUrl; link.download = filename
+      link.click(); URL.revokeObjectURL(objectUrl)
+    } catch (error) { if (error.status === 401) onUnauthorized(); else setExportError(error.message) }
+  }
   const { items, pagination, error } = state
   const status = state.key === requestKey ? state.status : 'loading'
   const total = pagination?.totalItems ?? 0
@@ -93,6 +103,12 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
         </button>
       }
     >
+      <label>Başvuru kaynağı
+        <select value={source} onChange={event => { setSource(event.target.value); setPage(1) }}>
+          <option value="forms">Etkinlik sitesi başvuruları</option>
+          <option value="legacy">Eski takım başvuruları</option>
+        </select>
+      </label>
       <div className="toolbar">
         <div className="field toolbar__search">
           <label className="field__label" htmlFor="applications-search">
@@ -138,17 +154,23 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
 
       {status === 'ready' && items.length > 0 && (
         <ul className="app-grid">
-          {items.map((app) => (
+          {items.map((record) => {
+            const answers = Object.fromEntries((record.answers || []).map(answer => [answer.fieldId, answer.value]))
+            const app = record.answers ? { ...record, teamName: answers.teamName || answers.fullName || record.verifiedEmail,
+              leaderName: answers.fullName, leaderEmail: record.verifiedEmail, leaderPhone: answers.phone, appliedAt: record.submittedAt,
+              projectIdea: answers.motivation || answers.projectIdea } : { ...record, leaderName: record.leaderName || record.fullName, projectIdea: record.projectIdea || record.motivation }
+            return (
             <li key={app._id} className="app-card">
               <div className="app-card__head">
                 <h2 className="app-card__team">{app.teamName}</h2>
-                <span className="panel__badge">{app.memberCount} kişi</span>
+                {app.memberCount && <span className="panel__badge">{app.memberCount} kişi</span>}
               </div>
               <p className="app-card__leader">{app.leaderName}</p>
               <p className="app-card__contact">
                 <a href={`mailto:${app.leaderEmail}`}>{app.leaderEmail}</a>
                 <a href={`tel:${app.leaderPhone}`}>{app.leaderPhone}</a>
               </p>
+              {record.answers && <details><summary>Başvuru yanıtları</summary><dl>{record.answers.map(answer => <div key={answer.fieldId}><dt>{answer.label}</dt><dd>{Array.isArray(answer.value) ? answer.value.join(', ') : String(answer.value ?? '')}</dd></div>)}</dl></details>}
               <details className="app-card__idea">
                 <summary>Proje fikri</summary>
                 <p>{app.projectIdea}</p>
@@ -158,13 +180,12 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                   {formatDate(app.appliedAt)}
                 </time>
                 {app.resumeUrl && (
-                  <a href={app.resumeUrl} target="_blank" rel="noopener noreferrer">
-                    Özgeçmiş
-                  </a>
+                  <button onClick={() => downloadFile(app.resumeUrl, 'ozgecmis')}>Özgeçmiş indir</button>
                 )}
+                {(record.uploadedFiles || []).map(file => <button key={file.filename} onClick={() => downloadFile(file.url, file.originalName)}>{file.originalName} indir</button>)}
               </div>
             </li>
-          ))}
+          )})}
         </ul>
       )}
 

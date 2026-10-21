@@ -91,6 +91,8 @@ const formSchema = new mongoose.Schema(
       default: 'GENERAL',
       index: true
     },
+    eventKey: { type: String, default: null, index: true },
+    event: { type: mongoose.Schema.Types.ObjectId, ref: 'Content', default: null },
     bannerImageUrl: {
       type: String,
       trim: true,

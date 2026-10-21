@@ -110,3 +110,14 @@ test('seed creates a verified admin and is idempotent without exposing or replac
     assert.equal(second.passwordHash, first.passwordHash);
   } finally { delete process.env.DEFAULT_ADMIN_PASSWORD; }
 });
+test('concurrent ADMIN cross-demotions cannot remove every administrator', async () => {
+  const first = await identity('ADMIN');
+  const secondUser = await User.create({ fullName: 'Second Admin', email: 'second@pau.edu.tr', passwordHash: 'test', role: 'ADMIN', isEmailVerified: true });
+  const secondToken = generateToken({ id: secondUser._id, role: 'ADMIN' });
+  const results = await Promise.all([
+    request(app).patch(`/api/v1/users/${secondUser.id}/role`).set('Authorization', `Bearer ${first.token}`).send({ role: 'MEMBER' }),
+    request(app).patch(`/api/v1/users/${first.user.id}/role`).set('Authorization', `Bearer ${secondToken}`).send({ role: 'MEMBER' })
+  ]);
+  assert.equal(results.filter(result => result.status === 200).length, 1);
+  assert.equal(await User.countDocuments({ role: 'ADMIN' }), 1);
+});

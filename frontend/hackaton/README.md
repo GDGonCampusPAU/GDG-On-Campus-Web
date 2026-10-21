@@ -1,63 +1,17 @@
-# GDG On Campus PAU Hackathon Sitesi
+# Hackathon etkinlik sitesi
 
-React 18 + Vite. Türkçe, düz CSS.
+Eski `web/` uygulaması bu dizine taşındı. Node 24, React 18 ve Vite kullanır. Kökten `npm run dev:hackaton` veya bu dizinde `npm run dev` ile http://localhost:5173 adresinde çalışır. Panel http://localhost:5174, API http://localhost:5000 adresindedir.
 
-## Çalıştırma
+İlk kurulumda `.env.example` değerlerini yerel `.env` dosyasına alın. `VITE_API_URL` API köküdür; üretimde aynı origin proxy'si yoksa build sırasında açıkça tanımlanmalıdır. `VITE_GOOGLE_CLIENT_ID` backend `GOOGLE_CLIENT_ID` ile eşleşir; Google Console authorized JavaScript origins ayrıca ayarlanır. E-posta OTP, Google ayarı olmadan kullanılabilir. Google entegrasyonu [resmi JavaScript referansındaki](https://developers.google.com/identity/gsi/web/reference/js-reference) `initialize` ve `renderButton` akışını kullanır.
 
-```bash
-npm install
-npm run dev      # geliştirme sunucusu
-npm test         # birim testleri
-npm run build    # üretim derlemesi (dist/)
-npm run check:layout  # derlemeyi gerçek Chrome'da 3 boyutta ölçer (hero düzeni, boşluk, yatay taşma)
-```
+Site içerikleri `/api/v1/event-page/hackathon` üzerinden yüklenir. İlk kurulum şablonu `shared/hackathon-event.json` dosyasıdır. Sunucu mevcut yayın varsa şablonla üzerine yazmaz. API kapalıysa site hata ve tekrar deneme ekranı gösterir.
 
-## İçeriği değiştirme
+`/kayit` katılımcı e-posta/Google doğrulamasından sonra formu açar. E-posta alanı doğrulanmış adresten doldurulur. Başvuru `hackathon-katilim` formuna Bearer token ile gider; başarı için API kayıt kimliği beklenir. Adres/token olmadan geliştirmede de sahte başarı gösterilmez. Oturum süresi dolarsa yeniden doğrulama istenir; girilmiş form değerleri bellekte korunur.
 
-Etkinlik adı, tarih, ödül, program, jüri/mentor ve sponsorlar yalnızca `src/data/event.js` içindedir.
+`/admin` gerçek Core Team ADMIN/ORGANIZER hesabıyla açılır. Kaydet yerel taslak saklar; Yayınla sunucuya kalıcı yazar ve form alanlarını aynı transaction'da günceller. Başka editör değişiklik yaptıysa eski sürümün yayını 409 ile reddedilir. Tarayıcıya gömülü yönetici parolası yoktur.
 
-## Font ve logo dosyaları
+Fontlar repodaki mevcut TTF dosyalarından `public/fonts/` altına alındı. Sponsor logoları ve kişi fotoğrafları editörden URL verilerek eklenir; mevcut yer tutucu içerikler etkinlik ekibi tarafından gerçek içerikle değiştirilmelidir.
 
-- Google Sans ve Google Sans Mono dosyalarını brand guide'daki Download bağlantılarından indirip
-  `public/fonts/` içine şu adlarla koy: `GoogleSans-Regular.woff2`, `GoogleSans-Bold.woff2`,
-  `GoogleSansMono-Regular.woff2`, `GoogleSansMono-Bold.woff2`. Yoksa `system-ui` / `ui-monospace` kullanılır.
-- Sponsor logolarını `public/logos/` içine koyup `event.js` içindeki `logo: '/logos/dosya.png'` alanına yaz.
-- Kişi fotoğrafları için `photo: '/logos/kisi.jpg'` benzeri bir yol kullan.
+Komutlar: `npm test`, `npm run lint`, `npm run build`. Build `dist/` ve SPA fallback `404.html` üretir. Netlify/Cloudflare `_redirects`, Vercel rewrite dosyası korunur. Yayında `/kayit`, `/admin` gibi rotaları yenilemenin çalıştığını ayrıca doğrulayın. `npm run check:layout` mevcut özel layout aracıdır; canlı API bağlantısı ve Chrome gerektirir. Asıl tarayıcı regresyon testleri kökten `npm run test:e2e` ile çalışır.
 
-## Kayıt formu
-
-`.env` dosyasında `VITE_REGISTER_ENDPOINT` tanımlıysa form JSON POST eder (gövde: normalize edilmiş form alanları).
-Geliştirme sunucusunda tanımlı değilse istek atılmaz ve başarı ekranı gösterilir; üretim derlemesinde tanımlı değilse form hata gösterir (kayıt sessizce kaybolmaz).
-
-### Backend sözleşmesi
-
-Backend yazılırken form şu isteği atar. Adres `VITE_REGISTER_ENDPOINT` ile verilir, başka bir ayar gerekmez.
-
-- `POST`, `Content-Type: application/json`, `Accept: application/json`, 15 saniye zaman aşımı.
-- Gövde, kayıt formundaki her alanın `id` değerini anahtar olarak taşıyan düz bir JSON nesnesidir. Değerler string, çoklu seçim alanları (`checkbox`) string dizisidir. Seçim alanlarında gönderilen değer seçeneğin `value` alanıdır.
-- Alanlar kodda değil `src/data/event.json` içindeki `register.steps` altındadır ve `/admin` panelindeki **Kayıt** sekmesinden değişir. Alan eklemek, çıkarmak veya `id`/`value` değiştirmek gönderilen gövdeyi değiştirir; backend ile birlikte güncelle.
-- Varsayılan alanlar: `fullName`, `email` (küçük harf), `phone` (boşluksuz, `+` ve rakam), `education`, `department`, `year`, `teamName` (boş olabilir), `teamRole` (`looking`, `ready`, `incomplete`), `teammates` (boş olabilir), `interests`, `level` (`beginner`, `basic`, `project`, `advanced`), `hackathonBefore` (`yes`, `no`), `motivation`, `availability` (`yes`, `no`, `unsure`), `heardFrom` (boş olabilir). Güncel liste her zaman `register.steps` içindedir.
-- Başarı için herhangi bir 2xx yeterlidir, gövde okunmaz. Başka durumda form "Sunucu hatası (kod)" gösterir ve kullanıcı yeniden dener.
-- Aynı e-posta ikinci kez gelirse backend karar verir. Form çift tıklamayı engeller ama sayfa yenilenince yeniden gönderebilir.
-
-## Yayına almadan önce
-
-- Barındırma sağlayıcısının derleme ortamında `VITE_REGISTER_ENDPOINT` tanımla. Tanımlı değilse form
-  "Kayıt şu an alınamıyor" hatası verir.
-- Endpoint `Content-Type: application/json` kabul etmeli ve site origin'inden gelen CORS isteklerine izin vermelidir.
-  İstek `Accept: application/json` başlığını ve 15 saniyelik zaman aşımını içerir (Formspree bu başlığı ister).
-- Vite `.env` dosyasını geliştirme sunucusu başlarken ve derleme sırasında okur; değiştirdikten sonra yeniden başlat.
-
-## Yayınlama notu
-
-Uygulama `BrowserRouter` kullanır; statik barındırmada tüm rotaların `index.html`'e düşmesi (SPA fallback) gerekir.
-Üç yaygın barındırıcı için hazır gelir.
-
-- Netlify ve Cloudflare Pages `public/_redirects` dosyasını okur.
-- Vercel `vercel.json` içindeki `rewrites` kuralını okur.
-- GitHub Pages rewrite bilmez, `npm run build` `dist/index.html` dosyasını `dist/404.html` olarak da kopyalar.
-
-## Açık sorular
-
-- **KVKK.** Kayıt formunda şu an onay kutusu ve aydınlatma metni yok (bilinçli olarak kaldırıldı). Katılımcıdan kişisel veri
-  (ad, e-posta, telefon) toplanıyor. Gerçek kayıt açılmadan önce aydınlatma metni ve açık rıza gerekip gerekmediğine karar verilmeli.
+Kişisel veri metinleri, gerçek sponsorlar/tarih ve kayıtların saklama süresi organizasyonun yayın öncesi içerik kararlarıdır.

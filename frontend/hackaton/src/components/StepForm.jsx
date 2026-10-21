@@ -12,10 +12,10 @@ const shownValue = (f, v) => {
   return f.kind === 'select' ? label(v) : v
 }
 
-export default function StepForm({ steps: configured, onSubmit, onSuccess }) {
+export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [] }) {
   const steps = [...configured, CONFIRM]
   const [stepIndex, setStepIndex] = useState(0)
-  const [values, setValues] = useState(() => initialValues(configured))
+  const [values, setValues] = useState(() => ({ ...initialValues(configured), ...initialData }))
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -159,7 +159,7 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess }) {
               ) : f.kind === 'textarea' ? (
                 <textarea id={f.id} rows={3} value={values[f.id]} onChange={set(f.id)} {...aria} />
               ) : (
-                <input id={f.id} type={f.kind} value={values[f.id]} onChange={set(f.id)} {...aria} />
+                <input id={f.id} type={f.kind} value={values[f.id]} onChange={set(f.id)} readOnly={lockedFields.includes(f.id)} {...aria} />
               )}
             </Field>
           )

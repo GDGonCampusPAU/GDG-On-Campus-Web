@@ -48,24 +48,25 @@ export function validateStep(step, values) {
 
 export async function submitRegistration(
   values,
-  { endpoint, dev = import.meta.env.DEV, fetchImpl = (...args) => fetch(...args) } = {},
+  { endpoint, token, formVersion, fetchImpl = (...args) => fetch(...args) } = {},
 ) {
   if (!endpoint) {
     // Yayında adres yoksa kayıt hiçbir yere gitmez; başarı göstermek sessiz veri kaybı olur.
-    return dev
-      ? { ok: true, skipped: true }
-      : { ok: false, error: 'Kayıt şu an alınamıyor. Biraz sonra tekrar dene.' }
+    return { ok: false, error: 'Kayıt şu an alınamıyor. Biraz sonra tekrar dene.' }
   }
+  if (!token) return { ok: false, status: 401, error: 'Başvurmadan önce e-postanı doğrula.' }
 
   try {
     const res = await fetchImpl(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(values),
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ...values, ...(formVersion ? { _formVersion: formVersion } : {}) }),
       signal: AbortSignal.timeout(15000),
     })
-    if (!res.ok) return { ok: false, error: `Sunucu hatası (${res.status}). Biraz sonra tekrar dene.` }
-    return { ok: true }
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, status: res.status, error: data.message || `Sunucu hatası (${res.status}). Biraz sonra tekrar dene.` }
+    if (!data.success || !data.responseId) return { ok: false, error: 'Sunucu kayıt onayı vermedi. Lütfen tekrar deneyin.' }
+    return { ok: true, responseId: data.responseId }
   } catch {
     return { ok: false, error: 'Bağlantı kurulamadı. İnternetini kontrol edip tekrar dene.' }
   }

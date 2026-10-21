@@ -87,6 +87,9 @@ test('export preserves deleted question labels and neutralizes formulas; searche
   const csv = await request(app).get(`/api/v1/forms/${form.id}/responses/export`).set('Authorization', `Bearer ${token}`);
   assert.match(csv.text, /Original question/);
   assert.match(csv.text, /'=1\+2/);
+  const json = await request(app).get(`/api/v1/forms/${form.id}/responses/export?format=json`).set('Authorization', `Bearer ${token}`);
+  assert.equal(json.body.length, 1);
+  assert.equal(json.body[0].answers[0].label, 'Original question');
   assert.equal((await request(app).get('/api/v1/forms?search=%5B').set('Authorization', `Bearer ${token}`)).status, 200);
 });
 test('deleting a form rolls back on failure and then removes its responses', async () => {

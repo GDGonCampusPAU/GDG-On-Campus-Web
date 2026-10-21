@@ -317,6 +317,7 @@ const deleteForm = async (req, res, next) => {
       });
     }
 
+    if (form.eventKey && await require('../models/EventPage').exists({ formSlug: form.slug })) return res.status(409).json({ message: 'Yayınlanan etkinliğin formunu silmek yerine kapatın.' });
     let files = [];
     await mongoose.connection.transaction(async session => {
       // Write the form first, matching the serialization point used by submit.
@@ -356,13 +357,15 @@ const getFormResponses = async (req, res, next) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
+    const filter = { form: form._id };
+    if (typeof req.query.search === 'string' && req.query.search.trim()) filter.$or = [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }];
     const [responses, totalItems] = await Promise.all([
-      FormResponse.find({ form: form._id })
+      FormResponse.find(filter)
         .sort({ submittedAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      FormResponse.countDocuments({ form: form._id })
+      FormResponse.countDocuments(filter)
     ]);
 
     const totalPages = Math.ceil(totalItems / limit) || 1;
@@ -398,77 +401,39 @@ const getFormResponses = async (req, res, next) => {
 const exportFormResponses = async (req, res, next) => {
   try {
     const form = await Form.findById(req.params.id);
-    if (!form) {
-      return res.status(404).json({
-        success: false,
-        message: 'Form bulunamadı.'
-      });
-    }
-
-    const format = (req.query.format || 'csv').toLowerCase();
-    const responses = await FormResponse.find({ form: form._id })
-      .sort({ submittedAt: -1 })
-      .lean();
-
+    if (!form) return res.status(404).json({ message: 'Form bulunamadı.' });
+    const { write, streamJson } = require('../utils/streamExport');
+    const filter = { form: form._id };
+    if (typeof req.query.search === 'string' && req.query.search.trim()) filter.$or = [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }];
+    const format = req.query.format || 'csv';
+    if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
+    res.setHeader('Content-Disposition', `attachment; filename="${form.slug}-responses.${format}"`);
     if (format === 'json') {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${form.slug}-responses.json"`
-      );
-      return res.status(200).send(JSON.stringify(responses, null, 2));
+      return await streamJson(res, FormResponse.find(filter).sort({ submittedAt: -1 }).lean().cursor());
     }
-
-    // Dynamic CSV generation: each question becomes a dedicated column header!
+    // First pass reads only question identities. Deleted/renamed questions remain exportable.
     const columnKey = field => JSON.stringify([field.fieldId, field.label]);
     const columns = new Map();
-    for (const response of responses) for (const answer of response.answers || []) columns.set(columnKey(answer), answer);
+    for await (const response of FormResponse.find(filter).select('answers.fieldId answers.label').sort({ submittedAt: -1 }).lean().cursor()) {
+      for (const answer of response.answers || []) columns.set(columnKey(answer), answer);
+    }
     if (!columns.size) for (const field of form.fields || []) columns.set(columnKey(field), field);
-    const sortedFields = [...columns.values()];
-
-    const standardHeaders = ['Yanıt ID', 'Tarih', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi'];
-    const questionHeaders = sortedFields.map((f) => f.label || f.fieldId);
-    const fileHeaders = ['Eklenen Dosyalar'];
-    const allHeaders = [...standardHeaders, ...questionHeaders, ...fileHeaders];
-
-    const rows = responses.map((resp) => {
-      const answersMap = {};
-      (resp.answers || []).forEach((ans) => {
-        answersMap[columnKey(ans)] = ans.value;
-      });
-
-      const rowValues = [
-        resp._id,
-        new Date(resp.submittedAt).toISOString(),
-        resp.respondent?.ip || '',
-        resp.verifiedEmail || '',
-        resp.verificationMethod || ''
-      ];
-
-      // Add answer for each question column
-      sortedFields.forEach((f) => {
-        rowValues.push(answersMap[columnKey(f)] !== undefined ? answersMap[columnKey(f)] : '');
-      });
-
-      // Add file URLs
-      const fileUrls = (resp.uploadedFiles || []).map((fl) => fl.url).join(' | ');
-      rowValues.push(fileUrls);
-
-      return rowValues.map(escapeCsvCell).join(',');
-    });
-
-    const csvContent =
-      '\uFEFF' + [allHeaders.map(escapeCsvCell).join(','), ...rows].join('\r\n');
-
+    const fields = [...columns.values()];
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${form.slug}-responses.csv"`
-    );
-    return res.status(200).send(csvContent);
-  } catch (error) {
-    next(error);
-  }
+    await write(res, '\uFEFF' + ['Yanıt ID', 'Tarih', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi', ...fields.map(field => field.label || field.fieldId), 'Eklenen Dosyalar'].map(escapeCsvCell).join(',') + '\r\n');
+    const cursor = FormResponse.find(filter).sort({ submittedAt: -1 }).lean().cursor();
+    try {
+      for await (const response of cursor) {
+        const answers = new Map((response.answers || []).map(answer => [columnKey(answer), answer.value]));
+        const row = [response._id, new Date(response.submittedAt).toISOString(), response.respondent?.ip || '',
+          response.verifiedEmail || '', response.verificationMethod || '', ...fields.map(field => answers.get(columnKey(field)) ?? ''),
+          (response.uploadedFiles || []).map(file => file.url).join(' | ')];
+        await write(res, row.map(escapeCsvCell).join(',') + '\r\n');
+      }
+    } finally { await cursor.close(); }
+    res.end();
+  } catch (error) { next(error); }
 };
 
 // =========================================================================
@@ -537,6 +502,7 @@ const getPublicForm = async (req, res, next) => {
       slug: form.slug,
       category: form.category,
       bannerImageUrl: form.bannerImageUrl,
+      schemaVersion: form.updatedAt,
       startDate: form.startDate,
       endDate: form.endDate,
       settings: form.settings,
@@ -562,6 +528,7 @@ const submitFormResponse = async (req, res, next) => {
     // Identity middleware loads the form and authenticates before any file is written.
     const form = req.submissionForm;
     const schemaUpdatedAt = form.updatedAt.getTime();
+    if (req.body._formVersion && Date.parse(req.body._formVersion) !== schemaUpdatedAt) return res.status(409).json({ message: 'Form güncellendi. Sayfayı yenileyip tekrar deneyiniz.' });
     const now = new Date();
 
     if (form.status !== 'PUBLISHED') {

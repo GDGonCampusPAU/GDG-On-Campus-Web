@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { typeLabels } from './event.js'
-import event from './event.json'
+import event from './base.js'
 import { isEventShape } from '../lib/content.js'
 
 const colors = ['blue', 'green', 'yellow', 'red']

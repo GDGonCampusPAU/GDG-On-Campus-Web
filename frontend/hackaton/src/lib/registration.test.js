@@ -111,72 +111,36 @@ describe('validateStep', () => {
 
 describe('submitRegistration', () => {
   afterEach(() => vi.unstubAllGlobals())
-
-  it('geliştirmede endpoint yoksa istek atmaz ve başarılı döner', async () => {
+  it('endpoint tanımlanmamışsa geliştirmede de başarı göstermez', async () => {
     const fetchImpl = vi.fn()
-    const result = await submitRegistration(valid, { dev: true, fetchImpl })
-    expect(result).toEqual({ ok: true, skipped: true })
+    expect((await submitRegistration(valid, { fetchImpl })).ok).toBe(false)
     expect(fetchImpl).not.toHaveBeenCalled()
   })
-
-  it('yayında endpoint yoksa başarı göstermez, hata döner', async () => {
+  it('token olmadan başvuru göndermez', async () => {
     const fetchImpl = vi.fn()
-    const result = await submitRegistration(valid, { dev: false, fetchImpl })
-    expect(result.ok).toBe(false)
-    expect(result.error).toMatch(/alınamıyor/)
+    expect((await submitRegistration(valid, { endpoint: '/submit', fetchImpl })).status).toBe(401)
     expect(fetchImpl).not.toHaveBeenCalled()
   })
-
-  it('endpoint varsa değerleri JSON POST eder', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200 })
-    const result = await submitRegistration(valid, { endpoint: 'https://example.test/kayit', fetchImpl })
-    expect(result).toEqual({ ok: true })
-    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  it('Bearer token ve normalize alanları gönderir, kayıt kimliği bekler', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, responseId: 'saved' }) })
+    const result = await submitRegistration(valid, { endpoint: '/submit', token: 'verified', fetchImpl })
+    expect(result).toEqual({ ok: true, responseId: 'saved' })
     const [url, init] = fetchImpl.mock.calls[0]
-    expect(url).toBe('https://example.test/kayit')
-    expect(init.method).toBe('POST')
-    expect(init.headers['Content-Type']).toBe('application/json')
-    expect(init.headers.Accept).toBe('application/json')
-    expect(init.signal).toBeInstanceOf(AbortSignal)
+    expect(url).toBe('/submit'); expect(init.method).toBe('POST')
+    expect(init.headers.Authorization).toBe('Bearer verified')
     expect(JSON.parse(init.body).email).toBe('ayse@example.com')
+    expect(init.signal).toBeInstanceOf(AbortSignal)
   })
-
-  it('sunucu hatasında ok:false ve durum kodunu döner', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 500 })
-    const result = await submitRegistration(valid, { endpoint: 'https://example.test', fetchImpl })
-    expect(result.ok).toBe(false)
-    expect(result.error).toContain('500')
+  it('2xx yanıtı kayıt onayı olmadan başarı saymaz', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+    expect((await submitRegistration(valid, { endpoint: '/submit', token: 'verified', fetchImpl })).ok).toBe(false)
   })
-
-  it.each([400, 429])('%i durum kodunu hata mesajına yazar', async (status) => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status })
-    const result = await submitRegistration(valid, { endpoint: 'https://example.test', fetchImpl })
-    expect(result).toEqual({
-      ok: false,
-      error: `Sunucu hatası (${status}). Biraz sonra tekrar dene.`,
-    })
+  it.each([400, 401, 409, 429, 500])('API %i hatasını ve açıklamasını korur', async status => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status, json: async () => ({ message: 'Açıklama' }) })
+    expect(await submitRegistration(valid, { endpoint: '/submit', token: 'verified', fetchImpl })).toEqual({ ok: false, status, error: 'Açıklama' })
   })
-
-  it('zaman aşımında fırlatmaz, ok:false döner', async () => {
-    const fetchImpl = vi.fn().mockRejectedValue(new DOMException('x', 'TimeoutError'))
-    const result = await submitRegistration(valid, { endpoint: 'https://example.test', fetchImpl })
-    expect(result.ok).toBe(false)
-    expect(result.error).toMatch(/bağlantı/i)
-  })
-
-  it('fetchImpl verilmezse global fetch kullanılır', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 })
-    vi.stubGlobal('fetch', fetchMock)
-    const result = await submitRegistration(valid, { endpoint: 'https://example.test/kayit' })
-    expect(result).toEqual({ ok: true })
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0][0]).toBe('https://example.test/kayit')
-  })
-
-  it('ağ hatasında fırlatmaz, ok:false döner', async () => {
+  it('ağ/zaman aşımı hatasında veri kaydedilmiş gibi davranmaz', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
-    const result = await submitRegistration(valid, { endpoint: 'https://example.test', fetchImpl })
-    expect(result.ok).toBe(false)
-    expect(result.error).toMatch(/bağlantı/i)
+    expect((await submitRegistration(valid, { endpoint: '/submit', token: 'verified', fetchImpl })).ok).toBe(false)
   })
 })

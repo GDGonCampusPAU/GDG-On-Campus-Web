@@ -1,51 +1,21 @@
-# GDG On Campus Pamukkale University — Backend
+# GDG PAU API
 
-Node.js / Express / Mongoose API. Ekip hesaplarıyla içerik/form yönetimi, ayrı katılımcı Google/e-posta doğrulaması ve hackathon başvuruları sağlar. Bu belge `feature/participant-verification` çalışma ağacına göre 12 Ekim 2026 tarihinde güncellendi.
+Node 24, Express ve MongoDB replica set/Atlas kullanır. Kök dizindeki `npm run setup` bütün uygulamaları kurar. Backend tek başına `npm ci`, `npm test`, `npm start` veya `npm run dev` ile çalışır; repo lint araçları kök kurulumdan gelir.
 
-## Kurulum
+İlk kurulumda `.env.example` dosyasını `.env` olarak kopyalayın; mevcut ayarları ezmeyin. `JWT_SECRET` en az 32 karakterlik özel bir anahtar olmalı. `PARTICIPANT_JWT_SECRET` için de ayrı güçlü anahtar önerilir. Anahtar üretmek için `openssl rand -hex 32` kullanılabilir. MongoDB standalone bağlantısı kabul edilmez. Kök dizindeki Compose, yeni yerel geliştirme veritabanı için replica set kurar; mevcut veritabanı/volume üzerinde çalıştırmak gerekmez.
 
-MongoDB replica set veya Atlas bağlantısı gerekir. Standalone MongoDB startup’ta reddedilir. Yalnız ilk kurulumda `.env.example` dosyasını `.env` olarak kopyalayın; mevcut `.env` dosyanızı ezmeyin.
+- API: `http://localhost:5000/api/v1`; `/health` süreç canlılığını, `/ready` DB bağlantısını bildirir.
+- `CLIENT_URLS=http://localhost:5173,http://localhost:5174` iki ön yüze izin verir. Eski `CLIENT_URL` tek-origin ayarı geriye uyumludur. `localhost` ve `127.0.0.1` farklı origin'lerdir.
+- Ters proxy arkasında doğru `TRUST_PROXY_HOPS` değerini ayarlayın; varsayılan 0'dır.
+- Ekip `/auth/register` → e-posta OTP → `PENDING` → ADMIN `/users/:id/role` onayı → `/auth/login` akışını kullanır. Roller PENDING, MEMBER, ORGANIZER, ADMIN'dir. Yönetim yetkisi sunucuda rol üzerinden uygulanır; eski `permissions` alanı bu sürümde yetki vermek için kullanılmaz.
+- Katılımcı `/participant-auth/email/send-otp` + `/email/verify` veya `/google` ile ayrı token alır. Ekip token'ı katılımcı formu yerine geçmez.
+- Ekip ve eski hackathon OTP'leri hash, tek kullanımlılık, 5 deneme, 10 dakika süre ve 60 saniye tekrar gönderim beklemesi uygular. Katılımcı süreleri env üzerinden ayarlanır.
+- Production'da Brevo ayarı yoksa e-posta simülasyonu başarılı sayılmaz. Geliştirmede kod konsola yazılır. Gerçek servis çağrısı 10 saniye zaman aşımı kullanır.
+- `/event-page/hackathon` etkinlik içeriğinin kalıcı kaynağıdır. GET public, PUT ADMIN/ORGANIZER yetkilidir; `{event, revision}` ister. İçerik ve ilgili form aynı transaction'da yayınlanır. Başlangıç şablonu `shared/hackathon-event.json`; sunucu ilk başlangıçta eksik sayfa/formu oluşturur, mevcut başvuruları ve ayarları ezmez.
+- Yeni etkinlik başvuruları `hackathon-katilim` dinamik formuna yazılır. Eski HackathonApp koleksiyonu ve API'si korunur; panelde ayrı kaynak olarak görünür. `ENABLE_HACKATHON_MODULE=false` yalnız eski modülü kapatır.
+- Form gönderimleri transaction ile kota/tek başvuru/sayaç tutarlılığı sağlar. `_formVersion` gönderilirse eski şemayla başvuru reddedilir. Export eski soru etiketlerini korur ve cursor ile akış halinde üretilir.
+- Public görseller `/uploads/public/` altında, CV/form ekleri özel dizindedir. `/api/v1/files/:filename` ORGANIZER/ADMIN token'ı ister. Eski özel `/uploads/:filename` adresleri de token ister. Dosyalar tam uzantı ve temel içerik imzası, adet ve boyut kontrolünden geçer.
 
-```bash
-cd backend
-npm ci
-cp .env.example .env
-# Gerçek imza anahtarlarını ve replica set bağlantısını düzenleyin.
-npm run dev
-```
+`npm run seed` için yeni admin parolasını `DEFAULT_ADMIN_PASSWORD` ile en az 12 karakter olarak belirleyin. Seed doğrulanmış ADMIN oluşturur; aynı admin tekrar çalıştırıldığında parola değişmez ve loglanmaz. Başka rolü otomatik ADMIN yapmaz.
 
-Yerel Docker URI örneği:
-
-```env
-MONGO_URI=mongodb://127.0.0.1:27017/gdg_pau?replicaSet=rs0&directConnection=true
-JWT_EXPIRES_IN=7d
-PARTICIPANT_JWT_EXPIRES_IN=1h
-PARTICIPANT_OTP_TTL_MINUTES=10
-CLIENT_URL=http://localhost:5173
-```
-
-JWT_SECRET ve tercihen ayrı PARTICIPANT_JWT_SECRET güçlü değerler olmalı. GOOGLE_CLIENT_ID Google OAuth Web client’ıdır; client secret kullanılmaz. Brevo eksikse geliştirmede konsol simülasyonu yapılır, production katılımcı OTP isteği 503 döner. Tam ayarlar [.env.example](.env.example) ve [kurulum rehberinde](../documents/KURULUM.md).
-
-## Kullanım ve test
-
-- API kökü: `http://localhost:5000/api/v1`; kök health `/health`.
-- Ekip `/auth/login` token’ı yönetim içindir. Katılımcı `/participant-auth/email/verify` veya `/participant-auth/google` token’ı form submit içindir; birbirinin yerine geçmez.
-- Form GET public; submit varsayılan doğrulama ister. Yanıt + sayaç transaction içinde kaydedilir. Form ayarıyla tek katılımcı/tek başvuru uygulanır.
-- Özel hackathon modülü eski lider OTP’siyle ayrı başvuru havuzu kullanır. ENABLE_HACKATHON_MODULE=false bu rotaları kapatır; klasörü doğrudan silmek import’ları kırar.
-- `npm start`, `npm run dev`, `npm run seed`, `npm test` script’leri vardır. Seed admin emailVerified olmadığından ilk giriş sonrası ekip email doğrulaması gerekebilir.
-
-```bash
-npm test
-```
-
-20 otomatik test önceki çalıştırmada geçti. Testler geçici replica set kullanır; gerçek Google/Brevo ve browser CORS ayrı manuel doğrulanmalı.
-
-Manuel araçlar [tools/participant-flow.http](tools/participant-flow.http) ve [tools/participant-auth.html](tools/participant-auth.html). HTML’i `tools` dizininde `python3 -m http.server 5173 --bind 127.0.0.1` ile sunup **http://localhost:5173/participant-auth.html** adresinden açın. CLIENT_URL farklıysa tam origin eşleşmeli; localhost ve 127.0.0.1 aynı değildir. Araçlar Express tarafından sunulmaz, ürün frontend’i değildir.
-
-## Dokümantasyon
-
-- [Mevcut proje durumu](../documents/MEVCUT_PROJE_DURUMU.md)
-- [Katılımcı doğrulaması ve ayrıntılı test rehberi](../documents/KATILIMCI_DOGRULAMA.md)
-- [API uç noktaları ve istek örnekleri](../documents/API.md)
-- [Mimari](../documents/architecture.md), [veritabanı](../documents/DATABASE.md)
-- [Güvenlik/dosyalar](../documents/GUVENLIK_VE_DOSYALAR.md), [kalan sorunlar](../documents/SORUNLAR.md)
+Otomatik testler geçici MongoDB kullanır; gerçek `.env`, Google hesabı ve Brevo teslimatı kullanılmaz. Tarayıcı testleri kökten `npm run test:e2e` ile çalışır. Güncel sonuçlar [mevcut durum](../documents/MEVCUT_PROJE_DURUMU.md) belgesindedir.

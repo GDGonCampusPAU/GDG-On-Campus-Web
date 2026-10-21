@@ -13,6 +13,7 @@ const { sendTeamOtp } = require('../services/teamOtpService');
 const sendRegisterOtp = async (req, res, next) => {
   try {
     const { email, fullName } = req.body;
+    if (fullName != null && typeof fullName !== 'string') return res.status(400).json({ message: 'Ad soyad metin olmalıdır.' });
 
     if (!email || !isValidPauOrGmail(email)) {
       return res.status(400).json({

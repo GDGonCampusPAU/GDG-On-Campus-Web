@@ -49,6 +49,7 @@ const userSchema = new mongoose.Schema(
       },
       default: 'PENDING'
     },
+    roleChangeVersion: { type: Number, default: 0, select: false },
     permissions: {
       type: permissionSchema,
       default: () => ({})

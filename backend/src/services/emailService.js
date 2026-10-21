@@ -75,7 +75,7 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
 /**
  * Generate a beautifully styled HTML template for OTP emails
  */
-const generateOtpTemplate = ({ title, preheader, greeting, message, code, footerNote }) => {
+const generateOtpTemplate = ({ title, greeting, message, code, footerNote }) => {
   return `
   <!DOCTYPE html>
   <html lang="tr">

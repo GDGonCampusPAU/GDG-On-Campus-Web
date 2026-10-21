@@ -41,7 +41,7 @@ describe('isEventShape', () => {
   })
 
   it('farklı anahtar kümesini reddeder', () => {
-    const { name, ...eksik } = base
+    const { name: _name, ...eksik } = base
     expect(isEventShape(base, eksik)).toBe(false)
     expect(isEventShape(base, { ...base, fazla: 1 })).toBe(false)
   })

@@ -3,8 +3,17 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import App from '../App.jsx'
-import base from '../data/event.json'
+import base from '../data/base.js'
 import { DRAFT_KEY, writeDraft } from '../lib/content.js'
+vi.mock('../lib/eventApi.js', () => ({
+  loginEditor: vi.fn(async (_email, password) => {
+    if (password !== 'test-password') throw new Error('Şifre yanlış.')
+    return { token: 'editor-token', user: { role: 'ADMIN' } }
+  }),
+  getEventPage: vi.fn(async () => ({ event: base, revision: 1 })),
+  publishEventPage: vi.fn(async () => ({ revision: 2 })),
+  api: vi.fn(async () => ({ data: { settings: { verificationMethods: ['EMAIL_OTP'] } } })),
+}))
 
 const renderAt = (path) =>
   render(
@@ -25,7 +34,8 @@ afterEach(() => {
 })
 
 const unlock = async (user) => {
-  await user.type(screen.getByLabelText('Şifre'), '123')
+  await user.type(screen.getByLabelText('E-posta'), 'admin@pau.edu.tr')
+  await user.type(screen.getByLabelText('Şifre'), 'test-password')
   await user.click(screen.getByRole('button', { name: 'Giriş' }))
 }
 const openEditor = async (path = '/admin') => {
@@ -62,6 +72,7 @@ describe('Admin şifre kapısı', () => {
   it('yanlış şifre editörü açmaz, hata gösterir ve alanı temizler', async () => {
     const user = userEvent.setup()
     renderAt('/admin')
+    await user.type(screen.getByLabelText('E-posta'), 'admin@pau.edu.tr')
     await user.type(screen.getByLabelText('Şifre'), 'yanlis')
     await user.click(screen.getByRole('button', { name: 'Giriş' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Şifre yanlış.')
@@ -73,7 +84,7 @@ describe('Admin şifre kapısı', () => {
     await openEditor()
     expect(screen.getByRole('button', { name: 'Kaydet' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Şifre')).not.toBeInTheDocument()
-    expect(window.sessionStorage.getItem('hackathon-admin-unlocked')).toBe('1')
+    expect(JSON.parse(window.sessionStorage.getItem('hackathon-admin-unlocked')).token).toBe('editor-token')
     cleanup()
     renderAt('/admin')
     expect(screen.getByRole('button', { name: 'Kaydet' })).toBeInTheDocument()
@@ -128,11 +139,11 @@ describe('Admin paneli', () => {
 
   it('kayıtlı taslak varsa uyarı gösterir, yoksa göstermez', async () => {
     await openEditor()
-    expect(screen.queryByText(/taslak bu tarayıcıda siteye uygulanıyor/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/taslak bu tarayıcıda editörde korunuyor/)).not.toBeInTheDocument()
     cleanup()
     seed({ organizer: 'Taslak Org' })
     renderAt('/admin')
-    expect(screen.getByText(/taslak bu tarayıcıda siteye uygulanıyor/)).toBeInTheDocument()
+    expect(screen.getByText(/taslak bu tarayıcıda editörde korunuyor/)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Organizatör' })).toHaveValue('Taslak Org')
   })
 
@@ -140,7 +151,7 @@ describe('Admin paneli', () => {
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ base: { ...base, organizer: 'Eski base' }, value: { ...base, organizer: 'Eski' } }))
     await openEditor()
     expect(screen.getByRole('textbox', { name: 'Organizatör' })).toHaveValue(base.organizer)
-    expect(screen.queryByText(/taslak bu tarayıcıda siteye uygulanıyor/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/taslak bu tarayıcıda editörde korunuyor/)).not.toBeInTheDocument()
   })
 
   it('Kayıt sekmesinde durumu kapalıya çevirip kaydetmek taslağa yazar', async () => {
@@ -180,7 +191,7 @@ describe('Admin paneli', () => {
     await save(user)
     expect(stored().sponsors[0].name).toBe('Yeni Sponsor')
     expect(screen.getByRole('status')).toHaveTextContent('bu tarayıcıda')
-    expect(screen.getByText(/taslak bu tarayıcıda siteye uygulanıyor/)).toBeInTheDocument()
+    expect(screen.getByText(/taslak bu tarayıcıda editörde korunuyor/)).toBeInTheDocument()
   })
 
   it('sponsor ekler ve kaldırır, boş logo null kaydedilir', async () => {
@@ -292,7 +303,7 @@ describe('Admin paneli', () => {
     })
     await save(user)
     expect(screen.getByRole('alert')).toHaveTextContent('Kaydedilemedi')
-    expect(screen.queryByText(/taslak bu tarayıcıda siteye uygulanıyor/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/taslak bu tarayıcıda editörde korunuyor/)).not.toBeInTheDocument()
   })
 
   it('durum satırı kalıcıdır, hata ayrı bir uyarı olarak gelir', async () => {
@@ -340,12 +351,12 @@ describe('Admin paneli', () => {
     await user.type(input, 'Değişti')
     await save(user)
     expect(stored().organizer).toBe('Değişti')
-    expect(screen.getByText(/taslak bu tarayıcıda siteye uygulanıyor/)).toBeInTheDocument()
+    expect(screen.getByText(/taslak bu tarayıcıda editörde korunuyor/)).toBeInTheDocument()
     await user.click(screen.getByText('Dosya işlemleri'))
     await user.click(screen.getByRole('button', { name: 'Taslağı sıfırla' }))
     expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
     expect(screen.getByRole('textbox', { name: 'Organizatör' })).toHaveValue(base.organizer)
-    expect(screen.queryByText(/taslak bu tarayıcıda siteye uygulanıyor/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/taslak bu tarayıcıda editörde korunuyor/)).not.toBeInTheDocument()
   })
 })
 
