@@ -98,6 +98,10 @@ const formResponseSchema = new mongoose.Schema(
   }
 );
 formResponseSchema.index({ form: 1, submittedAt: -1 });
+formResponseSchema.index(
+  { form: 1, singleSubmissionKey: 1 },
+  { unique: true, partialFilterExpression: { singleSubmissionKey: { $type: 'string' } } }
+);
 
 const FormResponse = mongoose.model('FormResponse', formResponseSchema);
 module.exports = FormResponse;

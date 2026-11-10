@@ -4,6 +4,7 @@ const VerificationToken = require('../models/VerificationToken');
 const { generateToken } = require('../utils/jwt');
 const { validateRegisterInput, validateLoginInput, isValidPauOrGmail } = require('../utils/validators');
 const { sendTeamOtp } = require('../services/teamOtpService');
+const { sendPasswordResetOtpEmail } = require('../services/emailService');
 
 /**
  * @desc    Send 2FA / Verification code to email before or during registration
@@ -158,6 +159,18 @@ const verifyEmail = async (req, res, next) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı.' });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(200).json({
+        success: true,
+        message: 'E-posta adresiniz zaten doğrulanmış.'
+      });
+    }
+
     const verification = await VerificationToken.verifyOtp(normalizedEmail, code, 'REGISTER');
     if (!verification.success) {
       return res.status(400).json({
@@ -166,12 +179,8 @@ const verifyEmail = async (req, res, next) => {
       });
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
-    if (!user) return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı.' });
-    if (user) {
-      user.isEmailVerified = true;
-      await user.save();
-    }
+    user.isEmailVerified = true;
+    await user.save();
 
     return res.status(200).json({
       success: true,
@@ -201,7 +210,7 @@ const login = async (req, res, next) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail }).select('+passwordHash +tokenVersion');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -244,7 +253,8 @@ const login = async (req, res, next) => {
     const token = generateToken({
       id: user._id,
       role: user.role,
-      email: user.email
+      email: user.email,
+      tokenVersion: user.tokenVersion || 0
     });
 
     return res.status(200).json({
@@ -256,6 +266,113 @@ const login = async (req, res, next) => {
         email: user.email,
         role: user.role
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Send password reset OTP code
+ * @route   POST /api/v1/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lütfen geçerli bir e-posta adresi giriniz.'
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!isValidPauOrGmail(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lütfen geçerli bir Pamukkale Üniversitesi (@pau.edu.tr / @posta.pau.edu.tr) veya Gmail adresi giriniz.'
+      });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı.'
+      });
+    }
+
+    const code = await VerificationToken.generateOtp(normalizedEmail, 'PASSWORD_RESET', 10);
+    try {
+      await sendPasswordResetOtpEmail({
+        email: normalizedEmail,
+        fullName: user.fullName,
+        code
+      });
+    } catch {
+      await VerificationToken.invalidateOtp(normalizedEmail, 'PASSWORD_RESET', code);
+      throw Object.assign(new Error('Şifre sıfırlama e-postası gönderilemedi.'), { status: 502 });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Şifre sıfırlama kodu e-posta adresinize gönderildi.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reset password using OTP code
+ * @route   POST /api/v1/auth/reset-password
+ * @access  Public
+ */
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, code, newPassword, password } = req.body;
+    const targetPassword = newPassword || password;
+
+    if (!email || typeof email !== 'string' || !code || typeof code !== 'string' || !targetPassword || typeof targetPassword !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'E-posta, 6 haneli doğrulama kodu ve yeni şifre zorunludur.'
+      });
+    }
+
+    if (targetPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yeni şifre en az 8 karakter olmalıdır.'
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail }).select('+tokenVersion');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Kullanıcı bulunamadı.'
+      });
+    }
+
+    const verification = await VerificationToken.verifyOtp(normalizedEmail, code, 'PASSWORD_RESET');
+    if (!verification.success) {
+      return res.status(400).json({
+        success: false,
+        message: verification.message
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(targetPassword, salt);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Şifreniz başarıyla sıfırlandı. Yeni şifrenizle giriş yapabilirsiniz.'
     });
   } catch (error) {
     next(error);
@@ -290,5 +407,7 @@ module.exports = {
   register,
   verifyEmail,
   login,
+  forgotPassword,
+  resetPassword,
   getMe
 };

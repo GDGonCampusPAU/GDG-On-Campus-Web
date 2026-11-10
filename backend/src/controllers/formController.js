@@ -55,6 +55,16 @@ const createForm = async (req, res, next) => {
       settings
     } = req.body;
 
+    const stringFields = { title, description, slug, status, category, bannerImageUrl };
+    for (const [key, val] of Object.entries(stringFields)) {
+      if (val !== undefined && val !== null && typeof val !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: `${key} alanı metin (string) türünde olmalıdır.`
+        });
+      }
+    }
+
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
       return res.status(400).json({
         success: false,
@@ -123,11 +133,11 @@ const getAllForms = async (req, res, next) => {
 
     const filter = {};
 
-    if (req.query.status) {
+    if (req.query.status && typeof req.query.status === 'string') {
       filter.status = req.query.status.toUpperCase();
     }
 
-    if (req.query.category) {
+    if (req.query.category && typeof req.query.category === 'string') {
       filter.category = req.query.category.toUpperCase();
     }
 
@@ -218,10 +228,28 @@ const updateForm = async (req, res, next) => {
       settings
     } = req.body;
 
-    if (title !== undefined) form.title = title.trim();
-    if (description !== undefined) form.description = description.trim();
+    const stringFields = { title, description, slug, status, category, bannerImageUrl };
+    for (const [key, val] of Object.entries(stringFields)) {
+      if (val !== undefined && val !== null && typeof val !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: `${key} alanı metin (string) türünde olmalıdır.`
+        });
+      }
+    }
+
+    if (title !== undefined) {
+      if (title.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Form başlığı boş bırakılamaz.'
+        });
+      }
+      form.title = title.trim();
+    }
+    if (description !== undefined) form.description = description ? description.trim() : '';
     if (status !== undefined) form.status = status;
-    if (category !== undefined) form.category = category.trim().toUpperCase();
+    if (category !== undefined) form.category = category ? category.trim().toUpperCase() : 'GENERAL';
     if (bannerImageUrl !== undefined) form.bannerImageUrl = bannerImageUrl;
     if (startDate !== undefined) form.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) form.endDate = endDate ? new Date(endDate) : null;

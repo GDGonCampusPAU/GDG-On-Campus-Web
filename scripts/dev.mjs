@@ -1,14 +1,33 @@
-import { spawn } from 'node:child_process'
+import { spawn, execSync } from 'node:child_process'
+
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 
 const children = ['backend', 'frontend', 'frontend/hackaton'].map((directory) =>
-  spawn('npm', ['run', 'dev', '--prefix', directory], { stdio: 'inherit', detached: true }),
+  spawn(npmCmd, ['run', 'dev', '--prefix', directory], {
+    stdio: 'inherit',
+    detached: process.platform !== 'win32',
+    shell: process.platform === 'win32',
+  }),
 )
 let stopping = false
 function stop(code = 0) {
   if (stopping) return
   stopping = true
   for (const child of children) {
-    try { process.kill(-child.pid, 'SIGTERM') } catch { /* process already exited */ }
+    if (!child.pid) continue
+    if (process.platform === 'win32') {
+      try {
+        execSync(`taskkill /pid ${child.pid} /T /F`, { stdio: 'ignore' })
+      } catch {
+        /* process already exited */
+      }
+    } else {
+      try {
+        process.kill(-child.pid, 'SIGTERM')
+      } catch {
+        /* process already exited */
+      }
+    }
   }
   process.exitCode = code
 }

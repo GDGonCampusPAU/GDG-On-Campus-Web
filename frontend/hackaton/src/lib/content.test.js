@@ -161,7 +161,7 @@ describe('isEventShape: kayıt formu', () => {
   })
 
   it('bilinmeyen alan türü reddedilir', () => {
-    const bad = withFields({ ...field('a', [{ value: 'x', label: 'X' }]), kind: 'date' })
+    const bad = withFields({ ...field('a', [{ value: 'x', label: 'X' }]), kind: 'unknown' })
     expect(isEventShape(form, bad)).toBe(false)
   })
 })

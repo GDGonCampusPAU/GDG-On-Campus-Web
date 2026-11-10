@@ -43,11 +43,21 @@ const authMiddleware = async (req, res, next) => {
     }
 
     // Ensure the user still exists in the database
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select('+tokenVersion +roleChangeVersion');
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Kullanıcı bulunamadı veya hesabı silinmiş.'
+      });
+    }
+
+    if (
+      (decoded.tokenVersion !== undefined && decoded.tokenVersion !== (user.tokenVersion || 0)) ||
+      (decoded.roleChangeVersion !== undefined && decoded.roleChangeVersion !== (user.roleChangeVersion || 0))
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: 'Oturumunuz geçersiz kılındı. Lütfen tekrar giriş yapınız.'
       });
     }
 

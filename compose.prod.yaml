@@ -1,0 +1,76 @@
+# ==============================================================================
+# Production Docker Compose for GDG On Campus Pamukkale Web Platform
+# ==============================================================================
+# Usage:
+#   docker compose -f compose.prod.yaml up -d --build
+#
+# Services:
+#   - mongo:   MongoDB 8 container with single-node replica set (rs0) for ACID transactions
+#   - backend: Production Node.js API runtime with only production dependencies
+#   - web:     Nginx reverse proxy for static web serving, caching & API proxy
+# ==============================================================================
+
+services:
+  mongo:
+    image: mongo:8.0.34
+    restart: unless-stopped
+    environment:
+      # MongoDB 8 / Linux glibc rseq fix
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: [mongod, --replSet, rs0, --bind_ip_all]
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo-prod-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "mongosh --quiet --eval 'try { if (!rs.status().ok) quit(1) } catch (e) { rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"mongo:27017\"}]}); quit(1) } if (!db.hello().isWritablePrimary) quit(1)'"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  backend:
+    build:
+      context: .
+      target: production
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      MONGO_URI: mongodb://mongo:27017/gdg_pau?replicaSet=rs0&directConnection=true
+      CLIENT_URLS: ${CLIENT_URLS:-http://localhost,https://localhost,http://localhost:80,http://localhost:8080}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+    ports:
+      - "127.0.0.1:${API_PORT:-5000}:5000"
+    volumes:
+      - ${UPLOADS_PATH:-./backend/uploads}:/app/backend/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:5000/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      target: reverse-proxy
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+      - "${PANEL_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongo-prod-data:

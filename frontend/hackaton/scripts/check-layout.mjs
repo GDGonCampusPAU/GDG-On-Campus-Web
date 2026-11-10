@@ -2,6 +2,8 @@
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../../../', import.meta.url))
-const child = spawn('npm', ['run', 'test:e2e', '--', '--grep', 'responsive layout'], { cwd: root, stdio: 'inherit' })
+const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+const grepArg = process.platform === 'win32' ? '"responsive layout"' : 'responsive layout'
+const child = spawn(npmCmd, ['run', 'test:e2e', '--', '--grep', grepArg], { cwd: root, stdio: 'inherit', shell: true })
 child.on('error', error => { console.error(error.message); process.exitCode = 1 })
 child.on('exit', code => { process.exitCode = code ?? 1 })

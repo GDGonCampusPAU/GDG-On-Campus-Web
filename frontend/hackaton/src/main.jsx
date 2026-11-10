@@ -9,17 +9,34 @@ import './styles/base.css'
 
 const root = createRoot(document.getElementById('root'))
 async function start() {
+  let loadError = null
   try {
     await loadEvent()
-    root.render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>,
-    )
   } catch (error) {
-    root.render(<main className="container"><h1>Etkinlik bilgileri yüklenemedi</h1><p role="alert">{error.message}</p><button onClick={start}>Tekrar dene</button></main>)
+    loadError = error
   }
+  root.render(
+    <React.StrictMode>
+      <BrowserRouter>
+        {loadError && (
+          <aside
+            className="offline-banner"
+            role="alert"
+            style={{
+              background: '#ea4335',
+              color: '#ffffff',
+              padding: '0.75rem 1rem',
+              textAlign: 'center',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+            }}
+          >
+            <span>Etkinlik sunucusuna bağlanılamadı. Yedek içerik gösteriliyor. ({loadError.message})</span>
+          </aside>
+        )}
+        <App />
+      </BrowserRouter>
+    </React.StrictMode>,
+  )
 }
 start()

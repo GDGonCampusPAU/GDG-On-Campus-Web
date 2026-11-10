@@ -81,12 +81,22 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
   }
 
   const downloadFile = async (url, filename = 'dosya') => {
+    if (/^https?:\/\//i.test(url)) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return
+    }
     try {
       const blob = await downloadPrivateFile(url, token)
       const objectUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a'); link.href = objectUrl; link.download = filename
-      link.click(); URL.revokeObjectURL(objectUrl)
-    } catch (error) { if (error.status === 401) onUnauthorized(); else setExportError(error.message) }
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      if (error.status === 401) onUnauthorized?.()
+      else setExportError(error.message)
+    }
   }
   const { items, pagination, error } = state
   const status = state.key === requestKey ? state.status : 'loading'
@@ -156,9 +166,35 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
         <ul className="app-grid">
           {items.map((record) => {
             const answers = Object.fromEntries((record.answers || []).map(answer => [answer.fieldId, answer.value]))
-            const app = record.answers ? { ...record, teamName: answers.teamName || answers.fullName || record.verifiedEmail,
-              leaderName: answers.fullName, leaderEmail: record.verifiedEmail, leaderPhone: answers.phone, appliedAt: record.submittedAt,
-              projectIdea: answers.motivation || answers.projectIdea } : { ...record, leaderName: record.leaderName || record.fullName, projectIdea: record.projectIdea || record.motivation }
+            const app = record.answers ? {
+              ...record,
+              teamName: answers.teamName || answers.fullName || record.verifiedEmail,
+              leaderName: answers.fullName,
+              leaderEmail: record.verifiedEmail,
+              leaderPhone: answers.phone || answers.tel,
+              appliedAt: record.submittedAt,
+              projectIdea: answers.motivation || answers.projectIdea,
+            } : {
+              ...record,
+              leaderName: record.leaderName || record.fullName,
+              leaderPhone: record.leaderPhone || record.phone,
+              projectIdea: record.projectIdea || record.motivation,
+            }
+
+            const hasPhone = Boolean(
+              app.leaderPhone &&
+              String(app.leaderPhone).trim() !== '' &&
+              String(app.leaderPhone).trim() !== 'undefined' &&
+              String(app.leaderPhone).trim() !== 'null'
+            )
+
+            const hasIdea = Boolean(
+              app.projectIdea &&
+              String(app.projectIdea).trim() !== '' &&
+              String(app.projectIdea).trim() !== 'undefined' &&
+              String(app.projectIdea).trim() !== 'null'
+            )
+
             return (
             <li key={app._id} className="app-card">
               <div className="app-card__head">
@@ -167,22 +203,49 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
               </div>
               <p className="app-card__leader">{app.leaderName}</p>
               <p className="app-card__contact">
-                <a href={`mailto:${app.leaderEmail}`}>{app.leaderEmail}</a>
-                <a href={`tel:${app.leaderPhone}`}>{app.leaderPhone}</a>
+                {app.leaderEmail && <a href={`mailto:${app.leaderEmail}`}>{app.leaderEmail}</a>}
+                {hasPhone && <a href={`tel:${app.leaderPhone}`}>{app.leaderPhone}</a>}
               </p>
               {record.answers && <details><summary>Başvuru yanıtları</summary><dl>{record.answers.map(answer => <div key={answer.fieldId}><dt>{answer.label}</dt><dd>{Array.isArray(answer.value) ? answer.value.join(', ') : String(answer.value ?? '')}</dd></div>)}</dl></details>}
-              <details className="app-card__idea">
-                <summary>Proje fikri</summary>
-                <p>{app.projectIdea}</p>
-              </details>
+              {hasIdea && (
+                <details className="app-card__idea">
+                  <summary>Proje fikri</summary>
+                  <p>{app.projectIdea}</p>
+                </details>
+              )}
               <div className="app-card__foot">
                 <time className="app-card__date" dateTime={app.appliedAt}>
                   {formatDate(app.appliedAt)}
                 </time>
                 {app.resumeUrl && (
-                  <button onClick={() => downloadFile(app.resumeUrl, 'ozgecmis')}>Özgeçmiş indir</button>
+                  /^https?:\/\//i.test(app.resumeUrl) ? (
+                    <a
+                      href={app.resumeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Özgeçmiş indir
+                    </a>
+                  ) : (
+                    <button type="button" onClick={() => downloadFile(app.resumeUrl, 'ozgecmis')}>Özgeçmiş indir</button>
+                  )
                 )}
-                {(record.uploadedFiles || []).map(file => <button key={file.filename} onClick={() => downloadFile(file.url, file.originalName)}>{file.originalName} indir</button>)}
+                {(record.uploadedFiles || []).map(file => (
+                  /^https?:\/\//i.test(file.url) ? (
+                    <a
+                      key={file.filename}
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {file.originalName} indir
+                    </a>
+                  ) : (
+                    <button type="button" key={file.filename} onClick={() => downloadFile(file.url, file.originalName)}>
+                      {file.originalName} indir
+                    </button>
+                  )
+                ))}
               </div>
             </li>
           )})}

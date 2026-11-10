@@ -1,6 +1,47 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const { literalSearch } = require('../utils/query');
 const Content = require('../models/Content');
 const { validateContentInput } = require('../utils/validators');
+
+/**
+ * Validates that a URL is http:, https: or a local /uploads/public/... path
+ */
+const isValidUrlOrPublicPath = (val) => {
+  if (typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith('/uploads/public/')) {
+    return !trimmed.includes('..');
+  }
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Helper to unlink previous local public uploads on update or delete
+ */
+const unlinkLocalPublicImage = async (url) => {
+  if (!url || typeof url !== 'string') return;
+  const match = url.match(/\/uploads\/public\/([^/?#]+)/);
+  if (match && match[1]) {
+    const filename = path.basename(match[1]);
+    if (!filename || filename === '.' || filename === '..') return;
+    const uploadBase = process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads');
+    const filePath = path.join(uploadBase, 'public', filename);
+    try {
+      await fs.promises.unlink(filePath);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        // Ignore missing file errors
+      }
+    }
+  }
+};
 
 /**
  * Helper to resolve cover image URL from file upload or body
@@ -28,7 +69,7 @@ const getPublicContent = async (req, res, next) => {
     const filter = {};
 
     // Filter by type (EVENT or ANNOUNCEMENT)
-    if (req.query.type && ['EVENT', 'ANNOUNCEMENT'].includes(req.query.type.toUpperCase())) {
+    if (req.query.type && typeof req.query.type === 'string' && ['EVENT', 'ANNOUNCEMENT'].includes(req.query.type.toUpperCase())) {
       filter.type = req.query.type.toUpperCase();
     }
 
@@ -97,7 +138,39 @@ const getFeaturedContent = async (req, res, next) => {
  */
 const createContent = async (req, res, next) => {
   try {
-    const { title, description, bevyLink, isFeatured, type, eventDate } = req.body;
+    const { title, description, bevyLink, isFeatured, type, eventDate, category, slug } = req.body;
+
+    // Check string types
+    const stringFields = { title, description, type, category, slug, bevyLink };
+    for (const [key, val] of Object.entries(stringFields)) {
+      if (val !== undefined && val !== null && typeof val !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: `${key} alanı metin (string) türünde olmalıdır.`
+        });
+      }
+    }
+
+    if (req.body.coverImageUrl !== undefined && req.body.coverImageUrl !== null && typeof req.body.coverImageUrl !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'coverImageUrl alanı metin (string) türünde olmalıdır.'
+      });
+    }
+
+    if (bevyLink && !isValidUrlOrPublicPath(bevyLink)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz bevyLink formatı veya protokolü.'
+      });
+    }
+
+    if (req.body.coverImageUrl && !isValidUrlOrPublicPath(req.body.coverImageUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz coverImageUrl formatı veya protokolü.'
+      });
+    }
 
     // Validate inputs
     const errors = validateContentInput({ title, description, type });
@@ -138,7 +211,38 @@ const createContent = async (req, res, next) => {
 const updateContent = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, bevyLink, isFeatured, type, eventDate } = req.body;
+    const { title, description, bevyLink, isFeatured, type, eventDate, category, slug } = req.body;
+
+    const stringFields = { title, description, type, category, slug, bevyLink };
+    for (const [key, val] of Object.entries(stringFields)) {
+      if (val !== undefined && val !== null && typeof val !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: `${key} alanı metin (string) türünde olmalıdır.`
+        });
+      }
+    }
+
+    if (req.body.coverImageUrl !== undefined && req.body.coverImageUrl !== null && typeof req.body.coverImageUrl !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'coverImageUrl alanı metin (string) türünde olmalıdır.'
+      });
+    }
+
+    if (bevyLink && !isValidUrlOrPublicPath(bevyLink)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz bevyLink formatı veya protokolü.'
+      });
+    }
+
+    if (req.body.coverImageUrl && !isValidUrlOrPublicPath(req.body.coverImageUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz coverImageUrl formatı veya protokolü.'
+      });
+    }
 
     const content = await Content.findById(id);
     if (!content) {
@@ -164,14 +268,25 @@ const updateContent = async (req, res, next) => {
     if (type !== undefined) content.type = type.toUpperCase();
     if (eventDate !== undefined) content.eventDate = eventDate ? new Date(eventDate) : null;
 
+    const previousCoverImageUrl = content.coverImageUrl;
+    let coverImageChanged = false;
+
     // If new cover image uploaded or provided
     if (req.file) {
       content.coverImageUrl = resolveCoverImageUrl(req);
+      coverImageChanged = true;
     } else if (req.body.coverImageUrl !== undefined) {
-      content.coverImageUrl = req.body.coverImageUrl;
+      if (req.body.coverImageUrl !== previousCoverImageUrl) {
+        content.coverImageUrl = req.body.coverImageUrl || null;
+        coverImageChanged = true;
+      }
     }
 
     await content.save();
+
+    if (coverImageChanged && previousCoverImageUrl && previousCoverImageUrl !== content.coverImageUrl) {
+      await unlinkLocalPublicImage(previousCoverImageUrl);
+    }
 
     return res.status(200).json({
       success: true,
@@ -198,6 +313,10 @@ const deleteContent = async (req, res, next) => {
         success: false,
         message: 'Silinecek içerik bulunamadı.'
       });
+    }
+
+    if (deleted.coverImageUrl) {
+      await unlinkLocalPublicImage(deleted.coverImageUrl);
     }
 
     return res.status(200).json({

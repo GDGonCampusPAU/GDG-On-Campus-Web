@@ -16,7 +16,19 @@ router.get('/', async (req, res, next) => {
       User.find(filter).select('-passwordHash').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       User.countDocuments(filter)
     ]);
-    res.json({ success: true, data, pagination: { currentPage: page, totalPages: Math.ceil(totalItems / limit) || 1 } });
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (error) { next(error); }
 });
 router.patch('/:id/role', async (req, res, next) => {
@@ -33,6 +45,7 @@ router.patch('/:id/role', async (req, res, next) => {
       if (!user) throw Object.assign(new Error('Kullanıcı bulunamadı.'), { status: 404 });
       if (!user.isEmailVerified && role !== 'PENDING') throw Object.assign(new Error('Önce e-posta doğrulanmalıdır.'), { status: 400 });
       user.role = role;
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
       await user.save({ session });
     });
     res.json({ success: true, user });

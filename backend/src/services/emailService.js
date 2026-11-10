@@ -6,6 +6,24 @@
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
 /**
+ * Escape dangerous HTML characters to prevent XSS / phishing injection
+ */
+const escapeHtml = (str) => {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+/**
+ * Sanitize header strings (subjects, names) by stripping CRLF injection characters
+ */
+const sanitizeHeader = (str) => String(str || '').replace(/[\r\n]+/g, ' ').trim();
+
+/**
  * Send transactional email using Brevo REST API
  * Falls back to console log preview if BREVO_API_KEY is not configured
  */
@@ -13,6 +31,8 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@pau.edu.tr';
   const senderName = process.env.BREVO_SENDER_NAME || 'GDG On Campus Pamukkale University';
+  const safeSubject = sanitizeHeader(subject);
+  const safeToName = toName ? sanitizeHeader(toName) : undefined;
 
   // Development Fallback: If Brevo API key is not yet provided, log email preview to console
   if (!apiKey || apiKey === 'your_brevo_api_key_here') {
@@ -20,7 +40,7 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
     console.log('\n=============================================================');
     console.log('📨 [BREVO EMAIL SIMULATOR - API Key Not Configured]');
     console.log(` To:      ${to}`);
-    console.log(` Subject: ${subject}`);
+    console.log(` Subject: ${safeSubject}`);
     if (textContent) console.log(` Content: ${textContent}`);
     console.log(' (Gerçek e-posta gönderimi için .env dosyasına BREVO_API_KEY ekleyin)');
     console.log('=============================================================\n');
@@ -36,10 +56,10 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
       to: [
         {
           email: to,
-          ...(toName && { name: toName })
+          ...(safeToName && { name: safeToName })
         }
       ],
-      subject,
+      subject: safeSubject,
       htmlContent,
       ...(textContent && { textContent }),
       ...(process.env.BREVO_REPLY_TO && {
@@ -76,13 +96,17 @@ const sendEmail = async ({ to, toName, subject, htmlContent, textContent }) => {
  * Generate a beautifully styled HTML template for OTP emails
  */
 const generateOtpTemplate = ({ title, greeting, message, code, footerNote }) => {
+  const safeTitle = escapeHtml(title);
+  const safeGreeting = escapeHtml(greeting);
+  const safeCode = escapeHtml(code);
+
   return `
   <!DOCTYPE html>
   <html lang="tr">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title}</title>
+    <title>${safeTitle}</title>
     <style>
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #202124; }
       .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 1px solid #e8eaed; }
@@ -107,13 +131,13 @@ const generateOtpTemplate = ({ title, greeting, message, code, footerNote }) => 
         </span>
       </div>
       <div class="content">
-        <h2 style="margin-top:0; color:#202124; font-size:20px;">${title}</h2>
-        <p style="font-size:15px; line-height:1.6; color:#3c4043;">Merhaba <strong>${greeting}</strong>,</p>
+        <h2 style="margin-top:0; color:#202124; font-size:20px;">${safeTitle}</h2>
+        <p style="font-size:15px; line-height:1.6; color:#3c4043;">Merhaba <strong>${safeGreeting}</strong>,</p>
         <p style="font-size:15px; line-height:1.6; color:#3c4043;">${message}</p>
         
         <div class="otp-box">
           <div style="font-size:12px; color:#5f6368; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Doğrulama Kodunuz</div>
-          <div class="otp-code">${code}</div>
+          <div class="otp-code">${safeCode}</div>
           <div class="timer">⏱️ Bu kod <strong>10 dakika</strong> boyunca geçerlidir.</div>
         </div>
 
@@ -143,8 +167,8 @@ const sendRegistrationOtpEmail = async ({ email, fullName, code }) => {
 
   return sendEmail({
     to: email,
-    toName: fullName,
-    subject: `🔐 ${code} - GDG Core Team Kayıt Doğrulama Kodunuz`,
+    toName: fullName ? sanitizeHeader(fullName) : undefined,
+    subject: sanitizeHeader(`🔐 ${code} - GDG Core Team Kayıt Doğrulama Kodunuz`),
     htmlContent,
     textContent: `GDG On Campus Pamukkale Core Team doğrulama kodunuz: ${code} (10 dakika geçerlidir).`
   });
@@ -154,26 +178,52 @@ const sendRegistrationOtpEmail = async ({ email, fullName, code }) => {
  * Send Email Verification code for Hackathon Application
  */
 const sendHackathonOtpEmail = async ({ email, leaderName, teamName, code }) => {
+  const safeTeamName = teamName ? escapeHtml(teamName) : null;
   const htmlContent = generateOtpTemplate({
     title: 'Pamukkale Hackathon 2026 Başvuru Doğrulama Kodu',
     greeting: leaderName || 'Takım Lideri',
-    message: `<strong>${teamName ? `"${teamName}"` : 'Takımınız'}</strong> adına yapılan Pamukkale Hackathon 2026 başvurusunu onaylamak için lütfen aşağıdaki doğrulama kodunu başvuru formuna giriniz.`,
+    message: `<strong>${safeTeamName ? `"${safeTeamName}"` : 'Takımınız'}</strong> adına yapılan Pamukkale Hackathon 2026 başvurusunu onaylamak için lütfen aşağıdaki doğrulama kodunu başvuru formuna giriniz.`,
     code,
     footerNote: 'Bu kod girilmeden hackathon başvurusu sisteme kaydedilmeyecektir.'
   });
 
   return sendEmail({
     to: email,
-    toName: leaderName,
-    subject: `🚀 ${code} - Pamukkale Hackathon Başvuru Doğrulama Kodunuz`,
+    toName: leaderName ? sanitizeHeader(leaderName) : undefined,
+    subject: sanitizeHeader(`🚀 ${code} - Pamukkale Hackathon Başvuru Doğrulama Kodunuz`),
     htmlContent,
     textContent: `Pamukkale Hackathon başvuru doğrulama kodunuz: ${code} (10 dakika geçerlidir).`
+  });
+};
+
+/**
+ * Send Password Reset OTP Email
+ */
+const sendPasswordResetOtpEmail = async ({ email, fullName, code }) => {
+  const htmlContent = generateOtpTemplate({
+    title: 'Şifre Sıfırlama Doğrulama Kodu',
+    greeting: fullName || 'Ekip Arkadaşımız',
+    message: 'GDG On Campus Pamukkale hesabınızın şifresini sıfırlamak için lütfen aşağıdaki 6 haneli doğrulama kodunu kullanınız.',
+    code,
+    footerNote: 'Bu şifre sıfırlama talebini siz yapmadıysanız lütfen hesabınızı kontrol ediniz ve bu e-postayı dikkate almayınız.'
+  });
+
+  return sendEmail({
+    to: email,
+    toName: fullName ? sanitizeHeader(fullName) : undefined,
+    subject: sanitizeHeader(`🔑 ${code} - GDG Şifre Sıfırlama Doğrulama Kodunuz`),
+    htmlContent,
+    textContent: `GDG On Campus Pamukkale şifre sıfırlama doğrulama kodunuz: ${code} (10 dakika geçerlidir).`
   });
 };
 
 module.exports = {
   sendEmail,
   sendRegistrationOtpEmail,
-  sendHackathonOtpEmail
+  sendHackathonOtpEmail,
+  sendPasswordResetOtpEmail,
+  escapeHtml,
+  sanitizeHeader
 };
+
 

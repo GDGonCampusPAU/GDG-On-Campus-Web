@@ -1,6 +1,17 @@
 # Sorunlar, Hatalar ve Kalan Kabul Kontrolleri
 
-> **Güncelleme (10 Kasım 2026 — `dev` / `3723e57` incelemesi):** Bu belge 21 Ekim 2026 düzeltmelerini korur ve `dev` dalının blok bazlı tam kod, test ve kurulum incelemesinde tespit edilen **belgelenmemiş kod hatalarını, regresyonları, atıl modülleri ve canlıya çıkış engellerini** kök nedenleri ve çözüm önerileriyle birlikte sunar.
+> **Güncelleme (10 Kasım 2026 — `dev` / `3723e57` incelemesi → `iyilestirme-ve-test` Çözüm Tamamlama):** Bu belge önce `dev` (`3723e57`) dalında tespit edilen **20 açık hatayı (Blok A–F)** kök nedenleriyle kayıt altına almıştır. Teamwork (M1–M5) çalıştırması sonrasında **kod ve altyapı düzeyindeki tüm maddeler `iyilestirme-ve-test` dalında çözülmüş**; Katman 1 (`check` 44+24+221, `e2e` 4/4), Katman 2 (`test:roadmap` 12/12) ve Challenger (`26+12`) doğrulamaları yeşile dönmüştür. Ayrıntılı kapanış matrisi ve kalan canlı varlık/dış ortam ön koşulları [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md) ve [MEVCUT_PROJE_DURUMU.md](MEVCUT_PROJE_DURUMU.md) belgelerindedir.
+
+## 0. `iyilestirme-ve-test` Güncel Çözüm Özeti (Blok A–F)
+
+| Blok / Madde | Çözüm Durumu (`iyilestirme-ve-test`) | Özet & Kalan Not |
+| --- | --- | --- |
+| **Blok A (#1, #2)** | **ÇÖZÜLDÜ** | `FormResponse` `(form, singleSubmissionKey)` partial unique indeksi geri eklendi; atıl `Team.js`, `User.permissions` (`select: false`) ve `LOGIN_2FA` `@deprecated` olarak işaretlendi. |
+| **Blok B (#3–#6)** | **ÇÖZÜLDÜ** | `emailService` `escapeHtml` + CRLF temizliği eklendi; `/auth/forgot-password` + `/auth/reset-password` + `tokenVersion` JWT iptali eklendi; `/verify-email` kullanıcı varlığını önceleyecek şekilde düzeltildi; `GET /users` tam 6 alanlı pagination döndürüyor. |
+| **Blok C (#7–#9)** | **ÇÖZÜLDÜ** | `Content` güncelleme/silmede eski local `/uploads/public/` görseli `unlink` ediyor, `javascript:` URL ve non-string alanları 400 ile reddediyor; legacy hackathon export `?search=` filtresini uyguluyor; Content/Form CRUD API'lerinin Faz 2 kapsamı belgelendi (`TRUST_PROXY_HOPS` ile TLS arkasında `resolveCoverImageUrl` uyumlu). |
+| **Blok D (#10–#15)** | **ANA KISIM ÇÖZÜLDÜ / VARLIK KALDI** | Step 4 zorunlu `kvkkConsent` eklendi (#10), `file`/`number`/`radio`/`date` + `FormData` desteklendi (#11), `main.jsx` API SPOF'u kaldırıldı (#12), `Admin.jsx` `serverEvent` sıfırlama & boş isim reddi eklendi (#13), `index.html` SEO/favicon etiketleri eklendi (#14) ve `act(...)` uyarıları temizlendi (#15). *Kalan canlı ön koşul/cila:* Resmi PAU KVKK link/metni (#10), opsiyonel 409 auto-reload / `/auth/me` ön kontrolü (#13) ve ~4,27 MB `.ttf` → `.woff2` dönüşümü + `favicon.svg` / `og-image.png` / gerçek etkinlik copy'si (#14). |
+| **Blok E (#16–#17)** | **ÇÖZÜLDÜ** | `Applications.jsx` `tel:undefined` ve boş fikir kutusunu gizliyor, `https://` harici özgeçmişleri güvenli yeni sekmede açıyor, `downloadPrivateFile` `ApiError` fırlatıyor; `Users.jsx` rol filtresi (`PENDING`), boş durum ve tek sayfa pager gizleme uygulandı. |
+| **Blok F (#18–#20)** | **KOD HAZIR / DIŞ KONTROL AÇIK** | Windows `npm.cmd` + `taskkill /T /F` uyumu (#18), multi-stage `Dockerfile` + `compose.prod.yaml` + `nginx/nginx.conf` + `.env.example` + `seed.js` hizalaması (#19) tamamlandı. Dış ortam (Google OAuth, Brevo DNS/key, yedek/restore tatbikatı ve `dev`/`main` merge onayı) canlıya çıkış öncesi kullanıcı/operasyon adımındadır (#20). |
 
 ---
 

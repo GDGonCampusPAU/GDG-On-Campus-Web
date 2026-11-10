@@ -1,17 +1,17 @@
 # Proje İyileştirme Yol Haritası ve Test Planı
 
-> **Güncelleme (10 Kasım 2026 — `dev` / `3723e57` incelemesi):** Önceki 21 Ekim belgesinin 1. bölümünde yer alan tarihsel `web/` (206 test) ve `Applications.jsx` lint hatası notları `dev` dalındaki gerçek kodla güncellenmiştir. Bu belge, blok bazlı yeni kod taramasında tespit edilen açık sorunları ([SORUNLAR.md](SORUNLAR.md)) çözmek için **en kritik noktadan (`P0`) en düşük önceliğe (`P3`)** sıralı yol haritasını ve bu yol haritası ile sitenin kalanı için hazırlanan iki katmanlı test mimarisini tanımlar.
+> **Güncelleme (10 Kasım 2026 — `dev` / `3723e57` incelemesi → `iyilestirme-ve-test` Uygulama Sonucu):** Bu belgedeki `P0 → P3` yol haritası `iyilestirme-ve-test` dalında Teamwork M1–M5 ekipleri tarafından uygulanmış; daha önce beklenen şekilde fail veren **Katman 2 yol haritası kabul kapılarının tamamı (`12/12`), Katman 1 (`44+24+221`), E2E (`4/4`) ve Challenger stres testleri (`26+12`) yeşile geçmiştir.** Son canlıya çıkış/varlık ön koşulları [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md) dosyasındadır.
 
 ---
 
-## 1. Güncel Yapı ve Doğrulama Temeli (`dev` / `3723e57`)
+## 1. Doğrulama Sonuçları (`iyilestirme-ve-test`)
 
-| Parça | Gerçek Sorumluluk | Temel Doğrulama Sonucu (`npm run check` + E2E) |
+| Parça | Sorumluluk | Doğrulanmış Sonuç |
 | --- | --- | --- |
-| `backend/` | Ekip auth, katılımcı doğrulama, form/başvuru transaction API'si, sürümlü `EventPage`, `Content` CMS ve legacy hackathon modülü | **37/37** test geçti (`node:test` + `MongoMemoryReplSet` 7.0.24), ESLint **0** hata |
-| `frontend/` | Core Team yönetim paneli (Hash tabanlı route: Giriş, Kayıt/OTP, Başvurular, CSV, Özel dosya, Kullanıcı Onayı) | **7/7** test geçti (`Vitest`), build ve ESLint **0** hata |
-| `frontend/hackaton/` | Etkinlik vitrin sitesi, çok adımlı başvuru, katılımcı doğrulaması ve `/admin` canlı yayın editörü | **210/210** test geçti (`Vitest`, async `act(...)` stderr uyarılı), build ve ESLint **0** hata |
-| `shared/` & `e2e/` | Ortak etkinlik şablonu + şema doğrulayıcısı; Chromium + izole MongoDB `rs0` uçtan uca regresyon | **4/4** Playwright E2E geçti |
+| `backend/` | Ekip auth (`tokenVersion` + şifre sıfırlama), katılımcı doğrulama, `Form`/`FormResponse` (`singleSubmissionKey` indeksi + transaction), `EventPage`, `Content` CMS ve legacy hackathon | **44/44** `npm test` + **5/5** `test:roadmap` + **26/26** `challenger`, ESLint **0** hata |
+| `frontend/` | Core Team yönetim paneli (Giriş, Kayıt/OTP, Başvurular, CSV, Özel/Harici dosya indirme, rol filtreli `Users`) | **24/24** `npm test` + **3/3** `test:roadmap` + **12/12** `challenger`, build + ESLint **0** hata |
+| `frontend/hackaton/` | Etkinlik vitrin sitesi (API SPOF korumalı), KVKK & 10 alan destekli başvuru sihirbazı, `/admin` editör (`serverEvent` reset + boş isim reddi) | **221/221** `npm test` (`0` `act` uyarısı) + **4/4** `test:roadmap`, build + ESLint **0** hata |
+| `shared/` & `e2e/` | Ortak etkinlik şablonu (`kvkkConsent`, 10 alan türü) + doğrulayıcı; Chromium + MongoDB `rs0` E2E + Layout | **4/4** `test:e2e` + **1/1** `check:layout` geçti |
 
 ### Tarihsel Özet (12 Ekim → 21 Ekim 2026)
 
@@ -125,7 +125,10 @@ Yol haritasındaki **P0 → P2** maddeleri için **TDD / Kabul Testi** olarak ya
 | `P0.3` & `P1.1` & `P2.1` | `frontend/hackaton/roadmap-tests/hackaton.roadmap-test.jsx` | `/kayit` zorunlu KVKK rıza kutusu, `file`/`number` alan desteği, `Admin` `Taslağı sıfırla`'nın sunucu verisine dönmesi ve `isEventShape` boş isim reddi |
 | `P2.2` | `frontend/roadmap-tests/panel.roadmap-test.jsx` | `Applications.jsx` `tel:undefined` ve boş `Proje fikri` gizleme; `Users.jsx` rol filtresi, boş durum ve tek sayfa pager kontrolü; `downloadPrivateFile` temiz `ApiError` |
 
-### Hedef Ölçüt
+### Hedef Ölçüt ve Gerçekleşen Çıktı
 
-- `npm run check` ve `npm run test:e2e` **her zaman yeşil** kalır (sıfır regresyon).
-- Her yol haritası görevi tamamlandıkça ilgili `test:roadmap` kapısı kırmızıdan yeşile çevrilir; tüm `P0` ve `P1` kapıları yeşil olmadan ve dış kabul kontrolleri imzalanmadan canlıya (`main`) çıkılmaz.
+- `npm.cmd run check` (`44` backend + `24` panel + `221` hackaton + lint + 2 build) → **GEÇTİ**
+- `npm.cmd run test:roadmap` (`5` backend + `3` panel + `4` hackaton) → **12/12 GEÇTİ**
+- Challenger ek stres testleri (`node --test --test-concurrency=1 backend/tests/challenger/*.test.js` → **26/26**, `npm.cmd exec --prefix frontend -- vitest run tests/challenger/m4-challenge.test.jsx` → **12/12**) → **38/38 GEÇTİ**
+- `npm.cmd run test:e2e` → **4/4 GEÇTİ** | `npm.cmd run check:layout --prefix frontend/hackaton` → **1/1 GEÇTİ**
+- Canlıya çıkış (`main` merge) öncesi yalnızca dış kabul kontrolleri (Google OAuth origin, Brevo DNS/key, `.woff2`/logo/gerçek içerik, DB+uploads yedek/restore tatbikatı) kalmıştır.

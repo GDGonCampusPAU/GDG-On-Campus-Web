@@ -207,6 +207,7 @@ describe('Admin paneli', () => {
     const added = `Sponsor ${base.sponsors.length + 1}`
     await user.click(screen.getByRole('button', { name: 'Sponsor ekle' }))
     const card = await openCard(user, added)
+    await user.type(card.getByRole('textbox', { name: 'Ad' }), 'Ek Sponsor')
     await user.type(card.getByRole('textbox', { name: 'Logo URL' }), '/logo.png')
     await user.clear(card.getByRole('textbox', { name: 'Logo URL' }))
     await save(user)

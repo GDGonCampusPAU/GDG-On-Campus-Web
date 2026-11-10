@@ -1,55 +1,59 @@
 # Mevcut Proje Durumu
 
-> **Güncelleme (10 Kasım 2026 — `dev` / `3723e57` doğrulaması):** Bu belge `dev` dalındaki gerçek kaynak kodun, bağımlılık kurulumunun, tüm otomatik test/lint/build/E2E koşumlarının ve `documents/` altındaki 12 belgenin güncellik taramasının sonuçlarını özetler. Açık hataların kök neden ve çözümleri [SORUNLAR.md](SORUNLAR.md), öncelikli yol haritası ve test matrisi ise [IYILESTIRME_VE_TEST_PLANI.md](IYILESTIRME_VE_TEST_PLANI.md) dosyasındadır.
+> **Güncelleme (10 Kasım 2026 — `iyilestirme-ve-test` / Teamwork M1–M5 sonrası doğrulama):** Bu belge, önce `dev` (`3723e57`) üzerinde yapılan tam denetimi, ardından `iyilestirme-ve-test` dalında Teamwork M1–M5 ekiplerinin çözdüğü Blok A–F düzeltmelerini ve doğrudan çalıştırılan iki katmanlı test/build/E2E koşumlarının güncel sonuçlarını özetler. Çözülen maddelerin matrisi [SORUNLAR.md](SORUNLAR.md), yol haritası ve test suite yapısı [IYILESTIRME_VE_TEST_PLANI.md](IYILESTIRME_VE_TEST_PLANI.md), canlıya geçiş adımları ise [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md) dosyasındadır.
 
 ---
 
-## 1. Dizinler ve Gerçek Sorumluluklar
+## 1. Dizinler ve Güncel Durum (`iyilestirme-ve-test`)
 
-| Dizin / Dosya | Gerçekte Çalışan İşlev | Not / Kısıt |
+| Dizin / Dosya | Gerçekte Çalışan İşlev | Güncel Durum & Kalan Not |
 | --- | --- | --- |
-| `backend/` | Express 5 + Mongoose 9 API; ekip auth (`JWT` + `VerificationToken`), katılımcı doğrulama (`ParticipantOtp` + Google ID token), `Form` / `FormResponse` (MongoDB transaction + private dosya + streaming CSV/JSON export), `EventPage` (revizyon kilidi), `Content` (public upload), `HackathonApp` (legacy modül) | `FormResponse` üzerinde `singleSubmissionKey` partial unique indeksi regresyonla düşmüş durumda; `Content` update/delete eski public dosyayı silmiyor; `Team.js` / `User.permissions` / `LOGIN_2FA` atıl. |
-| `frontend/` | Core Team yönetim paneli (Hash tabanlı route); Giriş, Kayıt, E-posta OTP, `PENDING` kullanıcı onay listesi (`Users.jsx`), başvurular + CSV + private dosya indirme (`Applications.jsx`) | `Content` ve çoklu `Form` CRUD API'leri için UI yok; panel tek bir etkinlik formuna (`event-page/hackathon`) veya legacy listeye bakıyor. |
-| `frontend/hackaton/` | Etkinlik vitrin sitesi (`/`, `/program`, `/ekip`, `/kayit`, `/admin`), çok adımlı başvuru (`StepForm.jsx`), katılımcı doğrulaması (`ParticipantVerification.jsx`), sunucuya sürümlü yayın yapan `/admin` editörü | `main.jsx` açılışta API hatasında `/admin` dahil tüm siteyi kilitliyor; `/kayit` üzerinde KVKK onayı ve `file`/`number`/`radio`/`date` alan desteği eksik; `.ttf` fontlar (~4,27 MB) ağır ve içerik yer tutucu. |
-| `shared/` | Başlangıç şablonu (`hackathon-event.json`) ve ortak şema doğrulayıcısı (`eventContent.mjs`) | Şablon `choices.kind` yalnızca 6 türü (`text`, `textarea`, `email`, `tel`, `select`, `checkbox`) destekliyor. |
+| `backend/` | Express 5 + Mongoose 9 API; ekip auth (`JWT`, `tokenVersion` + `/forgot-password`/`/reset-password`, `VerificationToken`), katılımcı doğrulama (`ParticipantOtp` + Google ID token), `Form` / `FormResponse` (MongoDB transaction + partial unique index + private dosya + streaming CSV/JSON export), `EventPage`, `Content` CMS, legacy `HackathonApp` | `FormResponse` partial unique indeksi geri eklendi; `emailService` HTML/CRLF kaçışı, `Content` yerel görsel `unlink` & URL/tip doğrulaması, `GET /users` tam sayfalama, `/verify-email` sıra düzeltmesi, legacy export `?search=` ve `seed.js` hizalaması tamamlandı. `Team.js`, `User.permissions`, `LOGIN_2FA` geriye dönük uyumlu `@deprecated` bırakıldı. |
+| `frontend/` | Core Team yönetim paneli (Hash tabanlı route); Giriş, Kayıt, E-posta OTP, rol filtreli (`PENDING`) kullanıcı onay listesi (`Users.jsx`), dinamik + legacy başvurular, CSV + güvenli private/external dosya indirme (`Applications.jsx`) | `tel:undefined`/boş fikir kutusu gizlendi, `downloadPrivateFile` `ApiError` sarmalandı, `Users.jsx` boş durum + tek sayfa pager düzeltildi. `Content` ve çoklu `Form` CRUD ekranları Faz 2 genel GDG portalı için backend-ready olarak bekler. |
+| `frontend/hackaton/` | Etkinlik vitrin sitesi (`/`, `/program`, `/ekip`, `/kayit`, `/admin`), KVKK onaylı ve 10 alan tipini (`file`, `number`, `radio`, `date` + `FormData`) destekleyen başvuru sihirbazı (`StepForm.jsx`), sunucuya sürümlü yayın yapan `/admin` editörü | `main.jsx` açılış API hatasında Router'ı kilitlemez (uyarı şeridi + fallback); `Admin.jsx` sıfırlama `serverEvent`'e döner, `isEventShape` boş sponsor/jüri/mentor adlarını reddeder. `public/fonts/` hâlâ ~4,27 MB `.ttf` taşır; `index.html` `/favicon.svg` + `og:*` meta ekli olsa da nihai `favicon.svg`/`og-image.png`/`.woff2` varlıkları ve gerçek etkinlik copy'si canlı öncesi tamamlanmalıdır. |
+| `shared/` | Başlangıç şablonu (`hackathon-event.json`, Step 4 `kvkkConsent` dahil) ve ortak doğrulayıcı (`eventContent.mjs`) | 10 alan türü (`text`, `textarea`, `email`, `tel`, `select`, `checkbox`, `file`, `number`, `radio`, `date`) ve boş isim koruması aktif. |
+| `infra & scripts/` | Çok aşamalı üretim [`Dockerfile`](../Dockerfile), [`compose.prod.yaml`](../compose.prod.yaml), [`nginx/nginx.conf`](../nginx/nginx.conf), [`scripts/dev.mjs`](../scripts/dev.mjs), kök [`.env.example`](../.env.example) | Windows `npm.cmd` + `taskkill /T /F` düzeltildi; production Nginx ters proxy ve multi-stage build yapılandırması eklendi. |
 | `e2e/` | Playwright + Chromium, geçici MongoDB `rs0`, API + 2 Vite ön yüz ile uçtan uca tarayıcı regresyonu | 4 senaryo geçiyor; gerçek Google OAuth ve gerçek Brevo gönderimi dış ortamda test edilmeyi bekliyor. |
 
 ---
 
-## 2. Gözlemlenen Güncel Kalite Metrikleri (`3723e57`)
+## 2. Gözlemlenen Güncel Kalite Metrikleri (`iyilestirme-ve-test`)
 
-Doğrudan bu dal üzerinde temiz `npm.cmd run setup` sonrasında çalıştırılan doğrulamalar:
+Doğrudan bu dal üzerinde çalıştırılan doğrulamalar:
 
 | Kontrol Komutu | Kapsam | Gözlemlenen Sonuç |
 | --- | --- | --- |
-| `npm.cmd run lint` | `backend` + `frontend` + `frontend/hackaton` ESLint | **0 hata, 0 uyarı** (geçti) |
-| `npm.cmd test --prefix backend` | `tests/*.test.js` (`MongoMemoryReplSet` v7.0.24) | **37/37 geçti** (5 dosya) |
-| `npm.cmd test --prefix frontend` | `src/**/*.test.{js,jsx}` (Vitest) | **7/7 geçti** (2 dosya) |
-| `npm.cmd test --prefix frontend/hackaton` | `src/**/*.test.{js,jsx}` (Vitest) | **210/210 geçti** (24 dosya; `ParticipantVerification.test.jsx` ve `Admin.test.jsx` içinde async `act(...)` stderr uyarısı vardı) |
-| `npm.cmd run build` | `frontend` ve `frontend/hackaton` Vite üretim build + `404.html` | **İki build de geçti** |
-| `npm.cmd run test:e2e` | `e2e/flows.spec.cjs` (Chromium headless) | **4/4 geçti** (16.7s) |
+| `npm.cmd run check` (Lint) | `backend` + `frontend` + `frontend/hackaton` ESLint | **0 hata, 0 uyarı** (geçti) |
+| `npm.cmd run check` (Backend) | `backend/tests/*.test.js` (`MongoMemoryReplSet` v7.0.24) | **44/44 geçti** (7 dosya) |
+| `npm.cmd run check` (Panel) | `frontend/src/**/*.test.{js,jsx}` (Vitest) | **24/24 geçti** (5 dosya) |
+| `npm.cmd run check` (Hackaton) | `frontend/hackaton/src/**/*.test.{js,jsx}` (Vitest) | **221/221 geçti** (27 dosya; 0 `act(...)` uyarısı) |
+| `npm.cmd run check` (Build) | `frontend` ve `frontend/hackaton` Vite üretim build + `404.html` | **İki build de geçti** |
+| `npm.cmd run test:roadmap` | **Katman 2 Yol Haritası Kabul Kapıları** (5 Backend + 3 Panel + 4 Hackaton) | **12/12 geçti (%100 yeşil)** |
+| `node --test --test-concurrency=1 backend/tests/challenger/*.test.js` | M1/M2/M5 Challenger stres ve sınır testleri | **26/26 geçti** |
+| `npm.cmd exec --prefix frontend -- vitest run tests/challenger/m4-challenge.test.jsx` | M4 Panel Challenger sınır testleri | **12/12 geçti** |
+| `npm.cmd run test:e2e` | `e2e/flows.spec.cjs` (Chromium headless) | **4/4 geçti** (13.0s) |
+| `npm.cmd run check:layout --prefix frontend/hackaton` | Responsive taşma / footer yerleşim doğrulaması | **1/1 geçti** |
 
-> **Önemli Fark (`iyilestirme-ve-test` Test Genişletmesi):** `dev` (`3723e57`) üzerindeki ilk 37/7/210 tablosu yeni tespit edilen regresyon/eksikleri yakalamıyordu. `iyilestirme-ve-test` dalında iki katmanlı suite kuruldu:
-> - **Katman 1 (`npm run check`):** Backend **44/44**, Yönetim Paneli **24/24**, Etkinlik Sitesi **221/221** (tüm React `act(...)` uyarıları temizlendi), ESLint **0**, Build **2/2** ve Playwright E2E **4/4** geçiyor.
-> - **Katman 2 (`npm run test:roadmap`):** `P0`–`P2` açık bug ve eksiklerini yakalayan **12 yol haritası kabul kapısı** (`5` backend, `3` panel, `4` etkinlik sitesi) şu anda `dev` üzerindeki açık hatalar nedeniyle beklenen şekilde kırmızı (fail) durumdadır.
+> **Tarihsel Karşılaştırma (`dev` `3723e57` → `iyilestirme-ve-test`):** `dev` dalındaki ilk `37/7/210` test yapısı yeni hataları kapsamıyordu. Bu dalda önce Katman 1 (`44/24/221`) + Katman 2 (`12` fail kapısı) kuruldu; ardından Teamwork M1–M5 düzeltmeleriyle **12/12 yol haritası kapısı ve 38 Challenger testi** dahil tamamı yeşile geçirildi.
 
 ---
 
-## 3. Modül ve Özellik Durum Özeti (Aktif vs Yarım/Atıl vs Eksik)
+## 3. Modül Durumu, Çözülenler ve Kalan Harici Ön Koşullar
 
-- **Tamamlanmış Çekirdek Akışlar:** Ekip kayıt/OTP/`PENDING`/onay/giriş; katılımcı E-posta OTP & Google OAuth doğrulama; `EventPage` + `Form` senkron yayını; `FormResponse` transaction + kota kontrolü; private dosya upload/imza kontrolü/yetkili indirme; `Applications.jsx` dinamik + legacy kaynak seçimi & CSV indirme.
-- **Yarım veya Uyumsuz Kısımlar:**
-  - `Content` CMS ve çoklu `Form` CRUD endpoint'leri backend'de çalışır durumda ancak ön yüzde ekranı yok.
-  - `/kayit` sihirbazı `Form` modelinin desteklediği `file`, `number`, `radio`, `date` alanlarını desteklemiyor; yalnızca JSON gönderiyor (`FormData` göndermiyor).
-  - `/admin` editöründe kota/tarih/doğrulama yöntemi ayarı, 409 sonrası revision tazeleme, sunucu verisine sıfırlama ve açılışta `/auth/me` oturum doğrulaması eksik.
-  - `Users.jsx` tarafında `PENDING` rol filtresi ve boş liste durumu yok.
-  - `seed.js` (`hackathon-2026-basvuru`) ile `ensureHackathonPage` (`hackathon-katilim`) farklı formlar oluşturuyor.
-- **Atıl (Kullanılmayan) Yapılar:** [`backend/src/models/Team.js`](../backend/src/models/Team.js), `User.permissions`, `VerificationToken` `LOGIN_2FA` enum değeri.
-- **Canlıya Çıkış Engelleri (P0):**
-  1. `FormResponse` üzerinde `singleSubmissionKey` partial unique indeksi eksik.
-  2. OTP e-postalarında unescaped kullanıcı verisi kaynaklı HTML/Phishing enjeksiyonu riski.
-  3. `/kayit` üzerinde KVKK Aydınlatma ve Açık Rıza onayı yok.
-  4. Üretim Dockerfile / reverse proxy yapılandırması yok (yalnızca dev `nodemon` + `vite` var), `main` dalı `dev`'in 35 commit gerisinde ve dış ortam (gerçek Google OAuth origin, doğrulanmış Brevo alan adı, kalıcı `uploads/` + DB yedek/geri yükleme, gerçek etkinlik içeriği) kabul kontrolleri tamamlanmadı.
+- **Tamamlanmış ve Doğrulanmış Çekirdek + İyileştirme Akışları (Blok A–F):**
+  - Ekip kayıt/OTP/`PENDING`/onay/giriş + şifre sıfırlama (`forgot-password`/`reset-password`) + `tokenVersion` ile oturum iptali.
+  - Katılımcı E-posta OTP & Google OAuth doğrulama; HTML/CRLF enjeksiyonuna kapalı Brevo şablonları; `FormResponse` `(form, singleSubmissionKey)` partial unique index & transaction + kota kontrolü.
+  - `EventPage` + `Form` senkron yayını; `/kayit` üzerinde KVKK rıza alanı, 10 alan türü (`file`, `number`, `radio`, `date` dahil) ve `FormData` yükleme; `main.jsx` açılışta API SPOF koruması; `Admin.jsx` son sunucu içeriğine sıfırlama ve boş sponsor/jüri/mentor adı reddi.
+  - `Content` eski yerel kapak görseli temizliği & URL/tip doğrulaması; legacy CSV/JSON export'ta `?search=` filtresi; `Applications.jsx` & `Users.jsx` UI/filtre/pager/dosya indirme sertleştirmesi.
+  - Windows `scripts/dev.mjs` + `check-layout.mjs` uyumu; üretim multi-stage `Dockerfile` + `compose.prod.yaml` + `nginx/nginx.conf` + `.env.example` + `seed.js` hizalaması.
+- **Kapsam Sınırı / Faz 2 Olarak Korunanlar:**
+  - **Backend-Hazır Modüller (P2.3 / C9):** `Content` (`/api/v1/content`) ve çoklu `Form` (`/api/v1/forms`) CRUD API'leri backend tarafında tam hazır ve testlidir; ön yüz panelleri Faz 2 genel kulüp sitesi genişlemesi için ayrılmıştır.
+  - **Opsiyonel `/admin` Cila Kalemleri (Blok D.13 devamı):** `409 Conflict` sonrası otomatik revision yenileme, `/admin` açılışında `/auth/me` oturum ön kontrolü ve `Form` kota/tarih düzenleme kontrolleri henüz ayrı bir ekran olarak eklenmemiştir.
+- **Canlıya Çıkış İçin Kalan Varlık & Dış Ortam Ön Koşulları (BKZ: [`CANLIYA_CIKIS_KONTROL_LISTESI.md`](CANLIYA_CIKIS_KONTROL_LISTESI.md)):**
+  1. `frontend/hackaton/public/fonts/` altındaki ~4,27 MB `.ttf` fontlarının `.woff2` alt kümesine düşürülmesi, gerçek `favicon.svg` + `og-image.png` görsellerinin ve organizasyonun gerçek hackathon içeriklerinin/resmi KVKK metni linkinin yerleştirilmesi.
+  2. Gerçek Google Cloud Web Client ID & Authorized JavaScript Origins eşleşmesi.
+  3. Gerçek Brevo API anahtarı + PAU domain SPF/DKIM teslimat doğrulaması.
+  4. Kalıcı `uploads/` + MongoDB replica set (`rs0`) yedek/geri yükleme tatbikatı ve kullanıcı onayıyla `iyilestirme-ve-test` → `dev` → `main` yayın birleştirmesi.
 
 ---
 

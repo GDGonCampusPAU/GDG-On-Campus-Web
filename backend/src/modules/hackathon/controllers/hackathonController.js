@@ -207,7 +207,16 @@ const exportApplications = async (req, res, next) => {
     const { write, streamJson } = require('../../../utils/streamExport');
     const format = req.query.format || 'csv';
     if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
-    const cursor = HackathonApp.find().sort({ appliedAt: -1 }).lean().cursor();
+    const filter = {};
+    if (req.query.search && typeof req.query.search === 'string' && req.query.search.trim()) {
+      const searchRegex = literalSearch(req.query.search);
+      filter.$or = [
+        { teamName: searchRegex },
+        { leaderName: searchRegex },
+        { leaderEmail: searchRegex }
+      ];
+    }
+    const cursor = HackathonApp.find(filter).sort({ appliedAt: -1 }).lean().cursor();
     res.setHeader('Content-Disposition', `attachment; filename="hackathon_applications.${format}"`);
     if (format === 'json') {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');

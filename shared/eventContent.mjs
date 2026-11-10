@@ -12,7 +12,7 @@ export const choices = {
   tier: ['main', 'support'],
   type: Object.keys(typeLabels),
   status: ['open', 'closed'],
-  kind: ['text', 'textarea', 'email', 'tel', 'select', 'checkbox'],
+  kind: ['text', 'textarea', 'email', 'tel', 'select', 'checkbox', 'file', 'number', 'radio', 'date'],
   required: ['yes', 'no'],
 }
 
@@ -48,12 +48,28 @@ function formUsable(steps) {
   // Boş options şablonu öğeleri doğrulatmaz; bu yüzden öğenin şekli de burada denetlenir.
   const optionsOk = (f) => {
     const values = f.options.map((o) => o?.value)
-    const needsOptions = f.kind === 'select' || f.kind === 'checkbox'
+    const needsOptions = f.kind === 'select' || f.kind === 'checkbox' || f.kind === 'radio'
     return (!needsOptions || values.length > 0) && values.length <= 100 && values.every(value => typeof value === 'string' && value.length > 0) && new Set(values).size === values.length && f.options.every((o) => typeof o.label === 'string')
   }
   return ids.length > 0 && ids.length <= 100 && ids.every(id => /^[a-zA-Z][a-zA-Z0-9_]{0,99}$/.test(id)) && new Set(ids).size === ids.length && fields.every(optionsOk)
 }
 
+function namesNonEmpty(value) {
+  if (Array.isArray(value.sponsors)) {
+    if (value.sponsors.some((s) => !s?.name || typeof s.name !== 'string' || s.name.trim().length === 0)) return false
+  }
+  if (Array.isArray(value.people?.jury)) {
+    if (value.people.jury.some((j) => !j?.name || typeof j.name !== 'string' || j.name.trim().length === 0)) return false
+  }
+  if (Array.isArray(value.people?.mentors)) {
+    if (value.people.mentors.some((m) => !m?.name || typeof m.name !== 'string' || m.name.trim().length === 0)) return false
+  }
+  return true
+}
+
 export const isEventShape = (base, value) =>
-  matches(base, value) && !Number.isNaN(Date.parse(value.startsAt)) && (!value.register?.steps || formUsable(value.register.steps))
+  matches(base, value) &&
+  !Number.isNaN(Date.parse(value.startsAt)) &&
+  namesNonEmpty(value) &&
+  (!value.register?.steps || formUsable(value.register.steps))
 

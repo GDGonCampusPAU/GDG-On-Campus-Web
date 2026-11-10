@@ -423,6 +423,19 @@
             "required": "no",
             "hint": "",
             "options": []
+          },
+          {
+            "id": "kvkkConsent",
+            "label": "KVKK Aydınlatma Metni'ni okudum, kişisel verilerimin işlenmesini kabul ediyorum.",
+            "kind": "checkbox",
+            "required": "yes",
+            "hint": "Detaylı metin için tıklayınız.",
+            "options": [
+              {
+                "value": "accepted",
+                "label": "Kabul ediyorum"
+              }
+            ]
           }
         ]
       }

@@ -60,8 +60,15 @@ export function verifyEmail({ email, code }) {
   return request('/auth/verify-email', { method: 'POST', body: { email, code } })
 }
 
-export function getUsers(token, page = 1) {
-  return request(`/users?page=${page}`, { token })
+export function getUsers(token, pageOrOptions = 1, maybeRole = '') {
+  const isOptions = typeof pageOrOptions === 'object' && pageOrOptions !== null
+  const page = isOptions ? (pageOrOptions.page ?? 1) : (pageOrOptions ?? 1)
+  const role = isOptions ? (pageOrOptions.role ?? '') : (maybeRole ?? '')
+  const params = new URLSearchParams({ page: String(page) })
+  if (role && role !== 'ALL') {
+    params.set('role', role)
+  }
+  return request(`/users?${params}`, { token })
 }
 export function updateUserRole(id, role, token) {
   return request(`/users/${id}/role`, { method: 'PATCH', body: { role }, token })
@@ -79,7 +86,7 @@ export async function getHackathonApplications({ page = 1, limit = 10, search = 
 
 // CSV dosyasını Authorization başlığı gerektiği için fetch ile indirip Blob olarak döndürür.
 export async function downloadHackathonApplicationsCsv(token, { source = 'forms', search = '' } = {}) {
-  let path = '/hackathon/applications/export?format=csv'
+  let path = `/hackathon/applications/export?format=csv${search ? `&search=${encodeURIComponent(search)}` : ''}`
   if (source !== 'legacy') {
     const page = await request('/event-page/hackathon')
     path = `/forms/${page.data.formId}/responses/export?format=csv&search=${encodeURIComponent(search)}`
@@ -93,9 +100,22 @@ export async function downloadHackathonApplicationsCsv(token, { source = 'forms'
 }
 
 export async function downloadPrivateFile(url, token) {
-  const base = new URL(API_URL || window.location.origin)
-  const target = new URL(url, base)
-  if (target.origin !== base.origin || !/^\/(?:api\/v1\/files|uploads)\/[a-zA-Z0-9._-]+$/.test(target.pathname)) throw new ApiError('Dosya adresi geçersiz.')
+  let base
+  let target
+  try {
+    if (typeof url !== 'string' || !url.trim()) {
+      throw new ApiError('Dosya adresi geçersiz.')
+    }
+    const origin = API_URL || (typeof window !== 'undefined' ? window.location?.origin : 'http://localhost:5000')
+    base = new URL(origin)
+    target = new URL(url, base)
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    throw new ApiError('Dosya adresi geçersiz.')
+  }
+  if (target.origin !== base.origin || !/^\/(?:api\/v1\/files|uploads)\/[a-zA-Z0-9._-]+$/.test(target.pathname)) {
+    throw new ApiError('Dosya adresi geçersiz.')
+  }
   const response = await fetch(target.href, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) })
   if (!response.ok) throw new ApiError('Dosya indirilemedi.', response.status)
   return response.blob()

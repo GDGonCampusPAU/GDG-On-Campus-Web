@@ -90,6 +90,10 @@ const optionLabels = {
   tel: 'Telefon',
   select: 'Açılır liste',
   checkbox: 'Çoklu seçim',
+  file: 'Dosya yükleme',
+  number: 'Sayı',
+  radio: 'Tekli seçim',
+  date: 'Tarih',
   yes: 'Evet',
   no: 'Hayır',
 }
@@ -105,7 +109,6 @@ const tabs = [
   ['Sosyal', ['socials']],
   ['Kayıt', ['register']],
 ]
-// shortcut: client-side check, the value ships in the bundle; replace with real auth when the backend exists
 const UNLOCK_KEY = 'hackathon-admin-unlocked'
 
 // Kart başlığı öğenin kendi alanlarından gelir; boşsa sıra adı kullanılır.
@@ -253,11 +256,13 @@ function Gate({ onUnlock }) {
 function Editor({ session, onLock }) {
   const [revision, setRevision] = useState(null)
   const [publishing, setPublishing] = useState(false)
+  const [serverEvent, setServerEvent] = useState(null)
   useEffect(() => {
     let active = true
     getEventPage().then(page => {
       if (!active) return
       setRevision(page.revision)
+      setServerEvent(page.event)
       if (!readDraft(base)) setDraft(page.event)
     }).catch(error => { if (active) setNote({ text: error.message, bad: true }) })
     return () => { active = false }
@@ -288,6 +293,7 @@ function Editor({ session, onLock }) {
     try {
       const page = await publishEventPage(draft, revision, session.token)
       setRevision(page.revision); clearDraft(); setSaved(false)
+      setServerEvent(draft)
       setNote({ text: 'Yayınlandı. Etkinlik bilgileri ve başvuru alanları tüm ziyaretçiler için güncellendi.' })
     } catch (error) {
       writeDraft(base, draft)
@@ -320,7 +326,7 @@ function Editor({ session, onLock }) {
   const reset = () => {
     clearDraft()
     setSaved(false)
-    setDraft(base)
+    setDraft(serverEvent ?? base)
     setNote({ text: 'Taslak silindi, form site verisine döndü.' })
   }
 

@@ -36,7 +36,8 @@ const verificationTokenSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Kullanım amacı zorunludur.'],
       enum: {
-        values: ['HACKATHON_APPLY', 'REGISTER', 'LOGIN_2FA'],
+        // LOGIN_2FA is a documented reserved/legacy purpose (planned 2FA login flow).
+        values: ['HACKATHON_APPLY', 'REGISTER', 'PASSWORD_RESET', 'LOGIN_2FA'],
         message: 'Geçersiz kullanım amacı: {VALUE}'
       }
     },

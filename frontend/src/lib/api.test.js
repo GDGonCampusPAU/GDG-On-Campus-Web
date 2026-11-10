@@ -97,6 +97,15 @@ describe('panel API client', () => {
     await expect(downloadHackathonApplicationsCsv('jwt-1', { source: 'legacy' })).rejects.toEqual(
       expect.objectContaining({ status: 500, message: 'Export failed' }),
     )
+
+    fetchMock.mockResolvedValueOnce({ ok: true, blob: async () => fakeBlob })
+    await downloadHackathonApplicationsCsv('jwt-1', { source: 'legacy', search: 'team alpha' })
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringMatching(/\/api\/v1\/hackathon\/applications\/export\?format=csv&search=team%20alpha$/),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer jwt-1' }),
+      }),
+    )
   })
 
   test('downloadPrivateFile blocks cross-origin and non-file paths before sending bearer token', async () => {

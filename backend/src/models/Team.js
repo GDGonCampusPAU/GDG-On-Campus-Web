@@ -1,3 +1,7 @@
+/**
+ * @deprecated Unused legacy model. No active controllers or services query the Team model.
+ * Retained for database schema backwards-compatibility.
+ */
 const mongoose = require('mongoose');
 
 const teamSchema = new mongoose.Schema(

@@ -7,9 +7,10 @@ import './StepForm.css'
 const CONFIRM = { title: 'Onay', fields: [] }
 
 const shownValue = (f, v) => {
-  const label = (x) => f.options.find((o) => o.value === x)?.label ?? x
-  if (f.kind === 'checkbox') return v.map(label).join(', ')
-  return f.kind === 'select' ? label(v) : v
+  const label = (x) => f.options?.find((o) => o.value === x)?.label ?? x
+  if (f.kind === 'checkbox') return Array.isArray(v) ? v.map(label).join(', ') : ''
+  if (f.kind === 'file') return v?.name || (typeof v === 'string' ? v : '—')
+  return (f.kind === 'select' || f.kind === 'radio') ? label(v) : v
 }
 
 export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [] }) {
@@ -42,10 +43,13 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
   const set = (name) => (e) => setValues((v) => ({ ...v, [name]: e.target.value }))
 
   const toggle = (name, value) =>
-    setValues((v) => ({
-      ...v,
-      [name]: v[name].includes(value) ? v[name].filter((x) => x !== value) : [...v[name], value],
-    }))
+    setValues((v) => {
+      const current = Array.isArray(v[name]) ? v[name] : []
+      return {
+        ...v,
+        [name]: current.includes(value) ? current.filter((x) => x !== value) : [...current, value],
+      }
+    })
 
   const summary = normalize(configured, values)
 
@@ -70,6 +74,14 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
 
     if (!isLast) {
       setStepIndex((i) => i + 1)
+      return
+    }
+
+    const allErrors = configured.reduce((acc, s) => ({ ...acc, ...validateStep(s, values) }), {})
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors)
+      const firstInvalid = configured.findIndex((s) => Object.keys(validateStep(s, values)).length > 0)
+      if (firstInvalid !== -1) setStepIndex(firstInvalid)
       return
     }
 
@@ -132,7 +144,7 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
                   <label key={o.value} className="step-form__check">
                     <input
                       type="checkbox"
-                      checked={values[f.id].includes(o.value)}
+                      checked={Array.isArray(values[f.id]) && values[f.id].includes(o.value)}
                       onChange={() => toggle(f.id, o.value)}
                       aria-invalid={aria['aria-invalid']}
                     />
@@ -144,6 +156,43 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
                   {errors[f.id]}
                 </p>
               </fieldset>
+            )
+          if (f.kind === 'radio')
+            return (
+              <fieldset className="step-form__fieldset" key={f.id} aria-describedby={aria['aria-describedby']}>
+                <legend>{f.label}</legend>
+                {f.options.map((o) => (
+                  <label key={o.value} className="step-form__check">
+                    <input
+                      type="radio"
+                      name={f.id}
+                      value={o.value}
+                      checked={values[f.id] === o.value}
+                      onChange={() => setValues((v) => ({ ...v, [f.id]: o.value }))}
+                      aria-invalid={aria['aria-invalid']}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+                {f.hint && <p className="field__hint" id={`${f.id}-hint`}>{f.hint}</p>}
+                <p className="field__error" id={`${f.id}-error`} aria-live="polite">
+                  {errors[f.id]}
+                </p>
+              </fieldset>
+            )
+          if (f.kind === 'file')
+            return (
+              <Field key={f.id} id={f.id} label={f.label} required={required} error={errors[f.id]} hint={f.hint || undefined}>
+                <input
+                  id={f.id}
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null
+                    setValues((v) => ({ ...v, [f.id]: file }))
+                  }}
+                  {...aria}
+                />
+              </Field>
             )
           return (
             <Field key={f.id} id={f.id} label={f.label} required={required} error={errors[f.id]} hint={f.hint || undefined}>
