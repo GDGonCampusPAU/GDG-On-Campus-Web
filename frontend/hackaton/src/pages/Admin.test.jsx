@@ -1,10 +1,12 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import App from '../App.jsx'
 import base from '../data/base.js'
 import { DRAFT_KEY, writeDraft } from '../lib/content.js'
+import { getEventPage, publishEventPage } from '../lib/eventApi.js'
+
 vi.mock('../lib/eventApi.js', () => ({
   loginEditor: vi.fn(async (_email, password) => {
     if (password !== 'test-password') throw new Error('Şifre yanlış.')
@@ -22,13 +24,14 @@ const renderAt = (path) =>
     </MemoryRouter>,
   )
 const stored = () => JSON.parse(window.localStorage.getItem(DRAFT_KEY))?.value
-// Testin ihtiyaç duyduğu veriyi base üzerine kurar; yer tutucu içeriğe bağımlı kalınmaz.
 const seed = (patch) => writeDraft(base, { ...base, ...patch })
 const sponsor = (name) => ({ name, tier: 'support', logo: null, url: null })
 const person = (name) => ({ name, title: 'Unvan', photo: null })
 
 afterEach(() => {
   vi.restoreAllMocks()
+  getEventPage.mockImplementation(async () => ({ event: base, revision: 1 }))
+  publishEventPage.mockImplementation(async () => ({ revision: 2 }))
   window.localStorage.clear()
   window.sessionStorage.clear()
 })
@@ -38,15 +41,17 @@ const unlock = async (user) => {
   await user.type(screen.getByLabelText('Şifre'), 'test-password')
   await user.click(screen.getByRole('button', { name: 'Giriş' }))
 }
-const openEditor = async (path = '/admin') => {
+const openEditor = async (path = '/admin', { waitReady = true } = {}) => {
   const user = userEvent.setup()
   renderAt(path)
   await unlock(user)
+  if (waitReady) {
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Yayınla' })).toBeEnabled())
+  }
   return user
 }
 const openTab = (user, name) => user.click(within(screen.getByRole('group', { name: 'Bölümler' })).getByRole('button', { name }))
 const detailsOf = (name) => screen.getByText(name, { selector: 'summary' }).closest('details')
-// Kapalıysa özetine tıklayıp açar ve kartı döndürür.
 const openCard = async (user, name) => {
   const details = detailsOf(name)
   if (!details.open) await user.click(screen.getByText(name, { selector: 'summary' }))
@@ -87,6 +92,7 @@ describe('Admin şifre kapısı', () => {
     expect(JSON.parse(window.sessionStorage.getItem('hackathon-admin-unlocked')).token).toBe('editor-token')
     cleanup()
     renderAt('/admin')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Yayınla' })).toBeEnabled())
     expect(screen.getByRole('button', { name: 'Kaydet' })).toBeInTheDocument()
   })
 
@@ -143,6 +149,7 @@ describe('Admin paneli', () => {
     cleanup()
     seed({ organizer: 'Taslak Org' })
     renderAt('/admin')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Yayınla' })).toBeEnabled())
     expect(screen.getByText(/taslak bu tarayıcıda editörde korunuyor/)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Organizatör' })).toHaveValue('Taslak Org')
   })
@@ -358,11 +365,41 @@ describe('Admin paneli', () => {
     expect(screen.getByRole('textbox', { name: 'Organizatör' })).toHaveValue(base.organizer)
     expect(screen.queryByText(/taslak bu tarayıcıda editörde korunuyor/)).not.toBeInTheDocument()
   })
+
+  it('sunucuya yayınla revizyonu ilerletir, yerel taslağı temizler; 409/401 durumlarını yönetir', async () => {
+    seed({ organizer: 'Yayın Org' })
+    const user = await openEditor()
+    expect(screen.getByText(/taslak bu tarayıcıda editörde korunuyor/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Yayınla' }))
+    expect(publishEventPage).toHaveBeenCalledWith(expect.objectContaining({ organizer: 'Yayın Org' }), 1, 'editor-token')
+    expect(await screen.findByRole('status')).toHaveTextContent('Yayınlandı')
+    expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
+
+    publishEventPage.mockRejectedValueOnce(Object.assign(new Error('Çakışma: başka biri güncelledi.'), { status: 409 }))
+    await user.click(screen.getByRole('button', { name: 'Yayınla' }))
+    expect(publishEventPage).toHaveBeenLastCalledWith(expect.any(Object), 2, 'editor-token')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Çakışma')
+    expect(stored().organizer).toBe('Yayın Org')
+
+    publishEventPage.mockRejectedValueOnce(Object.assign(new Error('Süre doldu'), { status: 401 }))
+    await user.click(screen.getByRole('button', { name: 'Yayınla' }))
+    expect(await screen.findByLabelText('Şifre')).toBeInTheDocument()
+    expect(window.sessionStorage.getItem('hackathon-admin-unlocked')).toBeNull()
+  })
+
+  it('açılışta getEventPage hata verirse uyarı gösterir ve Yayınla kapalı kalır', async () => {
+    getEventPage.mockRejectedValueOnce(new Error('API çevrimdışı'))
+    await openEditor('/admin', { waitReady: false })
+    expect(await screen.findByRole('alert')).toHaveTextContent('API çevrimdışı')
+    expect(screen.getByRole('button', { name: 'Yayınla' })).toBeDisabled()
+  })
 })
 
 describe('herkese açık sayfalar', () => {
-  it.each(['/', '/program', '/ekip', '/kayit'])('%s sayfası /admin\'e bağlantı vermez', (path) => {
+  it.each(['/', '/program', '/ekip', '/kayit'])('%s sayfası /admin\'e bağlantı vermez', async (path) => {
     const { container } = renderAt(path)
+    if (path === '/kayit') await screen.findByLabelText('Doğrulama e-postası')
     expect(container.querySelector('a[href*="admin"]')).toBeNull()
   })
 })

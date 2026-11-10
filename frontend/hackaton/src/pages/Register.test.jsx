@@ -7,9 +7,22 @@ import base from '../data/base.js'
 import { fillUntilConfirm } from '../test/registrationHelpers.js'
 import { fixtureSteps } from '../test/fixtures.js'
 
-vi.mock('../components/ParticipantVerification.jsx', () => ({ default: ({ onVerified }) => <button onClick={() => onVerified({ token: 'participant-token', participant: { email: 'ayse@example.com' } })}>Test doğrula</button> }))
-beforeEach(() => vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ success: true, responseId: 'saved-id' }) }))))
+vi.mock('../components/ParticipantVerification.jsx', () => ({
+  default: ({ onVerified }) => (
+    <button onClick={() => onVerified({ token: 'participant-token', participant: { email: 'ayse@example.com' } })}>
+      Test doğrula
+    </button>
+  ),
+}))
+
+beforeEach(() =>
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({ ok: true, json: async () => ({ success: true, responseId: 'saved-id' }) })),
+  ),
+)
 afterEach(() => vi.unstubAllGlobals())
+
 const renderRegister = (register = { ...base.register, steps: fixtureSteps }) =>
   render(
     <MemoryRouter>
@@ -35,6 +48,29 @@ describe('Register sayfası', () => {
     expect(heading).toHaveFocus()
     expect(screen.getByText(base.register.successText)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Programı Gör' })).toHaveAttribute('href', '/program')
+  })
+
+  it('gönderimde 401 alınırsa tekrar doğrulamaya döner ve yeni doğrulamada girilen taslak cevapları korur', async () => {
+    const user = userEvent.setup()
+    globalThis.fetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ message: 'Oturum süresi doldu.' }),
+    })
+
+    renderRegister()
+    await user.click(screen.getByRole('button', { name: 'Test doğrula' }))
+    await fillUntilConfirm(user)
+    await user.click(screen.getByRole('button', { name: 'Gönder' }))
+
+    // Token expired: returns to ParticipantVerification screen
+    const verifyBtn = await screen.findByRole('button', { name: 'Test doğrula' })
+    await user.click(verifyBtn)
+
+    // After re-verification, StepForm retains previous draft values
+    expect(await screen.findByLabelText('Ad soyad')).toHaveValue('Ayşe Yılmaz')
+    expect(screen.getByLabelText('Bölüm')).toHaveValue('Bilgisayar Mühendisliği')
+    expect(screen.getByLabelText('E-posta')).toHaveValue('ayse@example.com')
   })
 
   it('durum kapalıyken formu değil kapalı mesajını gösterir', () => {

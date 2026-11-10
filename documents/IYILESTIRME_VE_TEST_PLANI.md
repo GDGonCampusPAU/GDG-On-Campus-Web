@@ -1,124 +1,131 @@
-> Uygulama güncellemesi — 21 Ekim 2026: Bu belgedeki ilk bulgular tarihsel olarak korunmuştur. `web` artık `frontend/hackaton` altındadır. Kod düzeltmeleri, entegrasyon, CI ve test altyapısı uygulanmıştır; güncel sonuçlar ve dış ortam kabul kontrolleri [mevcut durum](MEVCUT_PROJE_DURUMU.md) belgesindedir.
+# Proje İyileştirme Yol Haritası ve Test Planı
 
-# Proje iyileştirme ve test planı
+> **Güncelleme (10 Kasım 2026 — `dev` / `3723e57` incelemesi):** Önceki 21 Ekim belgesinin 1. bölümünde yer alan tarihsel `web/` (206 test) ve `Applications.jsx` lint hatası notları `dev` dalındaki gerçek kodla güncellenmiştir. Bu belge, blok bazlı yeni kod taramasında tespit edilen açık sorunları ([SORUNLAR.md](SORUNLAR.md)) çözmek için **en kritik noktadan (`P0`) en düşük önceliğe (`P3`)** sıralı yol haritasını ve bu yol haritası ile sitenin kalanı için hazırlanan iki katmanlı test mimarisini tanımlar.
 
-Tarih: 21 Ekim 2026. Bu belge mevcut kaynak kodun incelenmesine ve bu tarihte çalıştırılan kontrollere dayanır. Uygulama kodunda düzeltme yapılmadı; aşağıdaki mimari tercihler öneridir.
+---
 
-## 1. Mevcut yapı ve doğrulama sonucu
+## 1. Güncel Yapı ve Doğrulama Temeli (`dev` / `3723e57`)
 
-| Parça | Gerçekte yaptığı iş | Bu incelemedeki sonuç |
+| Parça | Gerçek Sorumluluk | Temel Doğrulama Sonucu (`npm run check` + E2E) |
 | --- | --- | --- |
-| `web/` | Etkinlik sitesi, çok adımlı katılım formu, tarayıcıda içerik taslağı editörü | 23 dosyada 206 test geçti; üretim build'i geçti. Dört font dosyası çözümlenemedi uyarısı var. |
-| `frontend/` | Core Team giriş/kayıt/OTP ekranları, eski hackathon başvurularını listeleme ve CSV indirme | Build geçti. Lint, `Applications.jsx:36` için `react-hooks/set-state-in-effect` hatası verdi. Otomatik test script'i yok. |
-| `backend/` | Ekip kimliği, katılımcı kimliği, içerik, dinamik form ve ayrı hackathon API'si | Mevcut 20 test geçti. Kapsam ağırlıklı olarak katılımcı doğrulaması ve form gönderimi. |
-| `documents/` ve README'ler | Mimari, kurulum ve geçmiş durum bilgileri | Bir kısmı mevcut kodla çelişiyor; özellikle frontend iskeleti ve eski OTP uygulaması hakkındaki açıklamalar güncel değil. |
+| `backend/` | Ekip auth, katılımcı doğrulama, form/başvuru transaction API'si, sürümlü `EventPage`, `Content` CMS ve legacy hackathon modülü | **37/37** test geçti (`node:test` + `MongoMemoryReplSet` 7.0.24), ESLint **0** hata |
+| `frontend/` | Core Team yönetim paneli (Hash tabanlı route: Giriş, Kayıt/OTP, Başvurular, CSV, Özel dosya, Kullanıcı Onayı) | **7/7** test geçti (`Vitest`), build ve ESLint **0** hata |
+| `frontend/hackaton/` | Etkinlik vitrin sitesi, çok adımlı başvuru, katılımcı doğrulaması ve `/admin` canlı yayın editörü | **210/210** test geçti (`Vitest`, async `act(...)` stderr uyarılı), build ve ESLint **0** hata |
+| `shared/` & `e2e/` | Ortak etkinlik şablonu + şema doğrulayıcısı; Chromium + izole MongoDB `rs0` uçtan uca regresyon | **4/4** Playwright E2E geçti |
 
-Backend testleri geçici MongoDB replica set kullanılarak çalıştırıldı; mevcut `.env` ve gerçek veritabanı kullanılmadı. İlk çalıştırma sandbox port kısıtına takıldı; uygun izinle tekrar çalıştırıldığında 20 test geçti. Ön yüz bağımlılıkları lockfile üzerinden kuruldu. Gerçek Google hesabı, gerçek Brevo teslimatı, tarayıcıdan API akışları ve `check:layout` bu incelemede çalıştırılmadı. Build başarısı bu akışların çalıştığını kanıtlamaz.
+### Tarihsel Özet (12 Ekim → 21 Ekim 2026)
 
-## 2. Öncelikli bulgular
+12 Ekim ilk incelemesinde tespit edilen ekip `VerificationToken` kırığı, `PENDING` rol reddi, `web/` bağlantısız başvuru formu, statik `/admin` kilidi, public `/uploads` CV sızıntısı ve kök CI eksikliği 21 Ekim güncellemeleriyle (`84d0d21`..`3723e57`) giderilmiştir. Buna karşılık hem ilk fazda belgelenmemiş yeni bug'lar hem de merge sırasında düşen bir DB indeksi tespit edilmiştir.
 
-### P0 — Kayıt akışlarını doğrudan kıran hatalar
+---
 
-1. `backend/src/models/VerificationToken.js`, çağrılan `generateOtp` ve `verifyOtp` metotlarını tanımlamıyor. Ekip auth ve eski hackathon controller'ları bu metotları kullanıyor. Model yüklenerek ikisinin de `undefined` olduğu doğrulandı. DB sorgusu yerine yerel stub kullanılan controller çağrısında `VerificationToken.generateOtp is not a function` hatası yeniden üretildi. Bu denemede e-posta gönderilmedi.
-2. Ekip kayıt controller'ı `PENDING` rolü kaydediyor; `User` modeli yalnız `MEMBER`, `ORGANIZER`, `ADMIN` kabul ediyor. Veritabanına bağlanmadan model doğrulamasıyla `Geçersiz rol tipi: PENDING` hatası yeniden üretildi. OTP düzelse bile kayıt bu noktada engellenir.
+## 2. Önceliklendirilmiş İyileştirme Yol Haritası (`P0 → P3`)
 
-### P1 — Parçaların birlikte çalışmasını engelleyen eksikler
+Mimari ilke: Mevcut katman sınırları (`backend/src/{models,controllers,services,modules}`, `shared/`, `frontend/`, `frontend/hackaton/`) korunur; büyük yeniden yazım yerine mevcut modüllere doğrudan oturan, atomik ve test güdümlü düzeltmeler uygulanır.
 
-3. `web` formu yalnız düz JSON POST ediyor; katılımcı doğrulaması ve Bearer token gönderimi yok. Endpoint tanımsızsa geliştirmede kayıt atlamasına rağmen başarı gösteriyor; üretimde hata gösteriyor. Yerel başarı ekranı kalıcı kayıt kanıtı değil.
-4. Üç ayrı başvuru tanımı var: `web` kayıt alanları, dinamik `Form/FormResponse` ve eski `HackathonApp`. Panel yalnız `HackathonApp` listesini okuyor; dinamik forma yazılan başvurular bu ekranda görünmez. Alan adları ve bireysel/takım başvurusu anlamları da farklı.
-5. Yeni ekip hesabını onaylayacak kullanıcı/rol yönetimi API'si ve ekranı yok. Kayıt ekranı onay e-postası vaat ediyor; bu bildirimin uygulanması da kapsamda doğrulanmalı.
-6. Backend tek `CLIENT_URL` kabul ediyor. İki ön yüzün portları ve origin'leri birlikte tanımlanmamış; her ikisi de varsayılan Vite portuyla başlıyor.
-7. `web /admin`, pakette bulunan şifreyle açılan yerel taslak editörü. Değişiklikler localStorage'a yazılıyor veya JSON olarak indiriliyor; sunucuya yayınlanmıyor. Ortak, yetkili içerik yönetimi olarak kullanılamaz.
+### P0 — Canlıya Çıkış Engelleri (Veri Bütünlüğü, Güvenlik, Hukuk, Altyapı)
 
-### P1/P2 — Yayın öncesi güvence ve bakım
+1. **`P0.1` `FormResponse` Partial Unique İndeks Regresyonunun Geri Getirilmesi**
+   - **Dosya:** [`backend/src/models/FormResponse.js`](../backend/src/models/FormResponse.js)
+   - **Çözüm:** `{ form: 1, singleSubmissionKey: 1 }` alanına `{ unique: true, partialFilterExpression: { singleSubmissionKey: { $type: 'string' } } }` indeksini geri ekleyin; canlı veritabanında indeks oluşturma/migration adımını belgeleyin.
+   - **Kabul Kriteri:** `FormResponse.collection.getIndexes()` içinde indeks tanımlı olmalı ve aynı `(form, singleSubmissionKey)` ham DB yazımı `E11000` vermelidir.
 
-8. CV ve form ekleri public `/uploads` üzerinden sunuluyor. Özel dosyalar için sunucuda yetkili indirme gerekiyor. Upload uzantı filtreleri tam eşleşme kullanmıyor; dosya içeriği, adet ve toplam boyut kontrolleri genişletilmeli.
-9. Seed admin e-postası doğrulanmış olarak oluşturulmuyor; varsayılan parola kullanabiliyor ve parolayı logluyor. Ekip JWT helper'ında sabit fallback anahtar var.
-10. Form alan türleri/seçenekleri eksik doğrulanıyor; form ve yanıtlarının silinmesi transaction içinde değil. Form değiştikten sonra eski yanıtların export davranışı tanımlanmalı. CSV formül başlangıçları ve kullanıcı kaynaklı arama regex'leri kontrol edilmeli.
-11. Kök geliştirme/test komutları ve CI yok. Backend ve `web` için lint komutu, panel için test altyapısı eksik. Node ve ortam kuralları repo genelinde tutarlı değil.
+2. **`P0.2` E-posta OTP Şablonlarında HTML / Phishing Enjeksiyonunun Kapatılması**
+   - **Dosya:** [`backend/src/services/emailService.js`](../backend/src/services/emailService.js)
+   - **Çözüm:** `generateOtpTemplate`, `sendRegistrationOtpEmail` ve `sendHackathonOtpEmail` içindeki `fullName`, `teamName`, `leaderName` değerlerini strict `escapeHtml` ile kaçışlayın; e-posta `subject` alanından `\r\n` temizleyin.
+   - **Kabul Kriteri:** `<a href=...>` veya `<script>` içeren kullanıcı girdisi e-posta gövdesinde işlenmeden (`&lt;`) metin olarak yer almalıdır.
 
-## 3. Önerilen hedef ve kapsam kararları
+3. **`P0.3` `/kayit` Formuna KVKK Aydınlatma ve Açık Rıza Onayı Eklenmesi**
+   - **Dosyalar:** [`shared/hackathon-event.json`](../shared/hackathon-event.json), [`frontend/hackaton/src/data/base.js`](../frontend/hackaton/src/data/base.js), [`frontend/hackaton/src/components/StepForm.jsx`](../frontend/hackaton/src/components/StepForm.jsx)
+   - **Çözüm:** Başvuru adımlarının sonuna (veya Onay adımına) aydınlatma metni bağlantılı zorunlu `kvkkConsent` checkbox alanı ve sunucu doğrulaması ekleyin; onaysız gönderimi reddedin.
+   - **Kabul Kriteri:** KVKK onayı işaretlenmeden form gönderimi engellenmeli, işaretlendiğinde rıza cevabı `FormResponse` içinde saklanmalıdır.
 
-- İlk etapta `web` etkinlik sitesi, `frontend` yönetim paneli ve `backend` API olarak kalır. Önce sorumlulukları ve bağlantıları netleştirilir; klasör birleştirmesi ilk iş yapılmaz.
-- Yeni etkinlik başvuruları için mevcut doğrulama, kota ve transaction altyapısı olan `Form/FormResponse` ana kanal olarak önerilir. Panel aynı veriyi okumalıdır. Mevcut `HackathonApp` verisi ve kullanan akışlar envantere alınmadan eski modül kaldırılmaz. Gerekli veri taşıma için ayrıca eşleme, yedek ve geri dönüş planı hazırlanır.
-- Bireysel katılım mı, takım başvurusu mu alınacağı ürün kararıdır. `web` alanları backend form şemasıyla buna göre eşleştirilir; mevcut iki modeli körlemesine dönüştürmeyiz.
-- Ekip hesabı ile katılımcı hesabı ayrı kalır. Ekip onay durumu, rol ve `permissions` alanlarının ilişkisi açıkça belirlenir; arayüz ve sunucu aynı yetki kurallarına uyar.
-- İçerik için kalıcı kaynak seçilir. Mevcut `Content` modeli etkinlik sitesindeki bütün program/sponsor/form şemasını karşılamadığından yalnız bir endpoint adresini değiştirmek yeterli değildir. Statik yayın geçici olarak korunabilir; ortak editör istenirse veri modeli ve yetkili yayın akışı ayrıca tamamlanır.
+4. **`P0.4` Production Dağıtım Altyapısı, Gerçek İçerik ve Dış Kabul Kontrolleri**
+   - **Dosyalar:** Production `Dockerfile` + reverse proxy (`Nginx`/PaaS), gerçek `.env`, [`shared/hackathon-event.json`](../shared/hackathon-event.json), Git `main` ↔ `dev` senkronizasyonu.
+   - **Çözüm:** Geliştirme odaklı `nodemon`/`vite` imajı yerine multi-stage statik build + `node src/server.js` üretim imajı kurun; yerel `.env` şablonunu düzeltin; gerçek etkinlik içeriği + gerçek Google Web Client ID + doğrulanmış Brevo domain + DB & `uploads/` yedek/geri yükleme tatbikatını tamamlayın; kullanıcı onayıyla `main` dalını güncelleyin.
 
-Bu kararlar özellikle 4. aşamadan önce netleşmelidir. P0 hata testleri ve ortam düzenlemesi bu kararları beklemeden yapılabilir.
+---
 
-## 4. Sıralı uygulama planı
+### P1 — Çekirdek Ürün Özellikleri ve Backend Sağlamlaştırma
 
-### Aşama 1 — Tekrarlanabilir geliştirme ve kontrol ortamı
+5. **`P1.1` Etkinlik Başvuru Formunun `file`, `number`, `radio`, `date` Alanlarını Desteklemesi**
+   - **Dosyalar:** [`shared/eventContent.mjs`](../shared/eventContent.mjs), [`frontend/hackaton/src/components/Field.jsx`](../frontend/hackaton/src/components/Field.jsx), [`frontend/hackaton/src/components/StepForm.jsx`](../frontend/hackaton/src/components/StepForm.jsx), [`frontend/hackaton/src/lib/registration.js`](../frontend/hackaton/src/lib/registration.js), [`frontend/hackaton/src/pages/Admin.jsx`](../frontend/hackaton/src/pages/Admin.jsx)
+   - **Çözüm:** `choices.kind` içine backend'deki `formFieldTypeMap` ile uyumlu türleri ekleyin; dosya varsa `registration.js` içinde `FormData` (`answers` + dosya field'ları) oluşturun.
 
-- Repo genelinde desteklenen Node sürümünü ve paket yöneticisini belirle; mevcut lockfile'ları koru.
-- Kökten servisleri başlatma, test, lint ve build komutları ekle; portları açıkça ayır: öneri `web:5173`, panel `5174`, API `5000`.
-- Yerel MongoDB replica set kurulumu için tekrarlanabilir tarif/Compose ve sağlık kontrolü hazırla. Var olan veri volume'larını değiştirme.
-- Test ortamını gerçek `.env`, gerçek DB ve gerçek e-posta servisinden ayır. Geçici DB/upload dizini ve test veri üreticilerini standartlaştır.
-- Panelde Vitest/Testing Library altyapısı kur; API istekleri için kontrollü mock kullan. Mevcut backend ve `web` testlerini koru.
-- CI temelini hazırla: temiz kurulum, mevcut testler ve iki build. Yeni lint/test kontrolleri düzeltildikçe zorunlu kapı olur.
+6. **`P1.2` `Content` CMS Dosya Sızıntısı, XSS URL Kontrolü ve Tip Doğrulaması**
+   - **Dosyalar:** [`backend/src/controllers/contentController.js`](../backend/src/controllers/contentController.js), [`backend/src/controllers/formController.js`](../backend/src/controllers/formController.js)
+   - **Çözüm:** `updateContent` ve `deleteContent` sırasında eski `/uploads/public/<dosya>` varlıklarını diskten silin; göreli `/uploads/public/...` veya geçerli `https?://` dışındaki (`javascript:`) `coverImageUrl` / `bevyLink` değerlerini `400` ile reddedin; string olmayan opsiyonel alanlarda `500 TypeError` yerine `400` döndürün.
 
-Tamamlanma ölçütü: yeni bir geliştirici belgelenmiş komutlarla üç servisi başlatabilir; CI mevcut 20 backend ve 206 web testini ve iki build'i tekrar çalıştırabilir.
+7. **`P1.3` `main.jsx` Açılış SPOF'unun Kaldırılması**
+   - **Dosya:** [`frontend/hackaton/src/main.jsx`](../frontend/hackaton/src/main.jsx)
+   - **Çözüm:** `/admin` rotasını ilk `loadEvent()` isteğine bağımlı olmaktan çıkarın; API erişilemediğinde `base` veya kurtarma uyarılı rota bağlayarak editör erişimini ve yeniden deneme akışını koruyun.
 
-### Aşama 2 — Ekip kimliği ve onay akışını çalışır hale getirme
+8. **`P1.4` Legacy Hackathon Export Arama Filtresinin Uygulanması**
+   - **Dosya:** [`backend/src/modules/hackathon/controllers/hackathonController.js`](../backend/src/modules/hackathon/controllers/hackathonController.js)
+   - **Çözüm:** `exportApplications` içinde `req.query.search` parametresini `getApplications` ve `formController.exportFormResponses` ile aynı `literalSearch` filtresi üzerinden çalıştırın.
 
-- Önce eksik OTP metotlarını ve `PENDING` uyumsuzluğunu yakalayan regresyon testleri ekle; mevcut hatayı gördükten sonra düzelt.
-- Eski OTP akışını güvenli ortak mekanizmaya taşı veya mevcut katılımcı servisinin ortak altyapısını ayır. Amaç ayrımını koru; ekip ve katılımcı token'larını birbirinin yerine kabul etme.
-- Hash, güvenli rastgele üretim, tek kullanımlılık, eşzamanlı tüketim, süre/deneme sınırı ve yeniden gönderim beklemesi ekle.
-- Kayıt/onay/rol modelini tutarlı hale getir. ADMIN onay işlemini API ve panel üzerinden tamamla; yetkisiz onayı engelle.
-- Seed admin'i güvenli ve tekrar çalıştırılabilir yap; parola logunu ve production fallback anahtarlarını kaldır. Eksik ayarlarda açık başlangıç hatası ver.
-- Panelin kayıt, OTP, PENDING, giriş, oturum sonlanması ve 403 durumlarını test et. Onay bildirimi metnini gerçek davranışla eşleştir.
-- Mevcut panel lint hatasını davranışı koruyarak gider.
+9. **`P1.5` Auth, Kullanıcı Sayfalama ve Seed Tutarlılığı**
+   - **Dosyalar:** [`backend/src/controllers/authController.js`](../backend/src/controllers/authController.js), [`backend/src/routes/userRoutes.js`](../backend/src/routes/userRoutes.js), [`backend/src/utils/seed.js`](../backend/src/utils/seed.js)
+   - **Çözüm:** `/auth/verify-email` içinde önce kullanıcı varlığını doğrulayıp sonra `verifyOtp` çağırın; `GET /users` pagination zarfına `totalItems`, `limit`, `hasNextPage`, `hasPrevPage` ekleyin; `PASSWORD_RESET` + `tokenVersion` ekleyin ve `seed.js` akışını `ensureHackathonPage` ile hizalayın.
 
-Tamamlanma ölçütü: ekip kaydı → e-posta doğrulama → yönetici onayı → giriş → yetkili listeleme akışı otomatik testlerle geçer. MEMBER, ORGANIZER ve ADMIN erişimleri tanımlıdır.
+---
 
-### Aşama 3 — API sınırları, dosyalar ve veri bütünlüğü
+### P2 — Yönetici / Core Team UX ve Yetim Modüllerin Netleştirilmesi
 
-- İki ön yüz için açık CORS allowlist'i, reddedilen origin ve OPTIONS testleri ekle; Google origin ayarlarını kurulum tarifine işle.
-- CV/form eklerini public statik yayından ayır; yetkili indirme, güvenli dosya türü/boyutu/adedi ve hata temizliği uygula. Kamuya açık görselleri ayrı tut.
-- Form alan türleri, seçenekler, benzersiz fieldId, tarih aralıkları ve durum geçişlerini doğrula.
-- Form silme işlemini ilişkili yanıtlarla atomik hale getir; upload temizliğini ayrıca ele al. Şema değişikliklerinde eski yanıt/export davranışını koru.
-- CSV hücrelerini ve arama girdilerini güvenli işle. Production'da e-posta simülasyonunun başarı sayılmasını engelle; servis çağrılarına zaman aşımı ekle.
+10. **`P2.1` `/admin` Editör Güvenirliği ve Şema Sıkılaştırması**
+    - **Dosyalar:** [`frontend/hackaton/src/pages/Admin.jsx`](../frontend/hackaton/src/pages/Admin.jsx), [`shared/eventContent.mjs`](../shared/eventContent.mjs)
+    - **Çözüm:** `serverEvent` durumunu koruyarak `Taslağı sıfırla` işlemini son yayınlanan sunucu sürümüne bağlayın; `409 Conflict` yanıtında güncel `revision`'ı yeniden yükleme akışı sunun; açılışta `/auth/me` doğrulayın; sponsor/jüri/mentor adlarında boş string (`""`) reddini ekleyin; eski `UNLOCK_KEY` yorumunu temizleyin ve form kota/tarih ayarlarını bağlayın.
 
-Tamamlanma ölçütü: başarısız işlemler yanıt/sayaç/dosya tutarsızlığı bırakmaz; özel dosyalara anonim erişim reddedilir; mevcut eşzamanlı kota testleri geçmeye devam eder.
+11. **`P2.2` Core Team Paneli UI/UX Düzeltmeleri (`Applications.jsx`, `Users.jsx`, `api.js`)**
+    - **Dosyalar:** [`frontend/src/pages/Applications.jsx`](../frontend/src/pages/Applications.jsx), [`frontend/src/pages/Users.jsx`](../frontend/src/pages/Users.jsx), [`frontend/src/lib/api.js`](../frontend/src/lib/api.js)
+    - **Çözüm:** Dinamik formda `phone` yoksa `tel:undefined` linkini, `projectIdea` yoksa boş `<details>` kutusunu gizleyin; `downloadPrivateFile` içinde geçersiz URL ayrıştırmasını `ApiError`'a sarın ve legacy harici `https://` özgeçmiş linklerini güvenli şekilde açın; `Users.jsx` içine `?role=PENDING` filtresi + boş durum mesajı + `totalPages > 1` sayfalama kontrolü ekleyin.
 
-### Aşama 4 — Katılımcı sitesi ve paneli aynı başvuru kanalına bağlama
+12. **`P2.3` Atıl/Yetim Backend Modülleri Kararı (`Content`, Çoklu Form, `Team.js`)**
+    - **Çözüm:** Ürün kararı netleştirilir: genel GDG portalına geçilecekse `frontend/` paneline `react-router-dom` + İçerik/Form yönetimi eklenir; sadece hackathon yayını yapılacaksa `Team.js` / `User.permissions` / `LOGIN_2FA` atıl şemaları temizlenir.
 
-- Seçilen başvuru modeline göre form alanlarının ve API hata/başarı gövdelerinin sözleşmesini yaz.
-- `web` tarafına katılımcı Google/e-posta doğrulaması, token yönetimi ve doğrulanmış form gönderimini bağla.
-- Form şemasını tek kaynaktan üret veya açık bir adapter ile eşleştir; yerel editörün alanları değiştirmesinin API'yi sessizce bozmasını önle.
-- Paneli aynı başvuru kaynağında listeleme, arama, sayfalama ve export yapacak hale getir.
-- Geliştirmedeki simülasyonu kullanıcıya açıkça belirt; gerçek başarıyı kayıt kimliği ve DB kaydıyla doğrula.
-- İçerik yönetimi kararına göre `web /admin` editörünü yetkili sunucu akışına taşı veya yerel taslak aracı olarak açıkça sınırla.
+---
 
-Tamamlanma ölçütü: siteden yapılan başvuru DB'ye bir kez kaydedilir; aynı başvuru panelde ve export'ta görünür. Eski modülün kapatılması gerekiyorsa mevcut veriye erişim korunur.
+### P3 — Performans, DX ve Varlık Cilası
 
-### Aşama 5 — Tarayıcıdan uçtan uca test ve yayın hazırlığı
+13. **`P3.1` Windows Geliştirici Komutlarının Düzeltilmesi**
+    - **Dosyalar:** [`scripts/dev.mjs`](../scripts/dev.mjs), [`frontend/hackaton/scripts/check-layout.mjs`](../frontend/hackaton/scripts/check-layout.mjs)
+    - **Çözüm:** `process.platform === 'win32' ? 'npm.cmd' : 'npm'` seçimi ve Windows alt süreç ağacı sonlandırma (`taskkill /pid <pid> /T /F`) ekleyin.
 
-- Playwright ile gerçek tarayıcı + API + izole MongoDB üzerinde kritik senaryoları çalıştır.
-- CI'da temiz kurulum, tüm testler, lint, iki build ve temel uçtan uca akışı zorunlu yap.
-- Gerçek Google hesabı ve Brevo teslimatını ayrı staging kabul kontrolü olarak yürüt; gerçek hesaplara bağımlı testleri her PR'ın içine koyma.
-- SPA rota yenilemesi, mobil kullanım, klavye odağı, hata/boş/yükleniyor ekranları ve görsel layout kontrolünü doğrula. Eksik font ve görselleri tamamla.
-- DB readiness, hata/log takibi, proxy ayarları, DB+upload yedekleme ve geri yükleme denemesini tamamla; README/API/mimari belgelerini son kodla eşleştir.
+14. **`P3.2` Statik Varlık ve SEO İyileştirmeleri**
+    - **Dosyalar:** [`frontend/hackaton/public/fonts/`](../frontend/hackaton/public/fonts/), [`frontend/hackaton/index.html`](../frontend/hackaton/index.html)
+    - **Çözüm:** 4,27 MB ham `.ttf` fontlarını alt kümeli `.woff2` formatına indirin; favicon ve `og:image` ekleyin.
 
-Tamamlanma ölçütü: temiz ortamda kayıt ve yönetim senaryoları otomatik geçer; staging'de gerçek doğrulama tamamlanır; dağıtım ve geri dönüş adımları belgelenmiştir.
+---
 
-## 5. Asgari test matrisi
+## 3. İki Katmanlı Test Stratejisi ve Test Matrisi
 
-| Alan | Eklenecek temel senaryolar | Katman |
+Bu incelemede yalnızca düzeltilen kısımları değil, sitenin tamamını ve yol haritasının kabul kriterlerini ölçen **iki katmanlı** gerçek/işlevsel test suite'i kurulmuştur:
+
+### Katman 1 — Regresyon ve Site Kapsam Paketi (`npm run check`)
+
+Her commit ve CI koşumunda çalışması beklenen, mevcut davranışları ve yeni kapatılan boşlukları doğrulayan **geçer durumda** testler (`44` backend + `24` panel + `221` etkinlik sitesi, `0` ESLint/build/`act` uyarısı + `4` E2E):
+
+| Paket | Yeni / Genişletilen Dosyalar | Test Edilen Gerçek Davranışlar |
 | --- | --- | --- |
-| Ekip auth | Kod gönderme, kayıt, mevcut e-posta, yanlış/süresi dolmuş/tekrar kullanılan kod, eşzamanlı tüketim, gönderim hatası | Backend entegrasyon |
-| Onay ve yetki | PENDING giriş engeli, ADMIN onayı, MEMBER/ORGANIZER sınırları, izinsiz rol yükseltme, seed ile ilk giriş | Backend + panel |
-| Katılımcı auth | Mevcut 20 testi koru; tarayıcı token süresi, yeniden doğrulama ve gerçek origin davranışı | Mevcut backend + UI/E2E |
-| Panel | Kayıt/giriş/OTP adımları, oturum bozulması, 401/403, boş liste, ağ hatası, arama yarışı, sayfalama, CSV hatası | Vitest + API mock |
-| Form yönetimi | Oluştur/güncelle/yayınla/kapat, yanlış tür ve seçenek, yinelenen fieldId, şema değişimi ve eski yanıtlar | Backend entegrasyon |
-| Başvuru | Doğrulama → gönderim → DB kaydı → panel → export; tekrar tıklama, yenileme, kota ve kapalı form | Backend + Playwright |
-| Dosya ve export | Başarılı dosyalı başvuru, izinsiz indirme, tür/boyut/adet reddi, hata temizliği, CSV özel karakter/formül girdisi | Backend entegrasyon |
-| İçerik | Public okuma, yetkili değişiklik, geçersiz veri, iki tarayıcıda yayınlanan içeriğin aynı olması | Backend + E2E; sunucu yayını seçilirse |
-| Yapılandırma | Eksik secret, yanlış DB topology, allowlist dışı origin, provider hatası, production simülasyon engeli | Başlangıç/API testleri |
+| `backend/` | `tests/content-and-forms-lifecycle.test.js`<br>`tests/auth-users-and-hackathon-edges.test.js` | `Content` CRUD, public PNG upload + imza/SVG reddi + disk temizliği, `Form` CRUD (`slug` tekilleştirme, tarih/sayı sınırları, 403/404/409 durumları, dosya yüklerken 400/409 disk temizliği), `/files/:filename` traversal/dotfile/cache headers, `export` format validation & JSON stream, `verify-email` akışı, `MEMBER`/`ORGANIZER`/`ADMIN` RBAC sınırları, `ENABLE_HACKATHON_MODULE=false` izolasyonu, legacy başvuru/export CSV formül kaçışı |
+| `frontend/` | `src/App.test.jsx`<br>`src/lib/api.test.js`<br>`src/lib/validation.test.js`<br>`src/pages/Applications.test.jsx`<br>`src/pages/Auth.test.jsx` | Hash yönlendirme & `ADMIN`/`ORGANIZER`/`MEMBER` yetki yönlendirmeleri, `downloadPrivateFile` cross-origin token sızıntı engeli (SSRF/path koruma), `getHackathonApplications` `formId` zinciri, 350ms arama debounce yarışı & sayfa sıfırlama, CSV blob indirme & hata mesajları, `Login` doğrulanmamış hesap → `OtpForm` → giriş, `Register` istemci doğrulama & odaklanma & cooldown, `Users` self-select engeli |
+| `frontend/hackaton/` | `src/lib/eventApi.test.js`<br>`src/pages/NotFound.test.jsx`<br>`src/components/Field.test.jsx`<br>`src/components/StickyCta.test.jsx`<br>`src/pages/Register.test.jsx`<br>`src/components/ParticipantVerification.test.jsx`<br>`src/pages/Admin.test.jsx` | `loadEvent` şema bozulmalarında red, `loginEditor` `MEMBER`/`PENDING` reddi, `Register` 401 sonrası tekrar doğrulamada `draftValues` korunması, `ParticipantVerification` şema yükleme hatası/yeniden dene, e-posta değiştirme, çift tıklama kilidi, eksik Google Client ID mesajı; `Admin` canlı yayın → revizyon artışı/taslak temizliği, `409` çakışması, `401` oturum kilitleme, yükleme hatasında `Yayınla` devre dışı kalması (ve `act(...)` uyarılarının giderilmesi) |
 
-Hedef yalnız test sayısını veya genel coverage yüzdesini artırmak değildir. Her doğrulanmış hata için regresyon testi ve her kritik kullanıcı akışı için başarı/hata/yetki senaryoları gereklidir. Bir akışın “çalışıyor” sayılması için beklenen kalıcı kayıt, sayaç ve dosya etkisi de doğrulanmalıdır.
+### Katman 2 — Yol Haritası Kabul Kapıları (`npm run test:roadmap`)
 
-## 6. İlk uygulama dilimi
+Yol haritasındaki **P0 → P2** maddeleri için **TDD / Kabul Testi** olarak yazılmıştır (`5` backend + `3` panel + `4` etkinlik sitesi = **12 kabul kapısı**). Uygulama kodundaki açık bug'lar nedeniyle **`dev` üzerinde fail vermeleri beklenir**; ilgili yol haritası adımı kodlandığında bu kapılar otomatik olarak **pass** durumuna geçmelidir:
 
-İlk küçük teslimat: ekip OTP ve PENDING regresyon testleri, bu iki hatanın düzeltmesi, panel lint düzeltmesi ve mevcut test/build sonuçlarını tekrarlayan temel CI. Sonraki teslimat: ekip onay yaşam döngüsü ve başvuru kanalının site/panel entegrasyonu. Böylece geniş bir yeniden yazımdan önce mevcut kırık davranışlar görünür ve kontrol altında olur.
+| Kapı | Test Konumu | Doğrulanan Bug / Yol Haritası Gereksinimi |
+| --- | --- | --- |
+| `P0.1` | `backend/tests/roadmap/p0-p3-roadmap.roadmap.test.js` | `FormResponse` üzerinde `singleSubmissionKey` partial unique indeksi ve DB `E11000` koruması |
+| `P0.2` | `backend/tests/roadmap/p0-p3-roadmap.roadmap.test.js` | `emailService` HTML template enjeksiyon kaçışı |
+| `P1.2` | `backend/tests/roadmap/p0-p3-roadmap.roadmap.test.js` | `Content` güncelleme/silmede eski local dosya `unlink`, `javascript:` URL reddi, non-string tip kontrolü |
+| `P1.4` | `backend/tests/roadmap/p0-p3-roadmap.roadmap.test.js` | Legacy `GET /hackathon/applications/export?search=...` arama filtresi |
+| `P1.5` | `backend/tests/roadmap/p0-p3-roadmap.roadmap.test.js` | `GET /users` tam sayfalama nesnesi (`totalItems`, `limit`, `hasNextPage`, `hasPrevPage`) & `/verify-email` 404 öncesi OTP koruma |
+| `P0.3` & `P1.1` & `P2.1` | `frontend/hackaton/roadmap-tests/hackaton.roadmap-test.jsx` | `/kayit` zorunlu KVKK rıza kutusu, `file`/`number` alan desteği, `Admin` `Taslağı sıfırla`'nın sunucu verisine dönmesi ve `isEventShape` boş isim reddi |
+| `P2.2` | `frontend/roadmap-tests/panel.roadmap-test.jsx` | `Applications.jsx` `tel:undefined` ve boş `Proje fikri` gizleme; `Users.jsx` rol filtresi, boş durum ve tek sayfa pager kontrolü; `downloadPrivateFile` temiz `ApiError` |
+
+### Hedef Ölçüt
+
+- `npm run check` ve `npm run test:e2e` **her zaman yeşil** kalır (sıfır regresyon).
+- Her yol haritası görevi tamamlandıkça ilgili `test:roadmap` kapısı kırmızıdan yeşile çevrilir; tüm `P0` ve `P1` kapıları yeşil olmadan ve dış kabul kontrolleri imzalanmadan canlıya (`main`) çıkılmaz.
