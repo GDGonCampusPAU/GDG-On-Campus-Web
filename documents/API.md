@@ -93,7 +93,7 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 13 | POST | `/auth/forgot-password` | Public | `email`; şifre sıfırlama OTP'si gönderir |
 | 14 | POST | `/auth/reset-password` | Public | `email,code,newPassword`; şifreyi sıfırlar, tokenVersion artırır |
 | 15 | GET | `/auth/me` | Token | Parametresiz; aktif `user` profili |
-| 16 | GET | `/users` | ADMIN | `page,role` (`PENDING/ORGANIZER/ADMIN`); şifresiz sayfalı kullanıcı listesi |
+| 16 | GET | `/users` | ADMIN | `page,role` (`PENDING/MEMBER/ORGANIZER/ADMIN`); şifresiz sayfalı kullanıcı listesi |
 | 17 | PATCH | `/users/:id/role` | ADMIN | `{role}`; kullanıcı yetkisini onaylar/değiştirir |
 | 18 | GET | `/content/public` | Public | `page,limit,type,search`; yayınlanan duyuru ve etkinlikler |
 | 19 | GET | `/content/featured` | Public | `limit`; öne çıkan içerik listesi |
@@ -109,7 +109,7 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 29 | GET | `/forms/:id` | Ekip | Path `id`; bütün form şeması |
 | 30 | PUT | `/forms/:id` | Ekip | Path `id`, değişecek form alanları |
 | 31 | PATCH | `/forms/:id/status` | Ekip | Path `id`, JSON `status` (`DRAFT/PUBLISHED/CLOSED/ARCHIVED`) |
-| 32 | DELETE | `/forms/:id` | Ekip | Formu ve tüm ilişkili yanıtları siler |
+| 32 | DELETE | `/forms/:id` | Ekip | Formu, tüm yanıtlarını ve özel dosyalarını siler (yayınlı EventPage formu ise 409 döner) |
 | 33 | GET | `/forms/:id/responses` | Ekip | Path `id`; `page,limit,status,search` |
 | 34 | PATCH | `/forms/:id/responses/:responseId/status` | Ekip | `{status, note, notify}`; başvuru durum inceleme ve bildirim e-postası |
 | 35 | GET | `/forms/:id/responses/export` | Ekip | Path `id`; `format,status,search`; CSV veya JSON export |
@@ -117,9 +117,9 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 37 | POST | `/hackathon/apply` | Public | Başvuru alanları, OTP, opsiyonel `resume` CV dosyası |
 | 38 | GET | `/hackathon/applications` | Ekip | `page,limit,search,status` |
 | 39 | PATCH | `/hackathon/applications/:id/status` | Ekip | `{status, note, notify}`; hackathon başvuru durum inceleme ve bildirim e-postası |
-| * | GET | `/hackathon/applications/export` | Ekip | `format,search,status`; CSV veya JSON export |
+| 40 | GET | `/hackathon/applications/export` | Ekip | `format,search,status`; CSV veya JSON export |
 
-Toplam 39 HTTP uç noktası (hackathon export rotası dahil), ayrıca `/uploads/public/<dosya-adı>` statik dosya erişimi vardır. Hackathon kapalıysa hackathon rotaları yerine `404` döner. `/health` canlılık, `/ready` ise MongoDB veritabanı hazır mı kontrolüdür.
+Toplam **40 HTTP uç noktası** (`37` adet `/api/v1` rotası, `2` adet kök `/health` & `/ready` rotası ve `1` adet `/uploads/:filename` fallback rotası; ek olarak `/uploads/public/<dosya-adı>` statik dosya erişimi vardır). Hackathon kapalıysa hackathon rotaları yerine `404` döner. `/health` canlılık, `/ready` ise MongoDB veritabanı hazır mı kontrolüdür.
 
 ## Katılımcı doğrulama API’si
 
@@ -191,7 +191,7 @@ curl -X POST "$API_BASE/auth/verify-email" \
   -d '{"email":"aday@gmail.com","code":"123456"}'
 ```
 
-Mevcut hesabı doğrulamak içindir. Yeni kayıt akışında `/register` için alınan kodu burada tüketmeyin; bu rota hesap oluşturmaz. Kod doğruysa kullanıcı bulunmasa bile `200` başarı döner. Bu davranış bir akış eksikliğidir.
+Mevcut hesabı doğrulamak içindir. Yeni kayıt akışında `/register` için alınan kodu burada tüketmeyin; bu rota hesap oluşturmaz. İstek önce kullanıcıyı arar; kullanıcı yoksa OTP'yi yakmadan `404 Not Found` döner, e-posta zaten doğrulanmışsa OTP tüketilmeden `200` mesajı döner.
 
 ### Giriş ve profil
 
@@ -261,7 +261,7 @@ curl "$API_BASE/users?page=1&role=PENDING" \
   -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
-- Query: `page` (varsayılan 1), `role` (`PENDING`, `ORGANIZER`, `ADMIN`; opsiyonel).
+- Query: `page` (varsayılan 1), `role` (`PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN`; opsiyonel).
 - Çıktı: `passwordHash` içermeyen kullanıcı dokümanları ve standart 6 alanlı `pagination` zarfı (`totalItems`, `totalPages`, `currentPage`, `limit: 50`, `hasNextPage`, `hasPrevPage`).
 
 ### Kullanıcı Rolü Değiştirme ve Onaylama
@@ -273,7 +273,7 @@ curl -X PATCH "$API_BASE/users/$TARGET_USER_ID/role" \
   -d '{"role":"ORGANIZER"}'
 ```
 
-- Girdi: `role` (`PENDING`, `ORGANIZER`, `ADMIN`).
+- Girdi: `role` (`PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN`).
 - Güvenlik Kuralları:
   1. Yönetici kendi rolünü değiştiremez (self-demotion koruması: `400 Bad Request`).
   2. Eşzamanlı çapraz rol düşürmelerini engellemek için işlem MongoDB transaction içinde yürütülür ve aktörün `roleChangeVersion` alanı artırılır.
@@ -355,9 +355,9 @@ Public liste `createdAt` azalan; featured `eventDate` artan, ardından `createdA
 | `title` | Evet | Boş olmayan metin, en fazla 200 karakter |
 | `description` | Evet | Boş olmayan metin |
 | `type` | Evet | Tam olarak `EVENT` veya `ANNOUNCEMENT` |
-| `coverImageUrl` | Hayır | Görsel URL'si; URL doğrulaması yok |
+| `coverImageUrl` | Hayır | Görsel URL'si (`http(s)://` veya göreli `/uploads/public/...` dışı ve `javascript:` şemaları `400` ile reddedilir) |
 | `coverImage` | Hayır | Multipart dosya alanı; varsa URL alanından öncelikli |
-| `bevyLink` | Hayır | Harici link metni; boşsa null |
+| `bevyLink` | Hayır | Harici `http(s)://` veya `/uploads/public/...` bağlantısı; boşsa null (`400` protokol doğrulamalı) |
 | `isFeatured` | Hayır | JSON `true` veya multipart `"true"`; diğer değerler false |
 | `eventDate` | Hayır | Tarih; boşsa null; EVENT için zorunlu değil |
 
@@ -389,7 +389,7 @@ curl -X DELETE "$API_BASE/content/$CONTENT_ID" \
   -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
-PUT ve DELETE başarı `200`; bulunamayan içerik `404`. Silme/görsel değiştirme eski dosyayı diskten kaldırmaz. `updatedAt` tutulmaz.
+PUT ve DELETE başarı `200`; bulunamayan içerik `404`. İçerik silme ve yeni görselle güncelleme işlemleri eski yerel `/uploads/public/` kapak dosyasını diskten (`unlink`) temizler; `updatedAt` tutulmaz.
 
 ## Dinamik form API'si
 
@@ -441,11 +441,11 @@ Soru tanımı:
 | `fieldId` | Metin; verilmezse üretilir. İstemcinin cevap anahtarıdır; kalıcı ve benzersiz seçilmeli |
 | `label` | Metin; verilmezse `Soru N` |
 | `description`, `placeholder` | Metin, `""` |
-| `type` | `text`, `textarea`, `number`, `email`, `phone`, `select`, `radio`, `checkbox`, `file`, `date`; varsayılan text |
+| `type` | `text`, `textarea`, `number`, `email`, `phone` (ön yüz `eventContent.mjs` `tel` türü `eventPageService` üzerinden `phone`'a eşlenir), `select`, `radio`, `checkbox`, `file`, `date`; varsayılan text |
 | `required` | Boolean, false; JSON boolean gönderilmeli (`"false"` metni controller'da true olur) |
 | `options` | Metin dizisi; `[]` |
 | `validation.min/max` | Sayı veya null |
-| `validation.regex` | Metin veya null; kayıt edilir ama submit'te çalıştırılmaz |
+| `validation.regex` | Güvenli RegExp deseni veya null (`safePattern` ile modelde ve submit anında `answerError` ile doğrulanır) |
 | `order` | Sayı; verilmezse dizi indeksi |
 
 ### GET çağrıları ve değişkenler
@@ -455,8 +455,8 @@ Soru tanımı:
 | `/forms` | Bearer token | `page=1`, `limit=10` (en fazla 100), `status`, `category`, `search` |
 | `/forms/:id` | Token ve form ID | Yok |
 | `/forms/public/:slugOrId` | Slug veya ID | Yok; token gerekmez |
-| `/forms/:id/responses` | Token ve form ID | `page=1`, `limit=20` (en fazla 100) |
-| `/forms/:id/responses/export` | Token ve form ID | `format=csv` veya `json`, varsayılan csv |
+| `/forms/:id/responses` | Token ve form ID | `page=1`, `limit=20` (en fazla 100), `status` (`PENDING/APPROVED/REJECTED`), `search` |
+| `/forms/:id/responses/export` | Token ve form ID | `format=csv` veya `json` (varsayılan `csv`), `status`, `search` |
 
 Form listesi `status/category` değerlerini büyük harfe çevirir. `search` başlık, açıklama ve slug üzerinde regex arar. Yönetim form GET'leri `createdBy` alanını `fullName/email` ile populate eder. Yanıt listesi ayrıca `form: {id,title,slug,fields}` döndürür.
 
@@ -511,8 +511,7 @@ Submit'in uyguladığı kurallar:
 - Required alanların eksik, null, boş metin veya boş dizi kontrolü.
 - E-posta **metin** değerine temel format kontrolü.
 - Number için `Number(value)` ile sayı kontrolü ve min/max karşılaştırması; kaydedilen değer otomatik olarak number'a normalize edilmiyor.
-
-**Mevcut doğrulama eksikleri:** `phone/date/regex`, seçeneklerin `options` içinde olması, checkbox'ın dizi olması ve genel metin türleri tam doğrulanmıyor. Min/max null sınırları artık uygulanmaz; yalnızca tanımlı sınırlar karşılaştırılır. `fieldId` tekilliği garanti edilmiyor.
+- `phone` (telefon regex + uzunluk), `date` (`YYYY-MM-DD` geçerlilik kontrolü), `select`/`radio` (`options` içi eşleşme), `checkbox` (dizi ve tekil seçenek kontrolü) ve `validation.regex` (`safePattern`) `answerError` üzerinden sunucuda doğrulanır; `fieldId` değerlerinin form içinde benzersizliği (`^[a-zA-Z][a-zA-Z0-9_]{0,99}$`) model `pre('validate')` kancasında zorlanır.
 
 `settings.requireAuth` ve `allowMultipleSubmissions` artık uygulanır. Katılımcı kimliği `participant` referansına yazılır; `respondent.user` ekip hesabı alanıdır ve bu akışta null kalır. `verifiedEmail`, `verificationMethod`, `verifiedAt` backend’den gelir, istek body’siyle değiştirilemez. E-posta soru yanıtı bu kimlikten ayrı bir alandır.
 
@@ -547,9 +546,9 @@ Desteklenen Form Alan Türleri (10 Tür):
 - `number`: Sayısal değer (min/max doğrulamalı).
 - `date`: Tarih seçici (ISO 8601).
 
-CSV sütunları: yanıt ID, tarih, durum, inceleme notu, inceleyen, incelenme tarihi, IP, doğrulanmış e-posta, doğrulama yöntemi, güncel soruların sıralı başlıkları, dosya linkleri. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Export `status` ve `search` filtrelerini destekler; format belirtilmezse varsayılan CSV'dir.
+CSV sütunları (`formController.js`): `Yanıt ID`, `Tarih`, `Başvuru Durumu`, `Değerlendirme Notu`, `IP Adresi`, `Doğrulanmış E-posta`, `Doğrulama Yöntemi`, güncel/tarihsel soru etiketleri (`fields`), `Eklenen Dosyalar`. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Export `status` ve `search` filtrelerini destekler; format belirtilmezse varsayılan CSV'dir.
 
-DELETE `/forms/:id` body almadan formu ve bütün yanıtlarını siler, başarı `200` döner. Dosyaları silmez.
+DELETE `/forms/:id` body almadan formu, bütün yanıtlarını ve ekli özel dosyaları (`/uploads/private/`) atomik transaction sonrasında diskten siler; başarı `200` döner. Form yayındaki bir `EventPage`'e bağlıysa silme yerine kapatma isteyerek `409 Conflict` döndürür.
 
 ### Form Yanıtı Durum İnceleme ve Bildirim API'si
 
@@ -637,7 +636,7 @@ curl -X POST "$API_BASE/hackathon/apply" \
   -F 'verificationCode=123456' -F 'resume=@/yerel/yol/cv.pdf'
 ```
 
-Başarı `201`, `data` içinde `applicationId,teamName,leaderName,appliedAt,status:"PENDING"`. Kod yoksa valid temel alanlardan sonra OTP gönderilir, başvuru kaydedilmez ve **`400`, `requiresVerification:true`** döner. Eksik/geçersiz alan veya OTP `400`.
+Başarı `201`, `data` içinde `applicationId,teamName,leaderName,appliedAt` (veritabanı varsayılan `status:"PENDING"`). Kod yoksa valid temel alanlardan sonra OTP gönderilir, başvuru kaydedilmez ve **`400`, `requiresVerification:true`** döner. Eksik/geçersiz alan veya OTP `400`.
 
 ### Listeleme ve export GET değişkenleri
 
@@ -652,7 +651,7 @@ curl "$API_BASE/hackathon/applications/export?format=csv&status=APPROVED&search=
   -H "Authorization: Bearer $AUTH_TOKEN" -o hackathon-basvurulari.csv
 ```
 
-Export `format=json` için ham başvuru dizisi; diğer değerler ve eksik format için CSV verir. Liste `search` ve `status` filtreleri export'a da uygulanır. CSV sütunları: ID, takım adı, lider adı, e-posta, telefon, üye sayısı, durum, not, inceleyen, incelenme tarihi, fikir, CV linki ve başvuru tarihi.
+Export `format=json` için ham başvuru dizisi; diğer değerler (`json`/`csv` dışı `400`) ve eksik format için CSV verir. Liste `search` ve `status` filtreleri export'a da uygulanır. CSV sütunları: `ID`, `Takım Adı`, `Lider Adı`, `Lider E-posta`, `Lider Telefon`, `Üye Sayısı`, `Proje Fikri`, `Özgeçmiş / CV Linki`, `Başvuru Tarihi`, `Durum`, `Değerlendirme Notu`.
 
 ### Hackathon Başvuru Durum İnceleme API'si
 

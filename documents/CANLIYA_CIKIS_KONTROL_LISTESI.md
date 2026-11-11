@@ -1,16 +1,16 @@
 # GDG On Campus Pamukkale Web Platformu — Canlıya Çıkış Kontrol Listesi ve Sürüm Kabul Raporu
 
-**Tarih:** 10 Kasım 2026  
-**Dal (Branch):** `iyilestirme-ve-test` (Teamwork M1–M5 sonrası güncel kod doğrulaması)  
-**Durum:** KOD & TEST KAPILARI HAZIR — Harici Ortam/Varlık Kontrolleri Aşağıda Listelenmiştir
+**Tarih:** 11 Kasım 2026  
+**Dal (Branch):** `iyilestirme-ve-test` & `dev` (`b4fbf69` Başvuru Durum Yönetimi dahil; `main` henüz merge edilmedi)  
+**Durum:** KOD & TEST KAPILARI HAZIR — Harici Ortam, Docker/Nginx ve Varlık Kontrolleri Aşağıda Listelenmiştir
 
 ---
 
 ## 1. Yönetici Özeti ve Sürüm Durumu
 
-Bu belge, [`documents/SORUNLAR.md`](SORUNLAR.md) ve [`documents/IYILESTIRME_VE_TEST_PLANI.md`](IYILESTIRME_VE_TEST_PLANI.md) belgelerinde yer alan **Blok A–F arası 20 maddenin** `iyilestirme-ve-test` dalında nasıl çözüldüğünü, doğrulanan test sonuçlarını ve canlı ortama (Production) çıkmadan önce tamamlanması gereken **dış ortam / statik varlık ön koşullarını** belgeler.
+Bu belge, [`documents/SORUNLAR.md`](SORUNLAR.md) ve [`documents/IYILESTIRME_VE_TEST_PLANI.md`](IYILESTIRME_VE_TEST_PLANI.md) belgelerinde yer alan **Blok A–F arası 20 maddenin** (`cb8880b`) ve **Başvuru Durum İnceleme İş Akışı + Brevo E-posta Profil Yönlendirmesinin** (`b4fbf69`) `iyilestirme-ve-test` dalında nasıl çözüldüğünü, doğrulanan test sonuçlarını ve canlı ortama (Production) çıkmadan önce tamamlanması gereken **Docker/Nginx, Cloudflare/DNS, Brevo/Google OAuth ve statik varlık ön koşullarını** belgeler.
 
-Tüm geliştirmeler Git izolasyon kuralına uygun olarak **yalnızca `iyilestirme-ve-test` dalında** yürütülmüştür; kullanıcı onayı olmadan `dev` ve `main` dallarına merge/commit yapılmamıştır.
+Tüm teknik eksiklikler ve düzeltme tarifleri ayrıntılı olarak [`Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgesinde toplanmıştır; `main` dalına kullanıcı son onayı olmadan merge yapılmaz.
 
 ---
 
@@ -31,42 +31,40 @@ Tüm geliştirmeler Git izolasyon kuralına uygun olarak **yalnızca `iyilestirm
 | **D.11** | P1.1 | **P1** | [`shared/eventContent.mjs`](../shared/eventContent.mjs), [`StepForm.jsx`](../frontend/hackaton/src/components/StepForm.jsx), [`registration.js`](../frontend/hackaton/src/lib/registration.js) ve [`Admin.jsx`](../frontend/hackaton/src/pages/Admin.jsx) `file`, `number`, `radio`, `date` türlerini ve dosya ekli `FormData` gönderimini destekleyecek şekilde güncellendi. | **TAMAMLANDI** |
 | **D.12** | P1.3 | **P1** | [`main.jsx`](../frontend/hackaton/src/main.jsx) `loadEvent()` hatasını yakalayıp Router kilidini kaldırdı; API erişilemezken de yedek içerik ve uyarı şeridiyle tüm rotalar (`/admin` dahil) açılır. | **TAMAMLANDI** |
 | **D.13** | P2.1 | **P2** | `Admin.jsx` içinde `Taslağı sıfırla` son yayınlanan sunucu verisine (`serverEvent`) bağlandı ve `isEventShape` boş sponsor/jüri/mentor adlarını reddedecek şekilde sıkılaştırıldı. *(Opsiyonel cila: 409'da otomatik revision tazeleme, açılışta `/auth/me` kontrolü ve form kota/tarih düzenleme arayüzü Faz 2'ye bırakılabilir).* | **ANA KISIM TAMAMLANDI** |
-| **D.14** | P3.2 | **P3** | [`frontend/hackaton/index.html`](../frontend/hackaton/index.html) içine SEO (`description`, `og:*`, `twitter:*`) meta etiketleri ve `<link rel="icon" href="/favicon.svg">` eklendi. *Canlı öncesi not:* [`public/fonts/`](../frontend/hackaton/public/fonts/) altında hâlâ ~4,27 MB ham `.ttf` dosyaları bulunur; `.woff2` dönüşümü, `favicon.svg`/`og-image.png` görselleri ve gerçek etkinlik/sponsor içerikleri canlı varlık hazırlığında eklenmelidir. | **META EKLENDİ / VARLIK & İÇERİK BEKLENİYOR** |
+| **D.14** | P3.2 | **P3** | [`frontend/hackaton/index.html`](../frontend/hackaton/index.html) içine SEO (`description`, `og:*`, `twitter:*`) meta etiketleri ve `<link rel="icon" href="/favicon.svg">` eklendi. *Canlı öncesi not:* [`frontend/hackaton/public/fonts/`](../frontend/hackaton/public/fonts/) altında 4 ham `.ttf` dosyası (~4,31 MB), [`frontend/public/fonts/`](../frontend/public/fonts/) altında ise 5 ham `.ttf` dosyası (~6,48 MB) bulunur; `.woff2` dönüşümü, `favicon.svg`/`og-image.png` görselleri ve gerçek etkinlik/sponsor içerikleri canlı varlık hazırlığında eklenmelidir. | **META EKLENDİ / VARLIK & İÇERİK BEKLENİYOR** |
 | **D.15** | P3.0 | **P3** | Etkinlik sitesi testlerindeki async `act(...)` stderr uyarıları giderildi. | **TAMAMLANDI** |
 | **E.16** | P2.2 | **P2** | [`Applications.jsx`](../frontend/src/pages/Applications.jsx) eksik telefon/fikir alanlarında bozuk `tel:undefined` ve boş kutu gizlendi; harici `https://` özgeçmiş linkleri güvenli yeni sekmede açıldı; [`api.js`](../frontend/src/lib/api.js) `downloadPrivateFile` geçersiz URL'leri `ApiError` ile sardı. | **TAMAMLANDI** |
 | **E.17** | P2.2 | **P2** | [`Users.jsx`](../frontend/src/pages/Users.jsx) içine rol filtresi (`ALL`, `PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN`), boş durum mesajı ve tek sayfada (`totalPages <= 1`) pager gizleme eklendi. | **TAMAMLANDI** |
 | **F.18** | P3.1 | **P3** | [`scripts/dev.mjs`](../scripts/dev.mjs) ve [`check-layout.mjs`](../frontend/hackaton/scripts/check-layout.mjs) platforma duyarlı `npm.cmd`/`npm` seçer hale getirildi; Windows kapanışında native `taskkill /pid <pid> /T /F` ağaç sonlandırma eklendi. | **TAMAMLANDI** |
-| **F.19** | P0.4 | **P0** | Çok aşamalı üretim [`Dockerfile`](../Dockerfile), Nginx ters proxy'li [`compose.prod.yaml`](../compose.prod.yaml), [`nginx/nginx.conf`](../nginx/nginx.conf), kök [`.env.example`](../.env.example), güncel [`backend/.env.example`](../backend/.env.example) ve `ensureHackathonPage` hizalı [`seed.js`](../backend/src/utils/seed.js) hazırlandı. | **TAMAMLANDI** |
-| **F.20** | P0.4 | **P0** | Git dal izolasyonu korundu (`iyilestirme-ve-test`; `dev` ve `main` untouched). Canlıya çıkmadan önce Bölüm 3'teki harici Google OAuth, Brevo DNS/key, yedek/geri yükleme ve kullanıcı merge onayı tamamlanmalıdır. | **ALTYAPI HAZIR / DIŞ KONTROLLER AÇIK** |
+| **F.19** | P0.4 | **P0** | Çok aşamalı üretim [`Dockerfile`](../Dockerfile), Nginx ters proxy'li [`compose.prod.yaml`](../compose.prod.yaml), [`nginx/nginx.conf`](../nginx/nginx.conf), kök [`.env.example`](../.env.example), güncel [`backend/.env.example`](../backend/.env.example) ve `ensureHackathonPage` hizalı [`seed.js`](../backend/src/utils/seed.js) hazırlandı. *Canlı öncesi not:* [`Dockerfile`](../Dockerfile) (`frontend-builder`) + [`compose.prod.yaml`](../compose.prod.yaml) içine `ARG VITE_GOOGLE_CLIENT_ID` ve [`nginx/nginx.conf`](../nginx/nginx.conf) içine `:443` SSL + `gdgocpamukkale.com` / `panel.gdgocpamukkale.com` sanal host yönlendirmeleri eklenmelidir. | **KOD HAZIR / PROD BUILD-ARG & TLS AÇIK** |
+| **F.20** | P0.4 | **P0** | `iyilestirme-ve-test` → `dev` merge edildi; `main` (`d218156`) canlı onayına kadar korundu. Canlıya çıkmadan önce Bölüm 3'teki Google OAuth, Brevo DNS/key (`gdgocpamukkale.com`), Cloudflare NS/A kayıtları, yedek/geri yükleme tatbikatı ve kullanıcı `main` merge onayı tamamlanmalıdır. | **DEV MERGE TAMAM / DIŞ KONTROLLER AÇIK** |
+
+*Eklenen Özelliğin Özeti (`b4fbf69` — Başvuru Durum İnceleme ve E-posta Profilleri):* [`applicationStatusService.js`](../backend/src/services/applicationStatusService.js), `PATCH /api/v1/forms/:id/responses/:responseId/status`, `PATCH /api/v1/hackathon/applications/:id/status`, [`emailService.js`](../backend/src/services/emailService.js) profil yönlendirmesi (`default` / `applicationStatus`), rollback koruması ve [`Applications.jsx`](../frontend/src/pages/Applications.jsx) onay/red/bekletme inceleme arayüzü tamamlanıp 350 testlik pakete dahil edildi.
 
 ---
 
 ## 3. Canlıya Çıkış Ön Koşulları (Production Prerequisites)
 
-### 3.1. Google OAuth Web Client ID ve Redirect URI Yapılandırması
-1. **Google Cloud Console:** `https://console.cloud.google.com` adresinde proje açılmalı veya mevcut projeye girilmelidir.
-2. **Kimlik Bilgileri (Credentials):** "APIs & Services" -> "Credentials" -> "Create Credentials" -> "OAuth client ID" seçilir.
-3. **Uygulama Türü:** "Web application" seçilir.
-4. **Yetkilendirilmiş JavaScript Kökenleri (Authorized JavaScript Origins):**
-   - Üretim ortamında kullanılan tam domainler port ve protokolle birlikte girilmelidir:
-     - `https://hackathon.pau.edu.tr`
-     - `https://gdg.pau.edu.tr`
-     - `https://admin.pau.edu.tr`
-   - *Not:* `localhost`, `127.0.0.1` veya farklı portlar Google tarafından ayrı birer origin sayılır.
-5. **Ortam Değişkenleri:**
-   - Sunucu tarafında `backend/.env` içine `GOOGLE_CLIENT_ID=<istemci_kimligi>.apps.googleusercontent.com` tanımlanmalıdır.
-   - İstemci tarafında `frontend/hackaton/.env` içine `VITE_GOOGLE_CLIENT_ID=<istemci_kimligi>.apps.googleusercontent.com` tanımlanmalıdır.
-   - Client Secret sunucu tarafında katılımcı doğrulaması için **gerekli değildir**; backend Google'ın resmi ortak anahtarlarıyla JWT imzasını doğrular.
+### 3.1. Google OAuth Web Client ID Yapılandırması (Redirect URI Boş)
+1. **Google Cloud Console:** `https://console.cloud.google.com` -> *Google Auth Platform / APIs & Services* -> *Credentials* -> **Web application** türünde OAuth Client ID oluşturulur (veya güncellenir); **Audience** ekranı *Publish App* (Üretim) durumuna alınır.
+2. **Authorized JavaScript Origins (Yetkilendirilmiş JavaScript Kaynakları):**
+   - Üretim ve test ortamında kullanılan tam origin'ler (protokol + domain, sondaki `/` olmadan) eklenir:
+     - `https://gdgocpamukkale.com` (gerekirse `https://www.gdgocpamukkale.com`)
+     - `https://panel.gdgocpamukkale.com`
+     - Test için yerelde: `http://localhost:5173`
+3. **Authorized Redirect URIs (Yetkilendirilmiş Yönlendirme URI'leri):**
+   - **Tamamen boş bırakılmalıdır.** Uygulama Google Identity Services (`gsi/client` popup/One Tap credential -> `POST /api/v1/participant-auth/google`) kullandığı için redirect URI kullanmaz.
+4. **Ortam Değişkenleri ve Docker Build Argümanı:**
+   - Sunucu tarafında `backend/.env` içine `GOOGLE_CLIENT_ID=<istemci_kimligi>.apps.googleusercontent.com` tanımlanır (`Client Secret` gerekmez).
+   - İstemci tarafında derleme (`vite build`) öncesinde `frontend/hackaton/.env` (ve Docker üretim derlemesi için `Dockerfile` + `compose.prod.yaml` build `ARG` olarak) `VITE_GOOGLE_CLIENT_ID=<istemci_kimligi>.apps.googleusercontent.com` geçirilir.
 
-### 3.2. Brevo (Sendinblue) E-posta, Domain ve Gönderici Profili Doğrulaması
-1. **API Anahtarı:** Brevo panelinde "SMTP & API" -> "API Keys" altından yeni bir API anahtarı üretilmeli ve `BREVO_API_KEY` değişkenine girilmelidir.
-2. **Domain Doğrulaması (SPF / DKIM / DMARC):**
-   - Gönderici e-posta adresinin (`BREVO_SENDER_EMAIL=noreply@pau.edu.tr`) teslimat oranının %100 olması ve spam klasörüne düşmemesi için PAU DNS sunucusunda Brevo TXT (SPF ve DKIM) kayıtları doğrulanmalıdır.
-3. **E-posta Gönderici Profilleri (Commit `b4fbf69`):**
-   - Genel E-posta Göndericisi: `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `BREVO_REPLY_TO`.
-   - Başvuru Durum Bildirimleri Göndericisi: `BREVO_APPLICATION_SENDER_EMAIL` (veya `BREVO_STATUS_SENDER_EMAIL`), `BREVO_APPLICATION_SENDER_NAME` (veya `BREVO_STATUS_SENDER_NAME`), `BREVO_APPLICATION_REPLY_TO`.
-4. **Üretim Güvenliği:**
-   - `NODE_ENV=production` modunda simülasyon modu kesinlikle kapatılmıştır; geçersiz veya eksik API anahtarında e-posta doğrulaması güvenli bir şekilde reddedilir.
+### 3.2. Brevo (Sendinblue) API İzni, Domain Doğrulaması ve Gönderici Profilleri
+1. **API Anahtarı İzni:** Brevo panelinde *SMTP & API -> API Keys* altından üretilen anahtarda yalnızca **`Transactional email: All`** açık olmalı; diğer tüm 17 izin grubu **`None`** bırakılmalıdır (`BREVO_API_KEY`).
+2. **Domain & Gönderici / Reply-To Ayrımı (DMARC Koruması):**
+   - `gdgocpau@gmail.com` ücretsiz Gmail adresi DMARC politikası nedeniyle `From` (`BREVO_SENDER_EMAIL`) olarak kullanılmamalıdır; aksine spam klasörüne düşme/ret riski oluşur.
+   - Bunun yerine canlı alan adı (`gdgocpamukkale.com`) Brevo *Senders & Domains* altında **SPF ve DKIM** DNS kayıtlarıyla doğrulanıp `BREVO_SENDER_EMAIL=noreply@gdgocpamukkale.com` (gerekirse `BREVO_APPLICATION_SENDER_EMAIL` ile ayrıştırılmış adres) kullanılmalı; katılımcı yanıtlarının kulüp posta kutusuna gelmesi için **`BREVO_REPLY_TO=gdgocpau@gmail.com`** / **`BREVO_APPLICATION_REPLY_TO=gdgocpau@gmail.com`** tanımlanmalıdır.
+3. **Üretim Güvenliği:**
+   - `NODE_ENV=production` modunda simülasyon modu tamamen kapalıdır; geçersiz veya eksik API anahtarında `503`/`502` döner ve başvuru durum güncellemelerinde DB kaydı otomatik geri alınır (rollback).
 
 ### 3.3. MongoDB Replica Set ve Transaction Desteği
 1. **Gereksinim:** Form başvuruları, mükerrer kontrolü ve kota yönetiminde veri tutarlılığı için MongoDB `replicaSet` desteği zorunludur. Standalone (tekil) modda çalışan MongoDB `Form.create` ve `FormResponse.create` transaction'larını reddeder.
@@ -113,7 +111,7 @@ Proje iki katmanlı test mimarisiyle %100 oranında doğrulanmıştır:
   - Hackathon Vite derlemesi: `dist/` çıktıları ve `404.html` üretildi.
 - **Uçtan Uca Testler (E2E):** `npm.cmd run test:e2e` -> **4/4 Playwright Testi Başarılı:**
   1. Doğrulanmış katılımcı başvurusunun panele düşmesi ve CSV export akışı.
-  2. Yeni ekip hesabının yönetici onayından (`PENDING` -> `MEMBER`) sonra giriş yapabilmesi.
+  2. Yeni ekip hesabının yönetici onayından (`PENDING` -> `ORGANIZER`) sonra giriş yapabilmesi.
   3. İçerik yöneticisinin yayınladığı duyuru/etkinliğin diğer tarayıcıda canlı görünmesi.
   4. Duyarlı (responsive) mobil düzen kontrolleri ve taşma (overflow) denetimleri.
 
@@ -158,10 +156,10 @@ Proje iki katmanlı test mimarisiyle %100 oranında doğrulanmıştır:
    docker compose -f compose.prod.yaml exec backend npm run seed
    ```
 
-2. **Ters Proxy ve Port Yönlendirmeleri:**
-   - Hackathon Etkinlik Sitesi & API: Port `80` (HTTP) ve `443` (TLS/HTTPS).
-   - Core Team Yönetim Paneli: Port `8080` (veya `admin.pau.edu.tr` alt alanı).
-   - Nginx yapılandırması `/api/v1` ve `/ready` isteklerini otomatik olarak `backend:5000` servisine yönlendirir.
+2. **Ters Proxy, Domain & TLS Yönlendirmeleri (Cloudflare + Nginx):**
+   - Mevcut [`nginx/nginx.conf`](../nginx/nginx.conf) şu an yalnızca `80` (Hackathon sitesi) ve `8080` (Core Team Panel) HTTP portlarını dinler.
+   - Cloudflare Proxy (`Orange Cloud`) `:8080` portunu desteklemediğinden canlıya çıkmadan önce `nginx/nginx.conf` içine `gdgocpamukkale.com` (Hackathon) ve `panel.gdgocpamukkale.com` (Core Team Panel) `server_name` blokları ile `:443` TLS (Cloudflare Full Strict / Origin Certificate) eklenmeli, [`Dockerfile`](../Dockerfile) + [`compose.prod.yaml`](../compose.prod.yaml) build `ARG VITE_GOOGLE_CLIENT_ID` ile güncellenmelidir.
+   - Nginx `/api/` (`/api/v1`), `/uploads/`, `/health` ve `/ready` isteklerini `backend:5000` servisine yönlendirir (`TRUST_PROXY_HOPS=1`).
 
 ---
 

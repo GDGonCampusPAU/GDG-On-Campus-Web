@@ -9,7 +9,7 @@
 | Parça | Sorumluluk | Doğrulanmış Sonuç |
 | --- | --- | --- |
 | `backend/` | Ekip auth (`tokenVersion` + şifre sıfırlama), katılımcı doğrulama, `Form`/`FormResponse` (`singleSubmissionKey` indeksi + transaction), başvuru durum inceleme (`applicationStatusService` & e-posta profilleri), `EventPage`, `Content` CMS ve legacy hackathon | **47/47** `npm test` + **5/5** `test:roadmap` + **26/26** `challenger`, ESLint **0** hata |
-| `frontend/` | Core Team yönetim paneli (Giriş, Kayıt/OTP, Başvurular inceleme modalı ve filtreleri, CSV, Özel/Harici dosya indirme, rol filtreli `Users`) | **27/27** `npm test` + **3/3** `test:roadmap` + **12/12** `challenger`, build + ESLint **0** hata |
+| `frontend/` | Core Team yönetim paneli (Giriş, Kayıt/OTP, Başvurular kart içi durum inceleme kontrolleri ve filtreleri, CSV, Özel/Harici dosya indirme, rol filtreli `Users`) | **27/27** `npm test` + **3/3** `test:roadmap` + **12/12** `challenger`, build + ESLint **0** hata |
 | `frontend/hackaton/` | Etkinlik vitrin sitesi (API SPOF korumalı), KVKK & 10 alan destekli başvuru sihirbazı, `/admin` editör (`serverEvent` reset + boş isim reddi) | **221/221** `npm test` (`0` `act` uyarısı) + **4/4** `test:roadmap`, build + ESLint **0** hata |
 | `shared/` & `e2e/` | Ortak etkinlik şablonu (`kvkkConsent`, 10 alan türü) + doğrulayıcı; Chromium + MongoDB `rs0` E2E + Layout | **4/4** `test:e2e` + **1/1** `check:layout` geçti |
 
@@ -92,8 +92,8 @@ Mimari ilke: Mevcut katman sınırları (`backend/src/{models,controllers,servic
     - **Çözüm:** `process.platform === 'win32' ? 'npm.cmd' : 'npm'` seçimi ve Windows alt süreç ağacı sonlandırma (`taskkill /pid <pid> /T /F`) ekleyin.
 
 14. **`P3.2` Statik Varlık ve SEO İyileştirmeleri**
-    - **Dosyalar:** [`frontend/hackaton/public/fonts/`](../frontend/hackaton/public/fonts/), [`frontend/hackaton/index.html`](../frontend/hackaton/index.html)
-    - **Çözüm:** 4,27 MB ham `.ttf` fontlarını alt kümeli `.woff2` formatına indirin; favicon ve `og:image` ekleyin.
+    - **Dosyalar:** [`frontend/hackaton/public/fonts/`](../frontend/hackaton/public/fonts/), [`frontend/public/fonts/`](../frontend/public/fonts/), [`frontend/hackaton/index.html`](../frontend/hackaton/index.html)
+    - **Çözüm:** Hackathon (~4,31 MB) ve panel (~6,48 MB) ham `.ttf` fontlarını alt kümeli `.woff2` formatına indirin; `favicon.svg` ve `og:image` ekleyin.
 
 ---
 
@@ -113,7 +113,7 @@ Her commit ve CI koşumunda çalışması beklenen, mevcut davranışları ve ye
 
 ### Katman 2 — Yol Haritası Kabul Kapıları (`npm run test:roadmap`)
 
-Yol haritasındaki **P0 → P2** maddeleri için **TDD / Kabul Testi** olarak yazılmıştır (`5` backend + `3` panel + `4` etkinlik sitesi = **12 kabul kapısı**). Uygulama kodundaki açık bug'lar nedeniyle **`dev` üzerinde fail vermeleri beklenir**; ilgili yol haritası adımı kodlandığında bu kapılar otomatik olarak **pass** durumuna geçmelidir:
+Yol haritasındaki **P0 → P2** maddeleri için **TDD / Kabul Testi** olarak yazılmıştır (`5` backend + `3` panel + `4` etkinlik sitesi = **12 kabul kapısı**). İlgili tüm kod düzeltmeleri tamamlandığı için hem `iyilestirme-ve-test` hem de `dev` üzerinde **12/12 kabul kapısı PASS** durumundadır:
 
 | Kapı | Test Konumu | Doğrulanan Bug / Yol Haritası Gereksinimi |
 | --- | --- | --- |

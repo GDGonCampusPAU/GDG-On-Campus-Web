@@ -1,788 +1,610 @@
 # GDG On Campus Pamukkale — Kapsamlı Proje Eksiklikleri ve Düzeltme Rehberi
 
 **Tarih:** 11 Kasım 2026  
-**Hazırlayan:** Documentation & Technical Audit Ekibi  
-**Kapsam:** GDG On Campus Pamukkale Üniversitesi Web Platformu (Kök Yapı, Backend REST API, Core Team Yönetim Paneli, Hackathon Vitrin ve Başvuru Sitesi, Paylaşılan Modüller, Dağıtım & Docker Altyapısı, Test & CI/CD Takımları)  
-**Çalışma Dalı (Branch):** `iyilestirme-ve-test` (Commit: `b4fbf69`)  
-**Doğrulama Durumu:** 350/350 Test Başarılı, 0 ESLint Hatası, 2 Vite Derlemesi Başarılı  
+**Hazırlayan:** Teknik Denetim ve Dokümantasyon Ekibi  
+**Kapsam:** GDG On Campus Pamukkale Üniversitesi Web Platformu (Kök Yapı, Backend REST API, Core Team Yönetim Paneli, Hackathon Vitrin ve Başvuru Sitesi, Paylaşılan Modüller, Docker/Nginx Altyapısı, Dış Servisler, Test & CI/CD)  
+**Çalışma Dalı (Branch):** `iyilestirme-ve-test` (`b4fbf69` + `d53b4e2` dokümantasyon/audit senkronizasyonu -> `dev` dalına fast-forward merge; `main` kullanıcı onayına kadar dokunulmaz)  
+**Doğrulama Durumu:** **350/350 Test Başarılı** (`47` Backend + `27` Panel + `221` Hackaton + `12` Yol Haritası + `38` Challenger + `4` E2E + `1` Layout), **0 ESLint Hatası**, **2 Vite Derlemesi Başarılı**
 
 ---
 
 ## 1. Giriş ve Yönetici Özeti
 
-Bu doküman, Google Developer Groups On Campus Pamukkale Üniversitesi için geliştirilen web platformunun baştan uca teknik denetimi sonucunda tespit edilen **25 kritik teknik eksiklik, mimari darboğaz, güvenlik açığı ve kullanıcı deneyimi boşluğunu** hiçbir ayrıntı atlanmadan belgelemektedir.
+Bu doküman, Google Developer Groups On Campus Pamukkale Üniversitesi web platformunun uçtan uca teknik denetimi sonucunda tespit edilen **30 eksiklik, mimari darboğaz, güvenlik/bağımlılık riski, üretim dağıtım (Docker/Nginx/Cloudflare/Brevo/Google OAuth) boşluğu ve UX eksikliğini** ayrıntı atlamadan belgelemektedir.
 
-Proje; Express 5 ve Mongoose 9 tabanlı bir REST API, React 18/19 ve Vite tabanlı iki bağımsız ön yüz (Core Team Paneli ve Hackathon Vitrin Sitesi) ile Playwright E2E test takımından oluşan çok katmanlı bir platformdur. Yapılan incelemelerde fonksiyonel testlerin tamamının (Katman 1: 295 birim/entegrasyon testi, Katman 2: 12 kabul kapısı, 38 Challenger testi, 4 E2E senaryosu ve 1 Layout testi olmak üzere 350 test) başarılı olduğu gözlemlenmiştir. Ancak canlıya çıkış (production readiness), varlık optimizasyonu, yasal uyumluluk (KVKK), React durum yönetimi, paket izolasyonu ve bağımlılık güvenliği açılarından çözülmesi gereken somut eksiklikler bulunmaktadır.
-
-Bu rehberde her kusur; kesin dosya yolu, satır aralıkları, etki analizi, kök neden tespiti ve **doğrudan uygulanabilir, eksiksiz kod ve konfigürasyon örnekleriyle** sunulmuştur.
+Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTTP uç noktası), React 19 + Vite tabanlı Core Team Paneli (`frontend/`), React 18 + React Router 7 + Vite tabanlı Hackathon Vitrin ve Başvuru Sitesi (`frontend/hackaton/`) ile Playwright E2E test takımından oluşmaktadır. Fonksiyonel kalite kapılarının tamamı (**350/350 test**) geçmekle birlikte; **11 adet P0 (Canlıya Çıkış Engeli)**, **13 adet P1 (Orta / Mimari & Ürün Tamlığı)** ve **6 adet P2 (Düşük / Hijyen, Dil & İkincil Dokümanlar)** olmak üzere **30 maddenin** canlıya çıkış (`main` merge ve `gdgocpamukkale.com` yayını) öncesinde ve Faz 2 sürecinde ele alınması gerekmektedir.
 
 ---
 
-## 2. Önceliklendirilmiş Eksiklik Matrisi (Defect Priority Matrix)
+## 2. Önceliklendirilmiş Eksiklik Matrisi (30 Madde: 11 P0 / 13 P1 / 6 P2)
 
 | No | Kategori | Eksiklik Tanımı | Konum | Seviye | Öncelik |
 |---|---|---|---|---|---|
-| **DEF-07** | Arayüz & Varlıklar | Hackathon Vitrininde Kırık Favicon ve Eksik OpenGraph Görseli (HTTP 404) | `frontend/hackaton/index.html:7,13,17` | High | **P0** |
-| **DEF-08** | Arayüz & Varlıklar | 4.27+ MB Boyutunda Ham ve Optimize Edilmemiş TTF Font Yükü | `frontend/hackaton/public/fonts/` | High | **P0** |
-| **DEF-11** | Arayüz & Varlıklar | Başvuru Formunda KVKK Aydınlatma Metni Bağlantısının Olmaması | `shared/hackathon-event.json:432` | High | **P0** |
-| **DEF-14** | Mimari & Durum | Vitrinde Reaktif Olmayan Etkinlik Durumu (`let event = base`) | `frontend/hackaton/src/data/event.js:9-16` | High | **P0** |
-| **DEF-17** | Ortam & Dağıtım | Kök `.env.example` Dosyasında Ön Yüz Değişkenlerinin Eksikliği | `.env.example:1-78` | High | **P0** |
-| **DEF-21** | Test & CI/CD | Challenger Güvenlik Testlerinin Varsayılan `npm test` Dışında Kalması | `backend/package.json:10` | High | **P0** |
-| **DEF-23** | Güvenlik | Yüksek Seviyeli Bağımlılık Güvenlik Açıkları (`mongoose`, `multer`, `body-parser`) | `backend/package.json`, `package.json` | High | **P0** |
-| **DEF-25** | Dokümantasyon | API, Veritabanı ve Kurulum Dokümanlarındaki Bayat Açıklamalar | `documents/` | High | **P0** |
-| **DEF-02** | Mimari & Durum | Dokümantasyon Klasör Çift Başlılığı (`documents/` vs `Docs/`) | Kök dizin | Medium | **P1** |
-| **DEF-04** | Mimari & Durum | Kök Dizin Paket Yönetiminde Workspaces Tanımının Bulunmaması | `package.json:1-27` | Medium | **P1** |
-| **DEF-05** | Mimari & Durum | Ön Yüzler Arasında React Sürüm Uyumsuzluğu (React 19 vs React 18) | `frontend/package.json` vs `hackaton` | Medium | **P1** |
-| **DEF-06** | Mimari & Durum | Core Team Panelinde İlkel Hash Tabanlı Yönlendirme (Naive Hash Routing) | `frontend/src/App.jsx:9-17, 31-37` | Medium | **P1** |
-| **DEF-09** | Arayüz & Varlıklar | A11y: Kişi Kartlarında Boş `alt=""` Özelliği (`PersonCard.jsx`) | `frontend/hackaton/src/components/PersonCard.jsx:19` | Medium | **P1** |
-| **DEF-10** | Arayüz & Varlıklar | Footer Sosyal Medya Bağlantılarının Kök Alan Adlarına Yönlenmesi | `shared/hackathon-event.json:444-457` | Medium | **P1** |
-| **DEF-15** | Kod Kalitesi | Atıl ve Çelişkili Veri Modelleri (`Team.js` ve shim modeller) | `backend/src/models/Team.js` | Medium | **P1** |
-| **DEF-16** | Kod Kalitesi | Proje Genelinde Statik Tip Kontrolünün (TypeScript/JSDoc) Bulunmaması | Proje geneli | Medium | **P1** |
-| **DEF-18** | Ortam & Dağıtım | Windows PowerShell Betik Yürütme İlkesi Kısıtı (`npm.ps1`) | `KURULUM.md`, `README.md` | Medium | **P1** |
-| **DEF-19** | Ortam & Dağıtım | Aşırı Dar Node.js Motor Sürümü Kuralı (`>=24.15.0`) | `package.json` dosyaları | Medium | **P1** |
-| **DEF-20** | Performans | Ön Yüz Paketlerinde Kod Bölümleme (Chunk Splitting) Eksikliği | `vite.config.js` dosyaları | Medium | **P1** |
-| **DEF-22** | Test & CI/CD | GitHub Actions CI İş Akışının Tek Bir Seri Adımda Çalışması | `.github/workflows/check.yml:1-20` | Medium | **P1** |
-| **DEF-24** | Güvenlik | Canlı Ortamda `CLIENT_URLS` Boş Bırakıldığında Servis Çöküşü | `backend/src/app.js:33-40` | Medium | **P1** |
-| **DEF-01** | Mimari & Durum | Klasör İsminde Boşluk Karakteri Bulunması (`design folders/`) | `design folders/` | Low | **P2** |
-| **DEF-03** | Mimari & Durum | Yazım Uyumsuzluğu: `frontend/hackaton` vs `backend/.../hackathon` | `frontend/hackaton/` | Low | **P2** |
-| **DEF-12** | Arayüz & Varlıklar | Core Team Panelinde Robots Meta Etiketi Bulunmaması | `frontend/index.html:1-13` | Low | **P2** |
-| **DEF-13** | Arayüz & Varlıklar | Ön Yüz ve Hata Mesajlarında Türkçe / İngilizce Dil Tutarsızlıkları | `Users.jsx`, `roleMiddleware.js` | Low | **P2** |
+| **DEF-07** | Arayüz & Varlıklar | Hackathon Vitrininde Eksik `favicon.svg` ve Kırık `og-image.png` (HTTP 404) | `frontend/hackaton/index.html:7,13,17`, `public/` | High | **P0** |
+| **DEF-08** | Arayüz & Varlıklar | Optimize Edilmemiş Ham TTF Font Yükü (~4,31 MB Hackaton + ~6,48 MB Panel) | `frontend/hackaton/public/fonts/`, `frontend/public/fonts/` | High | **P0** |
+| **DEF-10** | Arayüz & İçerik | Etkinlik Vitrini Yer Tutucu Verileri & Kök Sosyal Medya Bağlantıları (`label`/`url`) | `shared/hackathon-event.json:7,34-53,104-154,444-457` | High | **P0** |
+| **DEF-11** | Hukuk & KVKK | Formda Tıklanabilir KVKK Aydınlatma Bağlantısı / Modalının Olmaması | `StepForm.jsx:154,177`, `Field.jsx:8-12`, `hackathon-event.json:432` | High | **P0** |
+| **DEF-14** | Mimari & Durum | Etkinlik Vitrininde Reaktif Olmayan Modül Değişkeni (`let event = base`) | `frontend/hackaton/src/data/event.js:9-16`, `main.jsx:11-41` | High | **P0** |
+| **DEF-17** | Ortam & Dağıtım | Ortam Değişkeni Şablonlarının Parçalı Olması (`.env.example` vs `.env.docker.example` vs `compose.prod.yaml`) | `.env.example`, `.env.docker.example`, `compose.prod.yaml` | High | **P0** |
+| **DEF-21** | Test & CI/CD | Challenger Güvenlik Testlerinin (26 Backend + 12 Panel = 38 Test) Varsayılan `npm test` Dışında Kalması | `backend/package.json:10`, `frontend/vitest.config.js:5` | High | **P0** |
+| **DEF-23** | Güvenlik & Paket | Bağımlılık Güvenlik Açıkları (`backend --omit=dev` 5 üretim açığı dahil toplam 18 audit uyarısı) | `backend/package.json`, `frontend/`, `hackaton/`, kök | High | **P0** |
+| **DEF-26** | Ortam & Dağıtım | Production `Dockerfile` & `compose.prod.yaml` İçinde `VITE_GOOGLE_CLIENT_ID` Build Argümanı Eksikliği | `Dockerfile:44-61`, `compose.prod.yaml:63-70` | High | **P0** |
+| **DEF-27** | Ortam & Dağıtım | `nginx/nginx.conf` İçinde `:443` TLS & Host Yönlendirmesi Eksikliği (Cloudflare `:8080` Engeli) | `nginx/nginx.conf:6-134`, `compose.prod.yaml:63-70` | High | **P0** |
+| **DEF-28** | Canlı Operasyon | Dış Ortam Ön Koşulları (Cloudflare DNS, Brevo SPF/DKIM/Key, Google OAuth, Üretim Sırları, Backup Tatbikatı) | Dış servisler & sunucu ortamı | High | **P0** |
+| **DEF-02** | Mimari & Dizin | Dokümantasyon Klasör Çift Başlılığı (`documents/` vs `Docs/`) | Kök dizin (`documents/`, `Docs/`) | Medium | **P1** |
+| **DEF-04** | Mimari & Paket | Kök Dizin Paket Yönetiminde `workspaces` Tanımının Bulunmaması (`e2e/server.cjs` kırılgan importları) | `package.json:1-27`, `e2e/server.cjs:12-15` | Medium | **P1** |
+| **DEF-05** | Mimari & Durum | Ön Yüzler Arasında React Sürüm Uyumsuzluğu (Panel React 19 vs Hackaton React 18) | `frontend/package.json:15` vs `hackaton/package.json:20` | Medium | **P1** |
+| **DEF-06** | Mimari & Durum | Core Team Panelinde İlkel Hash Tabanlı Yönlendirme (`window.location.hash`) | `frontend/src/App.jsx:11-37` | Medium | **P1** |
+| **DEF-09** | Arayüz & A11y | `PersonCard.jsx:19` Boş `alt=""` Özelliği ile `PersonCard`/`SponsorGrid` Tembel Yükleme Eksikliği | `PersonCard.jsx:19`, `SponsorGrid.jsx:5` | Medium | **P1** |
+| **DEF-15** | Kod Kalitesi | Atıl Şema Kalıntıları ve Legacy/Dinamik Çift Başvuru Akışı Kararı (`Team.js`, `HackathonApp.js` shim) | `Team.js`, `HackathonApp.js`, `User.js`, `VerificationToken.js` | Medium | **P1** |
+| **DEF-16** | Kod Kalitesi | Proje Genelinde Statik Tip Kontrolünün (`TypeScript` / `jsconfig checkJs`) Bulunmaması | Tüm `src/**/*.js`, `src/**/*.jsx` | Medium | **P1** |
+| **DEF-18** | Ortam & DX | Windows PowerShell `ExecutionPolicy` (`npm.ps1`) Kısıtı & Alt Proje Kullanım Notları | Alt `*/README.md` dosyaları | Medium | **P1** |
+| **DEF-19** | Ortam & Dağıtım | Aşırı Dar Node.js Motor Sürümü Kuralı (`>=24.15.0 <25`) | Tüm `package.json` dosyaları | Medium | **P1** |
+| **DEF-20** | Performans | Ön Yüz Paketlerinde Kod Bölümleme (`React.lazy` & `manualChunks`) Eksikliği (~248 KB & ~230 KB Bundle) | `frontend/vite.config.js`, `hackaton/vite.config.js`, `App.jsx` | Medium | **P1** |
+| **DEF-22** | Test & CI/CD | CI İş Akışının Tek Seri İş Olması, Playwright Cache Eksikliği & Apt Geçici DNS Hatası Kırılganlığı | `.github/workflows/check.yml:1-20` | Medium | **P1** |
+| **DEF-24** | Güvenlik | Canlıda (`NODE_ENV=production`) `CLIENT_URLS` Tanımsızsa `localhost` Fallback'ine Düşülmesi | `backend/src/app.js:33-40` | Medium | **P1** |
+| **DEF-29** | Ürün & UX Tamlığı | Panelde Şifre Sıfırlama / Faz 2 CMS UI Eksikliği & `/admin` Cila Eksikleri (409/`/auth/me`/Kota) | `Login.jsx`, `App.jsx`, `Admin.jsx`, `eventApi.js`, `Users.jsx` | Medium | **P1** |
+| **DEF-01** | Mimari & Dizin | Klasör İsminde Boşluk Karakteri ve Büyük Ham Tasarım Varlıkları (`design folders/` — ~26,2 MB) | `design folders/` (20 dosya) | Low | **P2** |
+| **DEF-03** | Mimari & Dizin | Dizin Yazım Uyumsuzluğu (`frontend/hackaton/` vs `backend/src/modules/hackathon/`) | `frontend/hackaton/` | Low | **P2** |
+| **DEF-12** | Güvenlik & SEO | Core Team Panelinde `robots` Meta Etiketi (ve `X-Robots-Tag`) Eksikliği | `frontend/index.html:1-13` | Low | **P2** |
+| **DEF-13** | Arayüz & Dil | Ön Yüz ve Hata Mesajlarında Türkçe / İngilizce Dil Tutarsızlıkları | `Users.jsx`, `roleMiddleware.js:24`, `authController.js:248` | Low | **P2** |
+| **DEF-25** | Dokümantasyon | İkincil Rehberlerin (`architecture.md`, `KATILIMCI_DOGRULAMA.md`, alt `README.md`) Senkronizasyonu | İkincil dokümanlar & alt README'ler | Low | **P2** |
+| **DEF-30** | Test & Git Hijyeni | E2E Negatif/Geri Alma & Reset Kapsamı Eksikliği, Açık `PR #7` ve `main` Dalı Senkronu | `e2e/flows.spec.cjs`, GitHub `PR #7`, `main` (`d218156`) | Low | **P2** |
 
 ---
 
-## 3. Sekiz Kategori Altında 25 Kusurun Ayrıntılı Analizi ve Çözüm Rehberi
+## 3. Sekiz Kategori Altında 30 Kusurun Ayrıntılı Analizi ve Çözüm Rehberi
 
 ---
 
-### KATEGORİ 1: Mimari ve Durum Yönetimi (Architecture & State Management)
+### KATEGORİ 1: Mimari, Dizin Yapısı ve Durum Yönetimi
 
-#### DEF-01: Boşluk İçeren Dizin İsmi (`design folders/`)
-- **Dosya / Kod Konumu:** `design folders/` (Proje kök dizini)
-- **Öncelik / Ciddiyet:** P2 — Düşük (Low)
-- **Sorun Tanımı ve Etkisi:** Proje kök dizininde yer alan `design folders` dizin adı boşluk karakteri içermektedir. Bu dizin içinde ~22 MB ham TTF font dosyaları bulunmaktadır. Boşluk karakteri içeren yollar; Linux tabanlı CI/CD koşucularında, Docker volume bağlamalarında (`volume mounts`) ve komut satırı betiklerinde tırnak işareti unutulduğunda komutların (`cd`, `cp`, `rsync`) kırılmasına ve hata vermesine sebep olur.
-- **Kök Neden:** İlk tasarım mock-up'larının tasarımcının yerel ortamından doğrudan masaüstü klasör ismiyle depoya eklenmesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. Git dizin taşıma komutuyla klasörü standart kebab-case formatına dönüştürün:
+#### DEF-01: Boşluk İçeren Dizin İsmi ve ~26,2 MB Ham Tasarım Dosyaları (`design folders/`)
+- **Dosya / Kod Konumu:** `design folders/` (Proje kök dizini — toplam 20 dosya, ~26.235.064 bayt / ~26,2 MB)
+- **Öncelik / Ciddiyet:** **P2 — Düşük (Low)**
+- **Sorun Tanımı ve Etkisi:** Dizin adında boşluk bulunması tırnak işareti unutulan kabuk betiklerini ve Linux CI/Docker kopyalama komutlarını kırabilir; ayrıca ağırlıklı olarak ham font varyantlarından oluşan ~26,2 MB veri Git deposu geçmişini gereksiz büyütmektedir.
+- **Kök Neden:** Tasarım teslim paketinin doğrudan masaüstü klasör adıyla repoya eklenmesi.
+- **Adım Adım Çözüm:**
+  1. Dizin adını kebab-case formatına taşıyın:
      ```bash
      git mv "design folders" design-assets
      ```
-  2. Kök dizindeki `.gitignore` dosyasını açıp büyük tasarım dosyalarının yanlışlıkla takip edilmesini engelleyin:
+  2. `.gitignore` içine büyük ham tasarım paketleri için kural ekleyin ve üretimde kullanılmayan italik/ham font varyantlarını ayrıştırın:
      ```gitignore
-     # Tasarım kaynak dosyaları ve ham arşivler
      design-assets/*.zip
      design-assets/raw-exports/
      ```
-  3. Klasör içindeki kullanılmayan ham font varyantlarını (örneğin Google Sans Italic varyantları üretimde kullanılmamaktadır) depodan temizleyerek repo boyutunu küçültün.
 
 ---
 
 #### DEF-02: Dokümantasyon Klasör Çift Başlılığı (`documents/` vs `Docs/`)
-- **Dosya / Kod Konumu:** `documents/` (13 Markdown + 1 PDF) ve `Docs/` (`Docs/superpowers/...`)
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** Windows dosya sistemi büyük/küçük harf duyarsız (`case-insensitive`) çalışırken Linux sunucuları ve GitHub Actions ortamları harf duyarlıdır (`case-sensitive`). Projede hem `documents/` hem de `Docs/` klasörünün bulunması, çapraz platformlarda dosya arama karmaşasına, kırık markdown bağlantılarına ve geliştiricilerin yanlış klasöre dosya yazmasına yol açmaktadır.
-- **Kök Neden:** İlk planlama aşamasında `Docs/superpowers/` klasörünün oluşturulması, daha sonraki sprintlerde ise teknik belgelerin `documents/` altına yazılması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. Standart dokümantasyon kök dizini olarak `docs/` seçilmelidir.
-  2. Git ortamında güvenli birleştirme adımı:
+- **Dosya / Kod Konumu:** Kök dizinde `documents/` ve `Docs/` (`Docs/superpowers/`, `Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`)
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Windows NTFS büyük/küçük harfe duyarsızken (`Docs` = `docs`), Linux ve GitHub harfe duyarlıdır. Platformda hem `documents/` hem de büyük `D` ile `Docs/` bulunması bağlantı karmaşası oluşturur.
+- **Kök Neden:** Önceki plan dosyalarının `Docs/`, ana dokümantasyonun ise `documents/` altında tutulması.
+- **Adım Adım Çözüm:**
+  1. Uygun bir temizlik dalında tek bir küçük harfli `docs/` dizininde birleştirin (iki aşamalı `git mv` Linux/Windows git indeksini sorunsuz günceller):
      ```bash
-     # Geçici bir ara ad kullanarak case duyarlılığını koruyun
-     git mv documents docs-temp
-     git mv Docs/superpowers docs-temp/superpowers
-     git rm -rf Docs
-     git mv docs-temp docs
+     git mv documents docs-tmp
+     git mv Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md docs-tmp/
+     git mv Docs/superpowers docs-tmp/superpowers
+     git mv docs-tmp docs
      ```
-  3. `README.md` ve tüm belgelerdeki `documents/` bağlantılarını `docs/` olarak güncelleyin.
+  2. `README.md` ve tüm çapraz bağlantıları `docs/` altına güncelleyin.
 
 ---
 
-#### DEF-03: Yazım Uyumsuzluğu: `frontend/hackaton` vs `backend/src/modules/hackathon`
+#### DEF-03: Dizin Yazım Uyumsuzluğu (`frontend/hackaton/` vs `backend/src/modules/hackathon/`)
 - **Dosya / Kod Konumu:** `frontend/hackaton/` ve `backend/src/modules/hackathon/`
-- **Öncelik / Ciddiyet:** P2 — Düşük (Low)
-- **Sorun Tanımı ve Etkisi:** İngilizce ve Türkçe teknik literatürde doğru yazım "hackathon"dur. Backend modülü `hackathon` olarak adlandırılmış, `package.json` adı `gdg-pau-hackathon` yapılmış; ancak ön yüz dizininde "h" harfi eksik bırakılarak `frontend/hackaton` yazılmıştır. Bu durum API rotaları, Vite yapılandırması ve dokümantasyon arasında yazım tutarsızlığına yol açmaktadır.
-- **Kök Neden:** İlk ön yüz prototipinin oluşturulması sırasında yapılan yazım hatası.
-- **Adım Adım Ayrıntılı Çözüm:**
-  - *Seçenek A (Mimari Karar Olarak Korumak):* Mevcut tüm CI ve E2E betiklerini kırmamak için dizin adı korunacaksa, `docs/architecture.md` içerisine şu mimari not eklenmelidir:
-    > "Not: `frontend/hackaton` dizin adı geriye dönük betik uyumluluğu için 'h' harfi olmadan korunmuştur; backend modülü ise `hackathon` olarak adlandırılmıştır."
-  - *Seçenek B (Düzeltme):*
-    ```bash
-    git mv frontend/hackaton frontend/hackathon
-    ```
-    Ardından `package.json` içindeki betiklerde (`dev:hackaton`, `check:layout`), `Dockerfile`, `compose.yaml` ve `playwright.config.cjs` yollarında `hackaton` ifadelerini `hackathon` olarak toplu güncelleyin.
+- **Öncelik / Ciddiyet:** **P2 — Düşük (Low)**
+- **Sorun Tanımı ve Etkisi:** Backend modülü ve paket adı (`gdg-pau-hackathon`) doğru "hackathon" yazımını kullanırken ön yüz dizininde "h" harfi eksiktir.
+- **Kök Neden:** Eski `web/` dizininin taşınması sırasındaki adlandırma.
+- **Adım Adım Çözüm:**
+  - *Seçenek A (Karar olarak belgelemek):* Mevcut script, CI ve E2E yollarını bozmamak için adı koruyup `documents/architecture.md` içinde açıkça belgeleyin.
+  - *Seçenek B (Yeniden adlandırmak):* `git mv frontend/hackaton frontend/hackathon` sonrasında root `package.json`, `Dockerfile`, `compose.yaml`, `nginx/nginx.conf`, `.github/workflows/check.yml`, `e2e/` ve `playwright.config.cjs` yollarını eşzamanlı güncelleyin.
 
 ---
 
-#### DEF-04: Kök Dizin Paket Yönetiminde Workspaces Tanımının Bulunmaması
-- **Dosya / Kod Konumu:** `package.json:1-27` (Proje kök dizini)
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** Kök `package.json` dosyası modern npm/yarn/pnpm çalışma alanı (`workspaces`) tanımını kullanmamaktadır. Bağımlılıklar kök, backend, frontend ve hackaton dizinlerinde 4 ayrı kopya olarak indirilmekte; `e2e/server.cjs` Express'i import edebilmek için `require('../backend/node_modules/express')` şeklinde kırılgan göreli yollar kullanmaktadır. Ayrıca `npm audit` her dizinde tek tek çalıştırılmak zorundadır.
-- **Kök Neden:** Projenin başlangıçta bağımsız repoların bir araya getirilmesiyle monorepo'ya dönüştürülmesi ve workspaces yapılandırmasının atlanması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. Kök `package.json` dosyasını açarak `workspaces` alanını ekleyin:
-     ```json
-     {
-       "name": "gdg-on-campus-web",
-       "version": "1.0.0",
-       "private": true,
-       "workspaces": [
-         "backend",
-         "frontend",
-         "frontend/hackaton"
-       ],
-       "scripts": { ... }
-     }
-     ```
-  2. Kök dizinden `npm.cmd install` çalıştırarak bağımlılıkların hoist edilmesini sağlayın.
-  3. `e2e/server.cjs` içindeki import yollarını standart paket adlarına dönüştürün:
-     ```javascript
-     // Eski: const express = require('../backend/node_modules/express');
-     // Yeni:
-     const express = require('express');
-     const mongoose = require('mongoose');
-     ```
+#### DEF-04: Kök Dizin Paket Yönetiminde `workspaces` Tanımının Olmaması
+- **Dosya / Kod Konumu:** `package.json:1-27` ve `e2e/server.cjs:12-15`
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** 4 ayrı `package-lock.json` ile bağımsız kurulum yapılmaktadır. `e2e/server.cjs:12-15` dosyası bağımlılıkları çözümleyebilmek için `require('../backend/node_modules/express')`, `mongoose`, `bcryptjs`, `mongodb-memory-server` yollarına doğrudan müdahale etmektedir. Ayrıca `npm audit` ve CI önbelleklemesi 4 paket arasında bölünmektedir.
+- **Kök Neden:** Bağımsız alt paketlerin monorepo kökünden `workspaces` ile yönetilmemesi.
+- **Adım Adım Çözüm:**
+  1. Kök `package.json` içine `"workspaces": ["backend", "frontend", "frontend/hackaton"]` ekleyin (`Dockerfile` `COPY */package-lock.json` katmanlarını ve `check.yml` `npm ci` adımlarını aynı PR'da güncelleyin).
+  2. `e2e/server.cjs` içindeki kırılgan `../backend/node_modules/...` yollarını doğrudan paket adlarıyla değiştirin.
 
 ---
 
-#### DEF-05: Ön Yüzler Arasında React Sürüm Uyumsuzluğu (React 19 vs React 18)
-- **Dosya / Kod Konumu:** `frontend/package.json:15` (`"react": "^19.2.8"`) vs `frontend/hackaton/package.json:20` (`"react": "^18.3.1"`)
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** Core Team paneli React 19 kullanırken, Hackathon vitrini React 18 kullanmaktadır. İki uygulama arasında ortak UI bileşeni (butonlar, modal pencereler, form girdileri) veya özel kancalar (`useToast`, `useAuth`) paylaşıldığında React context ve hook çakışmaları (invalid hook call) meydana gelecektir.
-- **Kök Neden:** Core Team panelinin daha yeni bir Vite şablonuyla oluşturulması, Hackathon sitesinin ise önceki React 18 LTS şablonunda kalması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `frontend/hackaton/package.json` bağımlılıklarını React 19'a yükseltin:
-     ```json
-     "dependencies": {
-       "react": "^19.2.8",
-       "react-dom": "^19.2.8"
-     },
-     "devDependencies": {
-       "@testing-library/react": "^16.2.0"
-     }
-     ```
-  2. `frontend/hackaton` dizininde `npm.cmd install` çalıştırın.
-  3. `npm.cmd test --prefix frontend/hackaton` ile 221 testin tamamının React 19 üzerinde çalıştığını doğrulayın.
+#### DEF-05: Ön Yüzler Arasında React Sürüm Uyumsuzluğu (Panel React 19 vs Hackaton React 18)
+- **Dosya / Kod Konumu:** `frontend/package.json:15-16` (`"react": "^19.2.8"`) vs `frontend/hackaton/package.json:20-21` (`"react": "^18.3.1"`)
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** İki frontend uygulaması aynı `shared/` veya ortak UI/hook katmanını paylaşmak istediğinde veya `workspaces` ile hoist edildiğinde farklı React major sürümleri `Invalid hook call` / çift React kopyası riski doğurur.
+- **Kök Neden:** İki uygulamanın farklı tarihlerde farklı şablonlarla kurulması.
+- **Adım Adım Çözüm:**
+  1. `frontend/hackaton/package.json` bağımlılıklarını React 19 ile eşitleyin (`react`, `react-dom` `^19.2.8` ve `@vitejs/plugin-react` uyumu).
+  2. `npm.cmd test --prefix frontend/hackaton` (221 + 4 test) ve `npm.cmd run test:e2e` ile tüm vitrin testlerini doğrulayın.
 
 ---
 
-#### DEF-06: Core Team Panelinde İlkel Hash Tabanlı Yönlendirme (Naive Hash Routing)
-- **Dosya / Kod Konumu:** `frontend/src/App.jsx:9-17, 31-37`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** Core Team paneli rota yönetimini tarayıcının `window.location.hash` değerini elle dinleyerek (`getRoute()`) çözmektedir. Kod içinde `// Sayfalar arası geçiş adımında react-router ile değiştirilecek.` notu bulunmaktadır. Bu yöntem; tarayıcı geçmişini (ileri/geri butonları), dinamik URL parametrelerini (`/applications/:id`), sorgu parametrelerini (`?status=PENDING`) ve yetki korumalı alt rotaları (nested protected routes) standart dışı ve kırılgan kılmaktadır.
-- **Kök Neden:** Hızlı prototipleme amacıyla ilk aşamada harici yönlendirme kütüphanesinin eklenmemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `frontend` dizinine `react-router-dom` paketini ekleyin:
-     ```bash
-     npm.cmd install react-router-dom --prefix frontend
-     ```
-  2. `frontend/src/App.jsx` dosyasını declarative router yapısına dönüştürün:
+#### DEF-06: Core Team Panelinde İlkel Hash Tabanlı Yönlendirme (`window.location.hash`)
+- **Dosya / Kod Konumu:** `frontend/src/App.jsx:9-37`, `frontend/src/components/layout/PanelLayout.jsx`
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Panel `#/login`, `#/register`, `#/applications`, `#/users` rotalarını `window.location.hash` ile elle yönetmektedir; `/users` yalnız `ADMIN` rolüne açık (`App.jsx:31`, `userRoutes.js:7`), `MEMBER` rolü ise salt bilgilendirme kartı görmektedir (`App.jsx:55-57`). Tarayıcı geçmişi, derin URL parametreleri (`/applications?status=APPROVED`) ve Faz 2 alt rotaları (`Content`, `Forms`) kırılgan kalmaktadır.
+- **Kök Neden:** İlk fazda router kütüphanesi eklenmeden tek dosya durum anahtarlaması yapılması.
+- **Adım Adım Çözüm:**
+  1. `npm.cmd install react-router-dom --prefix frontend` kurun (Hackaton tarafında zaten `7.18.4` mevcuttur).
+  2. `App.jsx` içinde `ADMIN`/`ORGANIZER`/`MEMBER` yetki sınırlarını birebir koruyarak rota ağacını kurun (`/users` **yalnız `ADMIN`**):
      ```jsx
-     import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-     import Auth from './pages/Auth';
-     import Applications from './pages/Applications';
-     import Users from './pages/Users';
-     import ProtectedRoute from './components/ProtectedRoute';
+     <Route path="/login" element={<Login />} />
+     <Route path="/register" element={<Register />} />
+     <Route path="/forgot-password" element={<ForgotPassword />} />
+     <Route path="/applications" element={
+       <ProtectedRoute allowedRoles={['ORGANIZER', 'ADMIN']}><Applications /></ProtectedRoute>
+     } />
+     <Route path="/users" element={
+       <ProtectedRoute allowedRoles={['ADMIN']}><Users /></ProtectedRoute>
+     } />
+     ```
+  3. Nginx `nginx/nginx.conf:129-133` zaten panel için SPA fallback (`try_files $uri $uri/ /index.html;`) içerdiğinden `BrowserRouter` üretimde güvenle çalışır; `App.test.jsx` ve `e2e/flows.spec.cjs:46` (`/#/register`) testlerini yeni rotalara güncelleyin.
 
-     export default function App() {
+---
+
+#### DEF-14: Etkinlik Vitrininde Reaktif Olmayan Modül Değişkeni (`let event = base`)
+- **Dosya / Kod Konumu:** `frontend/hackaton/src/data/event.js:9-16`, `frontend/hackaton/src/main.jsx:11-41`, `Footer.jsx:1`, `Register.jsx:4`, `Home.jsx`, `Schedule.jsx`, `Team.jsx`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Kritik Mimari Sorun)**
+- **Sorun Tanımı ve Etkisi:** Etkinlik verisi ES modülü düzeyinde mutable bir `let event = base` değişkeninde tutulmaktadır. JavaScript modül değişkenini yeniden atamak React'ı tetiklemez; `/admin` sayfasında `Yayınla` tıklandığında `<App />` içinde başka sayfalara geçilse bile kullanıcı sayfayı F5 ile yenilemeden güncel içeriği veya güncellenmiş başvuru form adımlarını göremez.
+- **Kök Neden:** Başlangıçtaki statik JSON import yapısının React Context yerine modül seviyesi mutasyonla yamalanması.
+- **Adım Adım Çözüm:**
+  1. `frontend/hackaton/src/context/EventContext.jsx` oluşturun (`event`, `formSlug`, `loading`, `error`, `refreshEvent` state'leri ve `useEvent()` kancası).
+  2. `main.jsx` içinde `<App />` bileşenini `<EventProvider>` ile sarmalayın (ilk açılışta `base` fallback korunarak SPOF yaratılmaz).
+  3. Sayfalarda `({ data })` opsiyonel prop uyumluluğunu testler için koruyup `const { event, formSlug } = useEvent()` kullanın (`const view = data ?? event`); `Admin.jsx` içinde `publishEventPage` başarı sonrası `refreshEvent()` çağırın.
+
+---
+
+### KATEGORİ 2: Arayüz, Deneyim, Hukuki Uyumluluk ve Statik Varlıklar
+
+#### DEF-07: Hackathon Vitrininde Eksik `favicon.svg` ve Kırık OpenGraph Görseli (`og-image.png`)
+- **Dosya / Kod Konumu:** `frontend/hackaton/index.html:7,13,17` ve `frontend/hackaton/public/`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High)**
+- **Sorun Tanımı ve Etkisi:** `index.html` `/favicon.svg` ve `/og-image.png` yollarını referans vermesine rağmen `frontend/hackaton/public/` içinde yalnızca `_redirects` ve `fonts/` vardır. Her sayfa yüklemesinde 404 oluşur; WhatsApp, LinkedIn, Telegram ve X paylaşımlarında önizleme görseli görünmez.
+- **Kök Neden:** Tasarım varlıklarının `frontend/hackaton/public/` altına yerleştirilmemesi.
+- **Adım Adım Çözüm:**
+  1. `frontend/public/favicon.svg` dosyasını `frontend/hackaton/public/favicon.svg` konumuna kopyalayın (veya güncel etkinlik ikonunu üretin).
+  2. `1200x630` PNG formatında `frontend/hackaton/public/og-image.png` görselini ekleyin.
+  3. Sosyal medya tarayıcıları (özellikle WhatsApp/Twitter/LinkedIn) göreli `/og-image.png` yolunu her zaman çözemeyebileceği için `frontend/hackaton/index.html` içine mutlak URL'yi (`https://gdgocpamukkale.com/og-image.png`) ve boyut etiketlerini (`og:image:width`, `og:image:height`, `og:url`) yerleştirin.
+
+---
+
+#### DEF-08: Devasa ve Optimize Edilmemiş Ham TTF Font Yükü (~4,31 MB + ~6,48 MB)
+- **Dosya / Kod Konumu:**
+  - `frontend/hackaton/public/fonts/` (4 dosya, **4.307.692 bayt / ~4,31 MB**): `GoogleSans-Regular.ttf` (2,12 MB), `GoogleSans-Bold.ttf` (2,15 MB), `GoogleSansMono-Regular.ttf` (20 KB), `GoogleSansMono-Bold.ttf` (20 KB) + `frontend/hackaton/src/styles/fonts.css:2-24`.
+  - `frontend/public/fonts/` (5 dosya, **6.476.304 bayt / ~6,48 MB**): `GoogleSans-Regular.ttf` (2,12 MB), `GoogleSans-Medium.ttf` (2,17 MB), `GoogleSans-Bold.ttf` (2,15 MB), `GoogleSansMono-Regular.ttf` (20 KB), `GoogleSansMono-Medium.ttf` (20 KB) + `frontend/src/styles/theme.css:6-41`.
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Core Web Vitals & Mobil LCP)**
+- **Sorun Tanımı ve Etkisi:** İki uygulama da sıkıştırmasız ham TrueType (`.ttf`) fontları tüm Unicode glifleriyle sunmaktadır; mobil bağlantıda sayfa ilk açılışında metin gecikir (FOIT/FOUT) ve bant genişliği israf edilir.
+- **Kök Neden:** Tasarım fontlarının `.woff2` alt kümesine dönüştürülmeden doğrudan `public/fonts/` içine konması.
+- **Adım Adım Çözüm:**
+  1. Python `fonttools` + `brotli` ile tüm kullanılan stilleri (`Regular`, `Medium`, `Bold`, `Mono-Regular`, `Mono-Medium`, `Mono-Bold`) yalnızca Latin + Türkçe glif kümesine (`U+0000-00FF,U+011E-011F,U+0130-0131,U+015E-015F,U+2013-2014,U+2018-201D,U+2026,U+20AC`) indirgeyin:
+     ```bash
+     pyftsubset GoogleSans-Regular.ttf --output-file=GoogleSans-Regular.woff2 --flavor=woff2 --unicodes="U+0000-00FF,U+011E-011F,U+0130-0131,U+015E-015F,U+2013-2014,U+2018-201D,U+2026,U+20AC"
+     ```
+  2. Hem `frontend/hackaton/src/styles/fonts.css` hem `frontend/src/styles/theme.css` içindeki `@font-face` kurallarını `.woff2` (`format('woff2')`, `font-display: swap`) olarak güncelleyin ve ~4,31 MB / ~6,48 MB `.ttf` dosyalarını silin (toplam ağırlık ~%95+ azalır).
+  3. `index.html` başlığına `<link rel="preload" href="/fonts/GoogleSans-Regular.woff2" as="font" type="font/woff2" crossorigin />` ekleyin.
+
+---
+
+#### DEF-09: A11y & Görsel Yükleme: `PersonCard.jsx` Boş `alt=""` ve Tembel Yükleme Eksikliği
+- **Dosya / Kod Konumu:** `frontend/hackaton/src/components/PersonCard.jsx:19`, `frontend/hackaton/src/components/SponsorGrid.jsx:5`
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** `PersonCard.jsx:19` içinde `<img src={person.photo} alt="" />` kullanıldığı için fotoğrafı yüklenen jüri üyesi ve mentor görselleri ekran okuyucularda yok sayılır. Ayrıca hem `PersonCard.jsx:19` hem `SponsorGrid.jsx:5` üzerinde `loading="lazy"` ve `decoding="async"` eksiktir; fotoğraf/logo eklendikçe sayfa aşağısı görselleri açılışı gereksiz bloklar.
+- **Kök Neden:** Başlangıçta avatarların dekoratif düşünülmesi ve performans niteliklerinin eklenmemesi.
+- **Adım Adım Çözüm:**
+  1. `PersonCard.jsx:19` içine açıklayıcı `alt` ve lazy yükleme ekleyin (`initials(person.name)` fallback korunur):
+     ```jsx
+     <img
+       src={person.photo}
+       alt={`${person.name}${person.title ? ` — ${person.title}` : ''}`}
+       loading="lazy"
+       decoding="async"
+     />
+     ```
+  2. `SponsorGrid.jsx:5` içine `loading="lazy" decoding="async"` ekleyin.
+
+---
+
+#### DEF-10: Etkinlik Vitrinindeki Yer Tutucu İçerikler ve Kök Sosyal Medya Bağlantıları
+- **Dosya / Kod Konumu:** `shared/hackathon-event.json:7,34-53,104-154,444-457` ve `frontend/hackaton/src/components/Footer.jsx:9-17`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / İçerik & Marka Bütünlüğü)**
+- **Sorun Tanımı ve Etkisi:** Canlıya çıkışa aday varsayılan etkinlik verisinde şu yer tutucular bulunmaktadır:
+  - `location` (satır 7): `"Konum yakında açıklanacak"`
+  - `prizes` (satır 34–53): `"Ödül detayları yakında açıklanacak."`
+  - `people.jury` & `people.mentors` (satır 104–133): `"Jüri Üyesi Bir"`, `"Mentor Bir"`, `"Unvan yakında"`, `photo: null`
+  - `sponsors` (satır 135–154): `"Ana Sponsor"`, `"Destek Sponsor 1/2"`, `logo: null, url: null`
+  - `socials` (satır 444–457): `"https://www.instagram.com/"`, `"https://www.linkedin.com/"`, `"https://x.com/"` (kök platform anasayfaları!)
+- **Kök Neden:** Tasarım aşamasındaki geçici metinlerin henüz kulübün gerçek etkinlik/sponsor/sosyal hesaplarıyla doldurulmamış olması.
+- **Adım Adım Çözüm:**
+  1. Dikkat: `Footer.jsx:13`, `Admin.jsx:77` ve `shared/eventContent.mjs` şeması sosyal nesnelerde **`label`** ve **`url`** anahtarlarını zorunlu tutar (yanlış anahtar kullanılırsa `isEventShape` reddeder; aşağıdaki URL'leri kulübün gerçek resmi hesap adresleriyle değiştirin):
+     ```json
+     "socials": [
+       { "label": "Instagram", "url": "https://www.instagram.com/<kulup-hesabi>/" },
+       { "label": "LinkedIn", "url": "https://www.linkedin.com/company/<kulup-sayfasi>/" },
+       { "label": "X", "url": "https://x.com/<kulup-hesabi>" }
+     ]
+     ```
+  2. Gerçek etkinlik tarihi/saati, kampüs mekanı, gerçek ödüller, onaylı jüri/mentor listesi (en az 1–3 gerçek kayıt), sponsor logoları ve gerçek sosyal hesaplar `/admin` panelinden yayınlanmalı (`PUT /api/v1/event-page/hackathon`) **ve** yedek geri dönüşte sahte metin görünmemesi için `shared/hackathon-event.json` ile senkronlanmalıdır (`frontend/src` ve testlerin beklediği temel şema alanları bozulmadan).
+
+---
+
+#### DEF-11: Başvuru Formunda Tıklanabilir KVKK Aydınlatma Bağlantısı / Modalının Olmaması
+- **Dosya / Kod Konumu:** `shared/hackathon-event.json:432`, `frontend/hackaton/src/components/StepForm.jsx:154,177`, `frontend/hackaton/src/components/Field.jsx:8-12`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / 6698 Sayılı KVKK Uyumluluğu)**
+- **Sorun Tanımı ve Etkisi:** `kvkkConsent` alanı `kind: "checkbox"` türündedir. Ancak **`StepForm.jsx:154` (checkbox) ve `StepForm.jsx:177` (radio), `<Field>` bileşenini kullanmadan doğrudan `<p className="field__hint">{f.hint}</p>` render etmektedir!** İpucu metninde `"Detaylı metin için tıklayınız."` yazsa da hiçbir tıklanabilir link veya modal açılmaz. Sunucu `IP`, `User-Agent`, iletişim ve dosya verisi topladığı için aydınlatma metni sunulmadan alınan rıza hukuken eksik kalır.
+- **Kök Neden:** Checkbox/radio hint alanının düz metin olarak basılması ve gerçek KVKK URL/metninin şablonda bulunmaması.
+- **Adım Adım Çözüm:**
+  1. `javascript:` şemasını engelleyen güvenli markdown link ayrıştırıcı bir `HintText` bileşeni yazıp **hem `StepForm.jsx:154,177` hem de `Field.jsx:8-12` içinde kullanın**:
+     ```jsx
+     function renderHintText(hint) {
+       if (!hint) return null
+       const match = hint.match(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/)
+       if (!match) return hint
+       const [full, label, href] = match
+       const idx = hint.indexOf(full)
        return (
-         <BrowserRouter>
-           <Routes>
-             <Route path="/login" element={<Auth />} />
-             <Route path="/applications" element={
-               <ProtectedRoute allowedRoles={['ORGANIZER', 'ADMIN']}>
-                 <Applications />
-               </ProtectedRoute>
-             } />
-             <Route path="/users" element={
-               <ProtectedRoute allowedRoles={['ADMIN']}>
-                 <Users />
-               </ProtectedRoute>
-             } />
-             <Route path="*" element={<Navigate to="/applications" replace />} />
-           </Routes>
-         </BrowserRouter>
-       );
+         <>
+           {hint.slice(0, idx)}
+           <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+           {hint.slice(idx + full.length)}
+         </>
+       )
      }
      ```
+  2. Alternatif veya ek olarak sitede `/kvkk` aydınlatma metni sayfası ya da modalı oluşturup `shared/hackathon-event.json:432` içindeki `hint` alanını `"Kişisel verilerinizin işlenmesine ilişkin [KVKK Aydınlatma Metni](/kvkk) sayfasını inceleyiniz."` (veya resmi PAU KVKK URL'i) ile güncelleyin.
 
 ---
 
-#### DEF-14: Vitrinde Reaktif Olmayan Etkinlik Durumu (`let event = base`)
-- **Dosya / Kod Konumu:** `frontend/hackaton/src/data/event.js:9-16` ve `frontend/hackaton/src/main.jsx:11-41`
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High / Kritik Mimari Açık)
-- **Sorun Tanımı ve Etkisi:** Hackathon vitrin sitesinde dinamik etkinlik verisi ES modülü düzeyinde mutable bir `let` değişkeni olarak tutulmaktadır:
-  ```javascript
-  export let event = base;
-  export let formSlug = 'hackathon-katilim';
-  export async function loadEvent() {
-    const page = await getEventPage();
-    event = page.event; // <-- Modül değişkeni mutate ediliyor!
-    formSlug = page.formSlug;
-  }
-  ```
-  JavaScript modüllerinde dışa aktarılan bir `let` değişkeninin içeriğini değiştirmek, React'ın Virtual DOM render döngüsünü tetiklemez. Sayfa bileşenleri (`Home`, `Register`, `Schedule`, `Team`) veriyi `props.data = event` varsayılan parametresiyle okuduğundan; `/admin` panelinden yapılan anlık içerik güncellemeleri veya arka planda verinin tazelenmesi sayfaların yeniden render olmasını sağlamaz. Kullanıcı sayfayı F5 ile tamamen yenilemedikçe değişiklikleri göremez.
-- **Kök Neden:** İlk statik prototipte verinin doğrudan JSON dosyasından import edilmesi, daha sonra API katmanı eklenirken React Context mimarisi yerine modül değişkeninin güncellenmesi yoluna gidilmesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `frontend/hackaton/src/context/EventContext.jsx` dosyasını oluşturun:
-     ```jsx
-     import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-     import { getEventPage } from '../lib/eventApi';
-     import baseEvent from '../data/base';
-
-     const EventContext = createContext(null);
-
-     export function EventProvider({ children }) {
-       const [eventData, setEventData] = useState(baseEvent);
-       const [formSlug, setFormSlug] = useState('hackathon-katilim');
-       const [loading, setLoading] = useState(true);
-       const [error, setError] = useState(null);
-
-       const refreshEvent = useCallback(async () => {
-         try {
-           setLoading(true);
-           const page = await getEventPage();
-           if (page?.event) {
-             setEventData(page.event);
-             setFormSlug(page.formSlug || 'hackathon-katilim');
-           }
-         } catch (err) {
-           setError(err.message);
-         } finally {
-           setLoading(false);
-         }
-       }, []);
-
-       useEffect(() => {
-         refreshEvent();
-       }, [refreshEvent]);
-
-       return (
-         <EventContext.Provider value={{ event: eventData, formSlug, loading, error, refreshEvent }}>
-           {children}
-         </EventContext.Provider>
-       );
-     }
-
-     export function useEvent() {
-       const context = useContext(EventContext);
-       if (!context) throw new Error('useEvent must be used within an EventProvider');
-       return context;
-     }
-     ```
-  2. `frontend/hackaton/src/main.jsx` içinde kök bileşeni `<EventProvider>` ile sarmalayın:
-     ```jsx
-     import { EventProvider } from './context/EventContext';
-
-     ReactDOM.createRoot(document.getElementById('root')).render(
-       <React.StrictMode>
-         <EventProvider>
-           <App />
-         </EventProvider>
-       </React.StrictMode>
-     );
-     ```
-  3. `Register.jsx`, `Home.jsx`, `Admin.jsx` vb. bileşenlerde doğrudan `import { event }` yerine `const { event, formSlug } = useEvent();` kancasını kullanın.
-
----
-
-### KATEGORİ 2: Arayüz, Deneyim ve Statik Varlıklar (UI/UX & Assets)
-
-#### DEF-07: Hackathon Vitrininde Eksik Favicon ve Kırık OpenGraph Görseli (HTTP 404)
-- **Dosya / Kod Konumu:** `frontend/hackaton/index.html:7, 13, 17`
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High / Marka & Sosyal Medya İtibarı)
-- **Sorun Tanımı ve Etkisi:** `frontend/hackaton/index.html` başlığında:
-  ```html
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <meta property="og:image" content="/og-image.png" />
-  <meta name="twitter:image" content="/og-image.png" />
-  ```
-  tanımlıdır. Ancak `frontend/hackaton/public/` dizini kontrol edildiğinde sadece `_redirects` ve `fonts/` bulunmaktadır. Tarayıcı her açılışta `/favicon.svg` için 404 hatası üretmekte; bağlantı WhatsApp, LinkedIn, Telegram veya Twitter'da paylaşıldığında kart görseli kırık çıkmaktadır.
-- **Kök Neden:** Varlık dosyalarının `frontend/public/` altında kalması, hackathon projesinin `public/` klasörüne kopyalanmaması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `frontend/public/favicon.svg` dosyasını `frontend/hackaton/public/favicon.svg` konumuna kopyalayın:
-     ```bash
-     copy frontend\public\favicon.svg frontend\hackaton\public\favicon.svg
-     ```
-  2. 1200x630 piksel boyutunda, GDG On Campus Pamukkale Hackathon 2026 temalı optimize edilmiş `og-image.png` görselini `frontend/hackaton/public/og-image.png` konumuna yerleştirin.
-  3. `frontend/hackaton/index.html` dosyasında tam alan adı kullanımını desteklemek üzere `content` etiketine güvenli fallback ekleyin:
-     ```html
-     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-     <meta property="og:image" content="/og-image.png" />
-     <meta property="og:image:width" content="1200" />
-     <meta property="og:image:height" content="630" />
-     <meta name="twitter:card" content="summary_large_image" />
-     <meta name="twitter:image" content="/og-image.png" />
-     ```
-
----
-
-#### DEF-08: Devasa ve Optimize Edilmemiş TTF Font Yükü (4.27+ MB)
-- **Dosya / Kod Konumu:** `frontend/hackaton/public/fonts/` ve `frontend/hackaton/src/styles/fonts.css`
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High / Web Vitals & Mobil Performans)
-- **Sorun Tanımı ve Etkisi:**
-  - `GoogleSans-Bold.ttf`: 2,148,428 bayt (~2.15 MB)
-  - `GoogleSans-Regular.ttf`: 2,119,572 bayt (~2.12 MB)
-  - Toplam font boyutu **4.27 MB**'ın üzerindedir. Bu dosyalar `fonts.css` üzerinden senkron yüklenmektedir. Düşük mobil bağlantılarda (3G/4G) sayfa açılışında içerik saniyelerce çizilememekte (LCP / FCP darboğazı) veya FOIT (Flash of Invisible Text) oluşmaktadır.
-- **Kök Neden:** Masaüstü tasarım paketinden alınan ham TrueType fontların web için optimize edilmeden (Woff2 ve karakter alt-kümeleme yapılmadan) doğrudan `public/fonts/` klasörüne konulması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `fonttools` ve `brotli` kullanarak yalnızca Latin ve Latin-Extended (Türkçe karakterler: `ç, ğ, ı, ö, ş, ü, Ç, Ğ, İ, Ö, Ş, Ü`) gliflerini içeren `.woff2` fontları üretin:
-     ```bash
-     pyftsubset GoogleSans-Regular.ttf --output-file=GoogleSans-Regular.woff2 --flavor=woff2 --unicodes="U+0000-00FF,U+0131,U+0130,U+015F,U+015E,U+011F,U+011E,U+00E7,U+00C7,U+00F6,U+00D6,U+00FC,U+00DC"
-     pyftsubset GoogleSans-Bold.ttf --output-file=GoogleSans-Bold.woff2 --flavor=woff2 --unicodes="U+0000-00FF,U+0131,U+0130,U+015F,U+015E,U+011F,U+011E,U+00E7,U+00C7,U+00F6,U+00D6,U+00FC,U+00DC"
-     ```
-     Bu işlem dosya boyutlarını ~2.15 MB'tan font başına **~35 KB** seviyesine (toplamda ~70 KB) indirecektir (%98 tasarruf).
-  2. `frontend/hackaton/src/styles/fonts.css` dosyasını güncelleyin:
-     ```css
-     @font-face {
-       font-family: 'Google Sans';
-       src: url('/fonts/GoogleSans-Regular.woff2') format('woff2');
-       font-weight: 400;
-       font-style: normal;
-       font-display: swap;
-     }
-
-     @font-face {
-       font-family: 'Google Sans';
-       src: url('/fonts/GoogleSans-Bold.woff2') format('woff2');
-       font-weight: 700;
-       font-style: normal;
-       font-display: swap;
-     }
-     ```
-  3. `frontend/hackaton/index.html` içine `preload` bağlantısı ekleyerek fontun ilk byte'ta indirilmesini sağlayın:
-     ```html
-     <link rel="preload" href="/fonts/GoogleSans-Regular.woff2" as="font" type="font/woff2" crossorigin />
-     ```
-
----
-
-#### DEF-09: A11y: Kişi Kartlarında Boş `alt=""` Özelliği (`PersonCard.jsx`)
-- **Dosya / Kod Konumu:** `frontend/hackaton/src/components/PersonCard.jsx:19`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium / Erişilebilirlik)
-- **Sorun Tanımı ve Etkisi:**
-  ```jsx
-  {person.photo ? <img src={person.photo} alt="" /> : ...}
-  ```
-  `alt=""` kullanımı ekran okuyucu kullanan görme engelli bireyler için görseli tamamen dekoratif kabul eder ve yok sayar. Jüri üyesinin, konuşmacının veya organizatörün adı seslendirilmez.
-- **Kök Neden:** Hızlı arayüz kodlaması sırasında erişilebilirlik (WCAG 2.1 AA) kurallarının göz ardı edilmesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  `PersonCard.jsx` satır 19'u şu şekilde güncelleyin:
-  ```jsx
-  {person.photo ? (
-    <img
-      src={person.photo}
-      alt={`${person.name} - ${person.title || 'Ekip Üyesi'}`}
-      loading="lazy"
-    />
-  ) : (
-    <div className="person-card__fallback-avatar" aria-hidden="true">
-      {person.name ? person.name.charAt(0) : '?'}
-    </div>
-  )}
-  ```
-
----
-
-#### DEF-10: Footer Sosyal Medya Bağlantılarının Kök Alan Adlarına Yönlenmesi
-- **Dosya / Kod Konumu:** `shared/hackathon-event.json:444-457` ve `frontend/hackaton/src/components/Footer.jsx:9-17`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium / Kullanıcı Deneyimi)
-- **Sorun Tanımı ve Etkisi:** Etkinlik sitesinin altbilgisindeki sosyal medya butonları jenerik platform anasayfalarına (`https://www.instagram.com/`, `https://www.linkedin.com/`, `https://x.com/`) gitmektedir. Etkinlikle ilgilenen katılımcılar kulübün resmi hesaplarına ulaşamamaktadır.
-- **Kök Neden:** Şablondaki yer tutucu adreslerin organizasyonun gerçek hesaplarıyla değiştirilmemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  `shared/hackathon-event.json` dosyasındaki `socials` listesini GDG On Campus Pamukkale resmi profilleriyle güncelleyin:
-  ```json
-  "socials": [
-    { "platform": "instagram", "url": "https://www.instagram.com/gdgocpau" },
-    { "platform": "linkedin", "url": "https://www.linkedin.com/company/gdg-on-campus-pamukkale-university/" },
-    { "platform": "x", "url": "https://x.com/gdgocpau" }
-  ]
-  ```
-
----
-
-#### DEF-11: Başvuru Formunda KVKK Aydınlatma Metni Bağlantısının Olmaması
-- **Dosya / Kod Konumu:** `shared/hackathon-event.json:432` ve `frontend/hackaton/src/components/StepForm.jsx`
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High / Hukuki Zorunluluk — 6698 Sayılı Kanun)
-- **Sorun Tanımı ve Etkisi:** Formun 4. adımında zorunlu KVKK rıza onay kutusu yer almaktadır. İpucu metninde "Detaylı metin için tıklayınız." yazmaktadır. Ancak bu metin tıklanamayan düz bir `<p className="field__hint">` etiketi olarak render edilmektedir; herhangi bir link, modal veya sayfa bağlantısı yoktur. 6698 sayılı Kişisel Verilerin Korunması Kanunu uyarınca, aydınlatma yükümlülüğü yerine getirilmeden alınan açık rıza hukuken geçersizdir.
-- **Kök Neden:** Arayüz bileşeninin markdown veya bağlantı ayrıştırma mantığına sahip olmaması ve resmi aydınlatma URL'inin şablona eklenmemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `frontend/hackaton/src/components/Field.jsx` veya `StepForm.jsx` bileşeninde `hint` alanını tıklanabilir bağlantıları açacak şekilde güncelleyin:
-     ```jsx
-     function renderHint(hint) {
-       if (!hint) return null;
-       const urlMatch = hint.match(/\[(.*?)\]\((.*?)\)/);
-       if (urlMatch) {
-         const [full, text, url] = urlMatch;
-         const parts = hint.split(full);
-         return (
-           <p className="field__hint">
-             {parts[0]}
-             <a href={url} target="_blank" rel="noopener noreferrer" className="field__link">
-               {text}
-             </a>
-             {parts[1]}
-           </p>
-         );
-       }
-       return <p className="field__hint">{hint}</p>;
-     }
-     ```
-  2. `shared/hackathon-event.json` satır 432'yi güncelleyin:
-     ```json
-     "hint": "Kişisel verilerinizin işlenmesine ilişkin detaylı aydınlatma metnini okumak için [buraya tıklayınız](https://pau.edu.tr/kvkk-aydinlatma-metni)."
-     ```
-
----
-
-#### DEF-12: Core Team Panelinde Robots Meta Etiketi Bulunmaması
-- **Dosya / Kod Konumu:** `frontend/index.html:1-13`
-- **Öncelik / Ciddiyet:** P2 — Düşük (Low / Güvenlik & SEO)
-- **Sorun Tanımı ve Etkisi:** Core Team paneli dahili bir yönetim arayüzüdür. HTML şablonunda `<meta name="robots" content="noindex, nofollow" />` etiketi bulunmamaktadır. Canlıya alındığında arama motoru botları (Googlebot vb.) panelin giriş sayfasını dizine ekleyebilir ve arama sonuçlarında listeleyebilir.
-- **Kök Neden:** Standart Vite React şablonunun robots meta etiketi olmadan kullanılması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  `frontend/index.html` dosyasına head etiketleri arasına şu satırı ekleyin:
-  ```html
-  <meta name="robots" content="noindex, nofollow" />
-  ```
+#### DEF-12: Core Team Panelinde `robots` Meta Etiketi Eksikliği
+- **Dosya / Kod Konumu:** `frontend/index.html:1-13` (karşılaştırma: `Admin.jsx:402-405` dinamik `noindex` ekliyor ancak Core Team paneli `index.html` içinde hiç yok)
+- **Öncelik / Ciddiyet:** **P2 — Düşük (Low / SEO & Güvenlik Hijyeni)**
+- **Sorun Tanımı ve Etkisi:** `panel.gdgocpamukkale.com` yayına çıktığında arama motoru tarayıcıları iç yönetim panelini dizine ekleyebilir.
+- **Kök Neden:** `frontend/index.html` oluşturulurken meta etiketin eklenmemesi.
+- **Adım Adım Çözüm:**
+  1. `frontend/index.html` `<head>` içine `<meta name="robots" content="noindex, nofollow" />` ekleyin.
+  2. Ek katman olarak `nginx/nginx.conf` içindeki Core Team paneli server bloğuna `add_header X-Robots-Tag "noindex, nofollow" always;` ekleyin.
 
 ---
 
 #### DEF-13: Ön Yüz ve Hata Mesajlarında Türkçe / İngilizce Dil Tutarsızlıkları
-- **Dosya / Kod Konumu:** `frontend/src/pages/Users.jsx:59-62`, `backend/src/middleware/roleMiddleware.js:24`, `frontend/hackaton/src/components/ParticipantVerification.jsx:78`
-- **Öncelik / Ciddiyet:** P2 — Düşük (Low / UX Tutarlılığı)
-- **Sorun Tanımı ve Etkisi:** Paneldeki filtre butonlarında `PENDING`, `ORGANIZER`, `ADMIN` gibi ham İngilizce veritabanı enum değerleri doğrudan son kullanıcıya gösterilmektedir. Backend hata mesajında ise `'Account awaiting admin approval (Hesabınız yönetici onayını bekliyor).'` şeklinde iki dilli melez bir yapı bulunmaktadır. Google GIS butonunda ise `'continue_with'` kullanılmaktadır.
-- **Kök Neden:** Çok dilli altyapı (i18n) kurulmadan parça parça geliştirme yapılması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `frontend/src/pages/Users.jsx` içine etiket haritalaması ekleyin:
-     ```javascript
-     const ROLE_LABELS = {
-       ALL: 'Tümü',
-       PENDING: 'Onay Bekliyor',
-       ORGANIZER: 'Organizatör',
-       ADMIN: 'Yönetici'
-     };
-     ```
-  2. `backend/src/middleware/roleMiddleware.js` ve `authController.js` içindeki hata mesajlarını standart Türkçe yapın:
-     ```javascript
-     return res.status(403).json({
-       success: false,
-       message: 'Hesabınız yönetici onayını beklemektedir.'
-     });
-     ```
+- **Dosya / Kod Konumu:** `frontend/src/pages/Users.jsx:59-64,94-96`, `backend/src/middleware/roleMiddleware.js:24`, `backend/src/controllers/authController.js:248` *(Not: `ParticipantVerification.jsx:78` içindeki `text: 'continue_with'` Google GIS SDK'sının zorunlu enum parametresidir, kullanıcıya gösterilen İngilizce metin hatası değildir.)*
+- **Öncelik / Ciddiyet:** **P2 — Düşük (Low / UX Tutarlılığı)**
+- **Sorun Tanımı ve Etkisi:** `Users.jsx` filtre ve rol seçicisi ham DB enum değerlerini (`PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN`) son kullanıcıya doğrudan basmaktadır. Backend tarafında ise `roleMiddleware.js:24` `'Account awaiting admin approval (Hesabınız yönetici onayını bekliyor).'` mesajını döndürürken, `authController.js:248` `'Account awaiting admin approval (Hesabınız yönetici onayını beklemektedir).'` döndürür; hem çift dilli hem de iki dosya arasında tutarsızdır.
+- **Kök Neden:** Sabit etiket eşlemesi olmadan ham enumların ve eski İngilizce hata dizgelerinin bırakılması.
+- **Adım Adım Çözüm:**
+  1. `Users.jsx` içinde Türkçe etiket sözlüğü (`ALL: 'Tümü'`, `PENDING: 'Onay Bekliyor'`, `MEMBER: 'Üye'`, `ORGANIZER: 'Organizatör'`, `ADMIN: 'Yönetici'`) ekleyin ve ilgili UI testlerini güncelleyin.
+  2. `roleMiddleware.js:24` ve `authController.js:248` mesajlarını standartlaştırırken `backend/tests/` ve Challenger testlerindeki eski dizgi assertions'larını da eşzamanlı güncelleyin.
 
 ---
 
-### KATEGORİ 3: Kod Kalitesi ve Sürdürülebilirlik (Code Quality & Maintainability)
+### KATEGORİ 3: Kod Kalitesi, Şema ve Sürdürülebilirlik
 
-#### DEF-15: Atıl ve Çelişkili Veri Modelleri (`Team.js` ve shim modeller)
-- **Dosya / Kod Konumu:** `backend/src/models/Team.js` ve `backend/src/models/HackathonApp.js`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** Proje dinamik form mimarisine (`Form` ve `FormResponse`) geçmiş durumdadır. `Team.js` modeli aktif hiçbir rotada kullanılmamaktadır. `HackathonApp.js` ise hem kök `models/` altında shim olarak hem de `modules/hackathon/models/HackathonApp.js` altında bulunmaktadır. Yeni bir geliştirici hangi modelin güncel olduğunu anlamakta zorlanmaktadır.
-- **Kök Neden:** Faz 1'deki eski mimarinin temizlenmeden bırakılması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `backend/src/models/Team.js` üzerine açık bir JSDoc ve migration uyarısı ekleyin:
-     ```javascript
-     /**
-      * @deprecated Bu model dinamik Form/FormResponse yapısına geçildiği için atıldır.
-      * Faz 2 veritabanı temizliğinde koleksiyon kaldırılacaktır.
-      */
-     ```
-  2. Kök `models/HackathonApp.js` dosyasını yalnızca modül modeline referans veren temiz bir köprü (`proxy`) olarak koruyun veya import yollarını doğrudan modüle yönlendirin.
+#### DEF-15: Atıl Şema Kalıntıları ve Legacy vs Dinamik Akış Ayrımı
+- **Dosya / Kod Konumu:** `backend/src/models/Team.js:1-4`, `backend/src/models/HackathonApp.js:1-2`, `backend/src/models/User.js:8,55-60`, `backend/src/models/VerificationToken.js:39-40`, `backend/src/modules/hackathon/`
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** `cb8880b` ile `Team.js`, `User.permissions` ve `VerificationToken` `LOGIN_2FA` üzerine `@deprecated` notları eklenmiştir; `backend/src/models/HackathonApp.js` ise `modules/hackathon/models/HackathonApp` için 2 satırlık bir shim re-export'udur. Ancak sistemde hâlâ iki paralel hackathon veri havuzu (`FormResponse` vs legacy `HackathonApp`) ve kullanılmayan şema alanları yaşamaktadır (`API.md:688`).
+- **Kök Neden:** Faz 1 takım başvuru modelinden dinamik Form/FormResponse mimarisine geçilirken geriye dönük uyumluluk için eski kalıntıların korunması.
+- **Adım Adım Çözüm:**
+  1. İlk etkinlik sonrası Faz 2 bakım penceresinde eski `HackathonApp` başvuruları yoksa `ENABLE_HACKATHON_MODULE=false` yapılıp arşivlenebilir; `Team` koleksiyonu ve `User.permissions` alanı migration ile temizlenebilir.
+  2. Kod temizliği yapılırsa bağlı eski model referans testleri ve `m4-challenge` / `API.md` dokümantasyonu eşzamanlı sadeleştirilmelidir.
 
 ---
 
-#### DEF-16: Proje Genelinde Statik Tip Kontrolünün (TypeScript/JSDoc) Bulunmaması
-- **Dosya / Kod Konumu:** Tüm `backend/src/**/*.js`, `frontend/src/**/*.jsx`, `frontend/hackaton/src/**/*.jsx`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** Projede TypeScript veya JSDoc tabanlı statik tip denetimi (`checkJs`) bulunmamaktadır. Dinamik form alanları (`fields[]`), Mongoose modelleri ve API yanıtları çalışma zamanında beklenmeyen tipler aldığında (`null` vs `undefined`, sayı yerine metin) sessiz veri bozulmalarına yol açmaktadır.
-- **Kök Neden:** Başlangıçta projenin saf JavaScript ile hızlıca hayata geçirilmesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. Kök dizine ve her alt projeye `jsconfig.json` ekleyerek VS Code / IDE tip denetimini aktif edin:
+#### DEF-16: Proje Genelinde Statik Tip Kontrolünün (`TypeScript` / `jsconfig checkJs`) Bulunmaması
+- **Dosya / Kod Konumu:** Tüm `backend/src/**/*.js`, `frontend/src/**/*.jsx`, `frontend/hackaton/src/**/*.jsx`, `shared/eventContent.mjs`
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Dinamik `fields[]`, `FormResponse.answers[]`, `eventContent` şeması ve API yanıt sözleşmeleri IDE/build zamanında statik tip denetiminden geçmemektedir.
+- **Kök Neden:** Projenin saf JavaScript olarak geliştirilmiş olması.
+- **Adım Adım Çözüm:**
+  1. Her alt paket için ortamına uygun `jsconfig.json` tanımlayın (**frontend Vite ESM** için `module: "ESNext"` + `moduleResolution: "bundler"`, **backend CommonJS** için `module: "CommonJS"` — yanlış `NodeNext` tanımı `.jsx` Vite importlarını bozar!):
      ```json
      {
        "compilerOptions": {
          "checkJs": true,
          "jsx": "react-jsx",
          "target": "ES2022",
-         "module": "NodeNext",
-         "baseUrl": ".",
-         "paths": {
-           "@/*": ["src/*"]
-         }
+         "module": "ESNext",
+         "moduleResolution": "bundler"
        },
-       "exclude": ["node_modules", "dist"]
+       "include": ["src", "../../shared"]
      }
      ```
-  2. Kritik veri modelleri için JSDoc `@typedef` tanımları ekleyin:
-     ```javascript
-     /**
-      * @typedef {Object} FormField
-      * @property {string} fieldId
-      * @property {string} label
-      * @property {'text'|'textarea'|'email'|'tel'|'select'|'checkbox'|'radio'|'file'|'number'|'date'} type
-      * @property {boolean} required
-      */
+  2. `Form`, `FormResponse`, `EventContent`, `User` nesneleri için ortak `@typedef` JSDoc tanımları ekleyin ve `tsc --noEmit -p <altpaket>/jsconfig.json` kontrolünü ekleyin.
+
+---
+
+### KATEGORİ 4: Ortam Değişkenleri, Geliştirici Deneyimi ve Dağıtım Altyapısı (Docker / Nginx)
+
+#### DEF-17: Ortam Değişkeni Şablonlarının Parçalı Olması
+- **Dosya / Kod Konumu:** `.env.example:1-78`, `.env.docker.example:1-11`, `backend/.env.example:1-92`, `frontend/.env.example:1-3`, `frontend/hackaton/.env.example:1-3`, `compose.prod.yaml:22,47-70`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / DevOps & Dağıtım Riski)**
+- **Sorun Tanımı ve Etkisi:** Kök `.env.example` artık `BREVO_APPLICATION_SENDER_*` değişkenlerini (satır 60–63) içerse de, geliştirme Docker Compose'un kullandığı port/origin değişkenleri `.env.docker.example` (`API_PORT`, `PANEL_PORT`, `HACKATON_PORT`, `MONGO_PORT`, `PUBLIC_API_URL`, `UPLOADS_PATH`) içine dağılmıştır; `compose.prod.yaml` ise ek olarak `WEB_PORT`, `PANEL_PORT` (8080 vs 5174 çakışabilir!) ve ön yüz Google butonu için gerekli `VITE_GOOGLE_CLIENT_ID` build-arg değişkenini kullanır/bekler. Tek kaynak rehber olmadığı için `.env` ve `backend/.env` karıştırılmakta veya `frontend/hackaton/.env` atlanmaktadır.
+- **Kök Neden:** Geliştirme Docker Compose, üretim Docker Compose ve yerel Node çalışma modlarının zaman içinde farklı `.env.example` dosyalarına bölünmesi.
+- **Adım Adım Çözüm:**
+  1. `.env.docker.example` dosyasına `WEB_PORT`, `PANEL_PORT` (`80` / `8080` prod vs `5173` / `5174` dev ayrım notu) ve `VITE_GOOGLE_CLIENT_ID` değişkenlerini net açıklamalarla ekleyin (Dikkat: backend gizli anahtarları `.env.docker.example` içine yazmayın; `backend/.env` içinde kalsın).
+  2. Kök `.env.example` üzerindeki `backend/tests/challenger/m5-challenge.test.js:251-262` doğrulamalarını (`replicaSet=rs0`, `CLIENT_URLS`, `Admin123456!` uyarısı, `BREVO_API_KEY`, `GOOGLE_CLIENT_ID`) koruyarak Docker vs Host dosya ayrım tablosunu netleştirin.
+
+---
+
+#### DEF-18: Windows PowerShell `ExecutionPolicy` (`npm.ps1`) Kısıtı & Alt Paket Kılavuzları
+- **Dosya / Kod Konumu:** `backend/README.md`, `frontend/README.md`, `frontend/hackaton/README.md` (`README.md:19` ve `KURULUM.md:5-25` 11 Kasım'da güncellendi)
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Kök `README.md` ve `KURULUM.md` Windows PowerShell için `npm.cmd` / `npx.cmd` uyarısını içerse de, geliştiricilerin doğrudan alt uygulama klasörlerine (`backend/`, `frontend/`, `frontend/hackaton/`) girip okuyabileceği alt `README.md` dosyalarında henüz bu yönlendirme bulunmamaktadır.
+- **Kök Neden:** Öncelikli güncellemenin kök dokümanlara uygulanıp alt paket README'lerinin sonraya bırakılması.
+- **Adım Adım Çözüm:** Alt uygulama README dosyalarına tek paragraflık Windows PowerShell `npm.cmd` / `npx.cmd` notu ekleyin.
+
+---
+
+#### DEF-19: Aşırı Dar Node.js Motor Sürümü Kuralı (`>=24.15.0 <25`)
+- **Dosya / Kod Konumu:** `package.json:4-6`, `backend/package.json:36-38`, `frontend/package.json:34-36`, `frontend/hackaton/package.json:6-8`, `.nvmrc` (`24`)
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Kodda kullanılan tüm API'ler (`node:test`, `node:crypto randomInt/createHmac`, native `fetch`, `AbortSignal.timeout`) ve Vite 8 (`^20.19.0 || >=22.12.0`) Node 22 LTS üzerinde de çalışabilirken katı `>=24.15.0 <25` kuralı, Node 22 LTS veya daha eski Node 24 minor kurulu ortamlarda `EBADENGINE` uyarısı/reddi üretebilir.
+- **Kök Neden:** Yerel geliştirme ortamındaki kesin Node 24 minor sürümünün `engines` alanına kilitlenmesi.
+- **Adım Adım Çözüm:**
+  - *Seçenek A:* Node 22 LTS üzerinde tüm 350 testi koşturarak `>=22.12.0 <25` aralığına esnetin.
+  - *Seçenek B:* Kurumsal ortam Node 24 standardını koruyacaksa minör alt sınırı en az `>=24.0.0 <25` şeklinde gevşetip `.nvmrc` ve `Dockerfile` (`FROM node:24-bookworm-slim`) ile tutarlı tutun.
+
+---
+
+#### DEF-26: Production `Dockerfile` & `compose.prod.yaml` İçinde `VITE_GOOGLE_CLIENT_ID` Build Argümanı Eksikliği
+- **Dosya / Kod Konumu:** `Dockerfile:44-61`, `compose.prod.yaml:63-70`, `frontend/hackaton/src/components/ParticipantVerification.jsx:61,72,90`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Production'da Google ile Doğrulama Çalışmaz)**
+- **Sorun Tanımı ve Etkisi:** Vite ortam değişkenlerini (`import.meta.env.VITE_GOOGLE_CLIENT_ID`) **derleme (build) zamanında** JS bundle içine gömer; çalışma zamanında container `environment` okuyamaz. Mevcut `Dockerfile` (`frontend-builder` aşaması satır 44–61) ve `compose.prod.yaml` (`web` servisi satır 63–70) hiçbir `ARG VITE_GOOGLE_CLIENT_ID` (veya `ARG VITE_API_URL`) tanımlamamaktadır! Bu durumda `docker compose -f compose.prod.yaml up -d --build` ile üretilen canlı sitede **`Google ile Devam Et` butonu hiç görünmez**.
+- **Kök Neden:** Geliştirme `compose.yaml` dosyasında `frontend/hackaton/.env` Vite dev sunucusu tarafından okunurken üretim multi-stage `Dockerfile`'a build `ARG` eklenmesinin atlanması.
+- **Adım Adım Çözüm:**
+  1. `Dockerfile` içindeki `frontend-builder` aşamasına `ARG` / `ENV` ekleyin:
+     ```dockerfile
+     FROM node:24-bookworm-slim AS frontend-builder
+     WORKDIR /app
+     ARG VITE_API_URL=""
+     ARG VITE_GOOGLE_CLIENT_ID=""
+     ENV VITE_API_URL=${VITE_API_URL}
+     ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
      ```
-
----
-
-### KATEGORİ 4: Ortam Değişkenleri ve Dağıtım Yapılandırması (Configuration & Environment)
-
-#### DEF-17: Kök `.env.example` Dosyasında Ön Yüz Değişkenlerinin Eksikliği
-- **Dosya / Kod Konumu:** `.env.example:1-78` (Kök dizin)
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High / DevOps & Canlıya Alma)
-- **Sorun Tanımı ve Etkisi:** Kök `.env.example` dosyasında veritabanı, JWT ve Brevo değişkenleri varken; Docker Compose ve Vite ön yüzlerinin ihtiyaç duyduğu `VITE_API_URL`, `PUBLIC_API_URL`, `VITE_GOOGLE_CLIENT_ID`, `HACKATON_PORT`, `PANEL_PORT` değişkenleri yer almamaktadır. Projeyi ilk kez klonlayan biri kök `.env` dosyasını oluşturduğunda Docker konteynerleri API'ye bağlanamamakta ve Google butonu çalışmamaktadır.
-- **Kök Neden:** Ortam değişkenlerinin sadece alt dizinlerdeki (`frontend/.env.example`) dosyalara yazılması, kök şablonun senkronize edilmemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  Kök `.env.example` dosyasına aşağıdaki bloğu ekleyin:
-  ```env
-  # ==============================================================================
-  # Ön Yüz (Vite) & Docker Port Yapılandırması
-  # ==============================================================================
-  VITE_API_URL=http://localhost:5000
-  PUBLIC_API_URL=http://localhost:5000
-  VITE_GOOGLE_CLIENT_ID=your_google_web_client_id.apps.googleusercontent.com
-  HACKATON_PORT=5173
-  PANEL_PORT=5174
-  MONGO_PORT=27017
-
-  # ==============================================================================
-  # Brevo E-posta Gönderici Profilleri (Commit b4fbf69)
-  # ==============================================================================
-  BREVO_APPLICATION_SENDER_EMAIL=noreply@pau.edu.tr
-  BREVO_APPLICATION_SENDER_NAME="GDG On Campus Pamukkale"
-  BREVO_APPLICATION_REPLY_TO=iletisim@pau.edu.tr
-  ```
-
----
-
-#### DEF-18: Windows PowerShell Script Yürütme İlkesi Kısıtı (`npm.ps1`)
-- **Dosya / Kod Konumu:** `package.json`, `README.md`, `documents/KURULUM.md`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium / Geliştirici Deneyimi)
-- **Sorun Tanımı ve Etkisi:** Windows kullanıcıları PowerShell üzerinde `npm run check` veya `npm run dev` çalıştırdığında `PSSecurityException: File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled on this system` hatasıyla karşılaşmakta ve projeyi başlatamamaktadır.
-- **Kök Neden:** Windows'un imzasız PowerShell betiklerini (`.ps1`) varsayılan güvenlik ilkesi (`Restricted`) ile engellemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  `KURULUM.md` ve `README.md` dosyalarına açık bir Windows kılavuzu ekleyin:
-  1. Geliştiricilere komutları `.cmd` uzantısıyla çalıştırmaları önerilmelidir (`npm.cmd run check`, `npm.cmd test`, `npx.cmd playwright test`).
-  2. Alternatif olarak PowerShell oturumunda tek seferlik izin verilmelidir:
-     ```powershell
-     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+  2. `compose.prod.yaml` `web` (ve gerekiyorsa `frontend` asset kopyalayan `backend`) build bloğuna `args` ekleyin (`backend/.env` yerine kök `.env` veya `--build-arg` ile geçirilir):
+     ```yaml
+     web:
+       build:
+         context: .
+         target: reverse-proxy
+         args:
+           VITE_API_URL: ${VITE_API_URL:-}
+           VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
      ```
+  3. Üretim derlemesi öncesi `.env` içine `VITE_GOOGLE_CLIENT_ID=<gercek_client_id>` ekleyip `docker compose -f compose.prod.yaml build --no-cache` çalıştırın (`API` ile aynı origin kullanıldığı için `VITE_API_URL` boş bırakılarak göreceli `/api/v1` proxy'si kullanılır).
 
 ---
 
-#### DEF-19: Aşırı Dar Node.js Motor Sürümü Kuralı (`>=24.15.0`)
-- **Dosya / Kod Konumu:** `package.json:4-6`, `backend/package.json:36-38`, `frontend/package.json:34-36`, `frontend/hackaton/package.json:6-8`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium / Dağıtım Uyumluluğu)
-- **Sorun Tanımı ve Etkisi:** Tüm `package.json` dosyalarında `"node": ">=24.15.0 <25"` kuralı konulmuştur. Node.js 24 henüz en yeni (Current) sürümdür. Kurumsal PaaS sağlayıcılarında (AWS Elastic Beanstalk, Render, Vercel, Railway) ve birçok geliştirici makinesinde aktif LTS sürümü olan Node.js 22 (`v22.12.0+`) kuruludur. Bu katı kural gereksiz `EBADENGINE` hatalarına yol açmaktadır.
-- **Kök Neden:** Geliştiricinin yerel makinesindeki Node 24 sürümünü birebir kural olarak sabitlemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  Tüm `package.json` dosyalarındaki `engines` alanını Node 22 LTS'yi de kapsayacak şekilde esnetin:
-  ```json
-  "engines": {
-    "node": ">=22.12.0 <25",
-    "npm": ">=10.0.0"
-  }
-  ```
+#### DEF-27: `nginx/nginx.conf` İçinde `:443` SSL/TLS ve Domain Yönlendirmesi Eksikliği (Cloudflare `:8080` Engeli)
+- **Dosya / Kod Konumu:** `nginx/nginx.conf:6-134`, `compose.prod.yaml:63-70`, `Dockerfile:69`, `backend/tests/challenger/m5-challenge.test.js:230-249`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Production HTTPS & Panel Erişimi Engeli)**
+- **Sorun Tanımı ve Etkisi:** Mevcut `nginx/nginx.conf` yalnızca şifresiz HTTP **`listen 80;`** (Hackathon) ve **`listen 8080;`** (`server_name localhost _;`) dinlemektedir. Cloudflare Proxy (Turuncu Bulut) standart HTTPS için `:443` kullanır ve `:8080` portunu HTTPS üzerinden proxy'lemez; ayrıca Google Identity Services (`gsi/client`) ve modern tarayıcı güvenliği canlıda **`https://`** zorunlu kılar.
+- **Kök Neden:** Üretim Nginx yapılandırmasının henüz alan adları (`gdgocpamukkale.com` ve `panel.gdgocpamukkale.com`) ve TLS sertifikası bağlanmadan yerel port test şablonuyla yazılmış olması.
+- **Adım Adım Çözüm:**
+  1. `nginx/nginx.conf` içine Cloudflare Origin Certificate (veya Let's Encrypt) ile `:443 ssl http2` sanal host bloklarını ekleyin:
+     - `server_name gdgocpamukkale.com www.gdgocpamukkale.com;` -> `/usr/share/nginx/html/hackaton` + `/api/`, `/uploads/`, `/health`, `/ready` proxy
+     - `server_name panel.gdgocpamukkale.com;` -> `/usr/share/nginx/html/panel` + `add_header X-Robots-Tag "noindex, nofollow" always;` + `/api/`, `/uploads/` proxy
+     - `:80` üzerinde üretim alan adlarını `301 https://$host$request_uri;` yönlendirin; *veya* mevcut `m5-challenge.test.js:236-237` (`/listen 80;/`, `/listen 8080;/`) testi kırılmayacaksa localhost/internal healthcheck bloklarını ya da testi güncelleyin.
+  2. Cloudflare arkasında `Client -> Cloudflare -> Nginx -> Express` iki proxy atlaması oluşacağından:
+     - Nginx içine Cloudflare gerçek IP kurallarını (`set_real_ip_from ...; real_ip_header CF-Connecting-IP;`) ekleyip `X-Forwarded-For` zincirini doğru yapılandırın ve `backend` ortamında `TRUST_PROXY_HOPS` değerini topolojiye göre doğrulayın (yalnız Nginx önündeyken `1`, Cloudflare + Nginx `X-Forwarded-For` ekliyorsa `2`). Yanlış değer `express-rate-limit`'in bütün ziyaretçileri aynı Cloudflare IP'si sayıp 429 döndürmesine yol açar!
+  3. `compose.prod.yaml` ve `Dockerfile` içine `443:443` portunu ve `./nginx/certs:/etc/nginx/certs:ro` volume mount'unu ekleyin.
 
 ---
 
-### KATEGORİ 5: Performans ve Optimizasyon (Performance & Optimization)
-
-#### DEF-20: Ön Yüz Paketlerinde Kod Bölümleme (Chunk Splitting) Eksikliği
-- **Dosya / Kod Konumu:** `frontend/vite.config.js` ve `frontend/hackaton/vite.config.js`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** Vite üretim derlemesi alındığında:
-  - `frontend/dist/assets/index-CLd_uMXV.js` -> ~248 kB
-  - `frontend/hackaton/dist/assets/index-WhWcECSJ.js` -> ~230 kB
-  şeklinde tüm sayfalar (Admin içerik düzenleyicisi dahil) tek bir JavaScript dosyasına paketlenmektedir. Sadece vitrin sitesini gezen bir ziyaretçi dahi admin paneli kodlarını indirmektedir.
-- **Kök Neden:** Sayfa bileşenlerinin doğrudan senkron olarak import edilmesi ve Rollup `manualChunks` yapılandırmasının bulunmaması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. `frontend/hackaton/src/App.jsx` içinde sayfa bileşenlerini dinamik import ile tembel yükleyin (`React.lazy`):
-     ```jsx
-     import { lazy, Suspense } from 'react';
-     const Home = lazy(() => import('./pages/Home'));
-     const Register = lazy(() => import('./pages/Register'));
-     const Schedule = lazy(() => import('./pages/Schedule'));
-     const Team = lazy(() => import('./pages/Team'));
-     const Admin = lazy(() => import('./pages/Admin'));
-
-     // Render kısmında:
-     <Suspense fallback={<div className="loading-spinner" />}>
-       <Routes>...</Routes>
-     </Suspense>
-     ```
-  2. `vite.config.js` dosyasına `manualChunks` ekleyin:
-     ```javascript
-     build: {
-       rollupOptions: {
-         output: {
-           manualChunks: {
-             vendor: ['react', 'react-dom']
-           }
-         }
-       }
-     }
-     ```
+#### DEF-28: Canlıya Çıkış Harici Ön Koşullarının Tamamlanmamış Olması (DNS / Brevo / Google / Yedek)
+- **Dosya / Kod Konumu:** Dış servis yönetimleri & sunucu `.env` / `backend/.env` yapılandırmaları (bkz. `documents/CANLIYA_CIKIS_KONTROL_LISTESI.md` Bölüm 3)
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Go-Live Operasyon Engeli)**
+- **Sorun Tanımı ve Etkisi:** Kod ve testler hazır olsa da harici canlı servisler bağlanmadan platform gerçek trafik alamaz:
+  1. **Cloudflare DNS (`gdgocpamukkale.com`):** Alan adı henüz Cloudflare'e transfer edilmemiş veya sunucu A kayıtları (`@`, `panel`, `www`) + SSL **Full (strict)** etkinleştirilmemiştir.
+  2. **Brevo E-posta & DMARC:** `gdgocpau@gmail.com` adresi Gmail DMARC kısıtı nedeniyle `From` (`BREVO_SENDER_EMAIL`) olarak kullanılmamalıdır; aksine gönderiler spam/ret yer. Alan adı Brevo üzerinde **SPF + DKIM** ile doğrulanmalı (`noreply@gdgocpamukkale.com` sender, `gdgocpau@gmail.com` `BREVO_REPLY_TO` / `BREVO_APPLICATION_REPLY_TO`), API Key izni yalnızca **`Transactional email: All`** (diğer 17 izin **`None`**) olarak oluşturulmalıdır. `NODE_ENV=production` iken geçersiz/eksik anahtar `503`/`502` döndürür ve başvuru onay/red işlemlerinde DB değişikliğini rollback eder.
+  3. **Google Cloud OAuth:** OAuth uygulamasının *Publish App* (Üretim) durumuna alınması, *Authorized JavaScript Origins* listesine `https://gdgocpamukkale.com`, `https://panel.gdgocpamukkale.com` (gerekirse `www`) ve test için `http://localhost:5173` eklenmesi; **Authorized Redirect URIs alanının tamamen boş bırakılması**; `GOOGLE_CLIENT_ID` = `VITE_GOOGLE_CLIENT_ID` eşleşmesi gereklidir.
+  4. **Üretim Ortam Sırları:** `backend/.env` içinde güçlü ve benzersiz (32+ karakter) `JWT_SECRET` + `PARTICIPANT_JWT_SECRET`, `CLIENT_URLS=https://gdgocpamukkale.com,https://panel.gdgocpamukkale.com`, 12+ karakter karmaşık `DEFAULT_ADMIN_PASSWORD`, `NODE_ENV=production` ayarlanıp `docker compose -f compose.prod.yaml exec backend npm run seed` çalıştırılmalıdır.
+  5. **Yedekleme & MongoDB Kernel Doğrulaması:** Hedef Linux VPS üzerinde MongoDB 8 `rseq` kernel uyumu (`compose.prod.yaml:19`) test edilmeli; `mongodump` + `backend/uploads/` senkron yedekleme ve ayrı replica set'e `mongorestore` tatbikatı yapılmalıdır.
+- **Kök Neden:** Üretim sunucusu, DNS ve üçüncü taraf hesap yetkilerinin canlıya alma anında tamamlanmayı beklemesi.
+- **Adım Adım Çözüm:** Yukarıdaki 5 adımı `documents/CANLIYA_CIKIS_KONTROL_LISTESI.md` sırasıyla tamamlayın; doğrulamadan `main` dalını canlıya almayın.
 
 ---
 
-### KATEGORİ 6: Test Kapsamı ve CI/CD (Testing & CI/CD)
+### KATEGORİ 5: Performans, Paketleme ve Ürün Tamlığı
+
+#### DEF-20: Ön Yüz Paketlerinde Kod Bölümleme (`React.lazy` & Vite `manualChunks`) Eksikliği
+- **Dosya / Kod Konumu:** `frontend/vite.config.js`, `frontend/hackaton/vite.config.js`, `frontend/hackaton/src/App.jsx`, `frontend/src/App.jsx`
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Mevcut üretim build'lerinde tüm rotalar (public ziyaretçilerin hiç girmediği `/admin` dahil) tek bir JS dosyasında paketlenmektedir (`frontend/dist/assets/index-CLd_uMXV.js` = **247.605 bayt / ~248 KB**, `frontend/hackaton/dist/assets/index-WhWcECSJ.js` = **230.441 bayt / ~230 KB**).
+- **Kök Neden:** Senkron statik sayfa importları ve `rollupOptions.output.manualChunks` tanımının yapılmaması.
+- **Adım Adım Çözüm:**
+  1. `frontend/hackaton/src/App.jsx` içinde `Admin`, `Register`, `Schedule`, `Team`, `NotFound` bileşenlerini `lazy(() => import(...))` + `<Suspense fallback={...}>` yapısına geçirin (giriş açılışı için `Home` doğrudan tutulabilir).
+  2. Her iki `vite.config.js` dosyasına `manualChunks: { vendor: ['react', 'react-dom'] }` ekleyin (gerekirse Router ayrı chunk).
+
+---
+
+#### DEF-29: Ürün & UX Eksiklikleri (Panel Şifre Sıfırlama UI, Faz 2 CMS Ekranları & `/admin` Cila)
+- **Dosya / Kod Konumu:** `frontend/src/pages/Login.jsx`, `frontend/src/lib/api.js`, `frontend/src/App.jsx`, `frontend/src/pages/Users.jsx`, `frontend/hackaton/src/pages/Admin.jsx:112,260-303`, `frontend/hackaton/src/lib/eventApi.js:15-16`
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Backend API'de tam çalışan bazı kabiliyetlerin henüz kullanıcı arayüzü veya otomasyonu yoktur:
+  1. **Şifre Sıfırlama Arayüzü Eksik:** Backend'de `POST /api/v1/auth/forgot-password` ve `/reset-password` mevcut olup testli olmasına rağmen [`frontend/src/pages/Login.jsx`](../frontend/src/pages/Login.jsx) ve [`frontend/src/lib/api.js`](../frontend/src/lib/api.js) içinde **"Şifremi Unuttum"** akışı yoktur. Ekip üyesi şifresini unutursa API'ye manuel istek atmak zorunda kalır.
+  2. **Faz 2 `Content` ve Çoklu `Form` Panel Ekranları Eksik:** Backend `/content` ve `/forms` CRUD uç noktaları hazır ancak Core Team paneli (`frontend/`) yalnızca `event-page/hackathon` başvurularını ve kullanıcı onaylarını (`Users.jsx`) yönetmektedir; `Users.jsx` ayrıca backend'deki sabit `limit=50` değerini UI'dan özelleştirmez.
+  3. **Etkinlik Sitesi Tek Slug (`hackathon`) Bağlı & `/admin` Cila Kalemleri:**
+     - `eventApi.js:15-16` yalnızca `/event-page/hackathon` (`hackathon-katilim`) yolunu kullanır.
+     - `Admin.jsx:290-303` `409 Conflict` aldığında güncel `revision` verisini otomatik çekip fark uyarısı göstermez; kullanıcı sayfayı yenilemek zorunda kalır.
+     - Hem `Admin.jsx:390-397` hem Core Team `App.jsx:21` açılışta depolanan token'ı `GET /api/v1/auth/me` ile doğrulamaz (süresi dolmuş/rolü değişmiş oturum ancak yazma/listeleme anında `401` ile düşer).
+     - `Admin.jsx` üzerinden `Form` kotası (`maxSubmissions`), tarih aralığı (`startDate`/`endDate`), `allowMultipleSubmissions` ve `verificationMethods` düzenlenemez; sponsor/jüri görselleri doğrudan dosya yüklenemez (yalnız URL girilir); `Admin.jsx:112` hâlâ eski sabit adı (`UNLOCK_KEY = 'hackathon-admin-unlocked'`) taşır.
+- **Kök Neden:** Hackathon MVP teslimine odaklanılırken Faz 2 ve yardımcı editör ekranlarının sonraya bırakılması.
+- **Adım Adım Çözüm:** Önce Core Team `Login.jsx` içine "Şifremi Unuttum" (`forgot-password`/`reset-password`) akışını ve `App.jsx` / `Admin.jsx` açılışına `/auth/me` oturum doğrulamasını ekleyin; ardından `409 Conflict` otomatik revizyon yenileme ve Faz 2'de `Content` / Çoklu `Form` yönetim sayfalarını planlayın.
+
+---
+
+### KATEGORİ 6: Test Kapsamı, CI/CD ve Dal Hijyeni
 
 #### DEF-21: Challenger Güvenlik Testlerinin Varsayılan `npm test` Dışında Kalması
-- **Dosya / Kod Konumu:** `backend/package.json:10`
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High / Kalite Güvencesi)
-- **Sorun Tanımı ve Etkisi:** `backend/package.json` içindeki test komutu:
-  ```json
-  "test": "node --test --test-concurrency=1 tests/*.test.js"
-  ```
-  Bu ifade yalnızca `backend/tests/` kökündeki testleri çalıştırmaktadır. `backend/tests/challenger/` altındaki 3 dosyada bulunan **26 adet kritik güvenlik, SQL/NoSQL enjeksiyonu, regex DoS, XSS ve sınır testi** standart `npm test` veya `npm run check` koşumunda ÇALIŞTIRILMAMAKTADIR.
-- **Kök Neden:** Challenger testlerinin sonradan eklenmesi ve glob deseninin alt klasörleri kapsayacak şekilde güncellenmemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  `backend/package.json` satır 10'daki betiği şu şekilde güncelleyin:
-  ```json
-  "test": "node --test --test-concurrency=1 tests/*.test.js tests/challenger/*.test.js"
-  ```
-  Bu sayede `npm.cmd test` veya kök `npm.cmd run check` çalıştırıldığında 26 ek güvenlik testi de otomatik olarak doğrulanacaktır.
+- **Dosya / Kod Konumu:** `backend/package.json:10` ve `frontend/vitest.config.js:5`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Kalite Güvencesi)**
+- **Sorun Tanımı ve Etkisi:**
+  - `backend/package.json:10` yalnız `tests/*.test.js` desenini çalıştırdığı için `backend/tests/challenger/{m1,m2,m5}-challenge.test.js` içindeki **26 stres/güvenlik testi** `npm run check` sırasında atlanır.
+  - `frontend/vitest.config.js:5` yalnız `include: ['src/**/*.test.{js,jsx}']` içerdiği için `frontend/tests/challenger/m4-challenge.test.jsx` içindeki **12 Challenger testi** `npm run check` sırasında atlanır.
+  - Toplam **38 adet** kritik sınır ve güvenlik testi yalnızca manuel çalıştırılmaktadır.
+- **Kök Neden:** Deneysel doğrulama paketi olarak ayrı klasörlere yazılan testlerin kök paket betiklerine bağlanmamış olması.
+- **Adım Adım Çözüm:**
+  1. `backend/package.json:10` içindeki `test` betiğini `node --test --test-concurrency=1 tests/*.test.js tests/challenger/*.test.js` (veya ayrı `"test:challenger"` betiği ekleyip kök `check`'e bağlayarak) genişletin.
+  2. `frontend/vitest.config.js:5` içine `'tests/challenger/**/*.test.{js,jsx}'` kalıbını (veya `test:challenger` scriptini) ekleyin.
 
 ---
 
-#### DEF-22: GitHub Actions CI İş Akışının Tek Bir Seri Adımda Çalışması
+#### DEF-22: GitHub Actions CI İş Akışının Tek Seri İş Olması, Cache Eksikliği ve Apt DNS Kırılganlığı
 - **Dosya / Kod Konumu:** `.github/workflows/check.yml:1-20`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** GitHub Actions iş akışı tek bir job altında lint, test, build ve E2E adımlarını ardışık (seri) çalıştırmaktadır. Bir lint hatası saatlerce sürebilecek Playwright adımlarını beklemekte; Playwright tarayıcı ikilileri önbelleğe (cache) alınmadığı için her CI koşumunda yüzlerce megabayt indirme yapılmaktadır.
-- **Kök Neden:** İlk CI dosyasının en basit şablonla hazırlanması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  `.github/workflows/check.yml` dosyasını bağımsız işlere (Jobs) ayırın ve Playwright önbelleklemesi ekleyin:
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** Mevcut CI tek bir `check` job'ı içinde `npm run setup`, `npm run check`, `npx playwright install --with-deps chromium`, `npm run test:e2e` adımlarını sırayla çalıştırmaktadır. Yeşil bir koşum ~1m40s sürmektedir; ancak **`d53b4e2` sonrası Ubuntu runner apt depolarında yaşanan geçici DNS kesintisi (`Temporary failure resolving 'azure.archive.ubuntu.com'`)** nedeniyle **`npm run check` geçmesine rağmen** iş akışı ~11 dakikada Playwright adımında fail vermiştir. Playwright tarayıcıları önbelleğe alınmadığından her koşuda baştan indirilmektedir.
+- **Kök Neden:** Bağımsız iş bölümü, Playwright tarayıcı cache'i ve apt geçici ağ hatalarına karşı yeniden deneme (retry) olmaması.
+- **Adım Adım Çözüm:**
+  `.github/workflows/check.yml` dosyasını `.nvmrc` (**Node 24**) ile uyumlu kalarak paralel `lint-and-unit` ve `e2e` job'larına bölün, `actions/cache@v4` ekleyin ve `apt`/Playwright kurulumuna retry sarın:
   ```yaml
-  name: CI Check
-  on: [push, pull_request]
-
   jobs:
-    lint:
+    check:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v4
         - uses: actions/setup-node@v4
-          with: { node-version: 22, cache: 'npm' }
-        - run: npm ci
-        - run: npm run lint
-
-    unit-tests:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-node@v4
-          with: { node-version: 22, cache: 'npm' }
-        - run: npm ci
-        - run: npm test
+          with:
+            node-version-file: .nvmrc
+            cache: npm
+            cache-dependency-path: |
+              package-lock.json
+              backend/package-lock.json
+              frontend/package-lock.json
+              frontend/hackaton/package-lock.json
+        - run: npm run setup
+        - run: npm run check
 
     e2e:
       runs-on: ubuntu-latest
+      needs: check
       steps:
         - uses: actions/checkout@v4
         - uses: actions/setup-node@v4
-          with: { node-version: 22, cache: 'npm' }
-        - run: npm ci
-        - name: Cache Playwright Browsers
-          uses: actions/cache@v4
+          with:
+            node-version-file: .nvmrc
+            cache: npm
+            cache-dependency-path: |
+              package-lock.json
+              backend/package-lock.json
+              frontend/package-lock.json
+              frontend/hackaton/package-lock.json
+        - run: npm ci && npm ci --prefix backend && npm ci --prefix frontend && npm ci --prefix frontend/hackaton
+        - uses: actions/cache@v4
           with:
             path: ~/.cache/ms-playwright
             key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-        - run: npx playwright install --with-deps chromium
+        - name: Install Playwright with retry
+          run: |
+            for i in 1 2 3; do
+              npx playwright install --with-deps chromium && break
+              sleep 10
+            done
         - run: npm run test:e2e
   ```
 
 ---
 
-### KATEGORİ 7: Güvenlik ve Bağımlılık Açıkları (Security & Compliance)
-
-#### DEF-23: Yüksek Seviyeli Bağımlılık Güvenlik Açıkları (`npm audit`)
-- **Dosya / Kod Konumu:** `backend/package.json`, `package.json`
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High / Sistem Güvenliği)
-- **Sorun Tanımı ve Etkisi:** `npm audit --prefix backend` çalıştırıldığında 8 güvenlik açığı (4 high, 4 moderate) raporlanmaktadır:
-  1. `mongoose` 9.0.0-9.11.3: Prototip kirlenmesi (`Schema.prototype.virtual()`) ve discriminator anahtarı atlatması (GHSA-wr5m-5jph-8m96, GHSA-6972-9mcm-vhwj).
-  2. `multer` 2.0.0-2.4.0: Asenkron dosya filtresi sonrasında istek sonlandırıldığında sunucu çökmesi (DoS) (GHSA-q7qp-rjg7-q26m).
-  3. `body-parser` 2.0.0-2.3.0: Sıkıştırılmış istek gövdesi artık baytları ile DoS (GHSA-27r3-jxmh-p828).
-  4. `zod` < 4.6.6 & `undici` 8.0.0-8.12.1: Bellek tükenmesi ve HTTP istek kaçakçılığı.
-- **Kök Neden:** Paketlerin kilitli sürümlerinin yamalı (patched) sürümlere güncellenmemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. Yamalı sürümlere geçiş için paketleri güncelleyin:
-     ```bash
-     npm.cmd audit fix --prefix backend
-     npm.cmd install mongoose@latest multer@latest body-parser@latest --prefix backend
-     npm.cmd install zod@latest undici@latest --prefix frontend
-     ```
-  2. `npm.cmd run check` çalıştırarak hiçbir kırıcı değişiklik olmadığını ve 350 testin başarıyla geçtiğini doğrulayın.
+#### DEF-30: E2E Negatif/Geri Alma Senaryoları Eksikliği ve Git Dal / PR Hijyeni
+- **Dosya / Kod Konumu:** `e2e/flows.spec.cjs:1-94`, Git `main` (`d218156`), GitHub `PR #7`
+- **Öncelik / Ciddiyet:** **P2 — Düşük (Low)**
+- **Sorun Tanımı ve Etkisi:**
+  1. `e2e/flows.spec.cjs` artık `Onayla` ve `CSV` indir akışını (satır 33–43) doğrulasa da; **başvuru reddetme (`Reddet` + red notu)**, **`Beklemeye al` ile `PENDING`'e geri döndürme**, **`forgot-password`/`reset-password`** akışı ve **dosya (`<input type="file">`) yükleme** senaryolarını tarayıcı E2E seviyesinde henüz kapsamaz.
+  2. `main` (`d218156`) canlı ortam P0 varlık/Altyapı hazırlıkları tamamlanana kadar bilinçli olarak geride beklemektedir; ayrıca GitHub üzerindeki eski `PR #7` (`Dev`, 2026-10-21) açık kalmıştır.
+- **Kök Neden:** Durum yönetimi onay akışının yeni eklenmesi ve canlıya geçiş öncesi kontrollü branch disiplini.
+- **Adım Adım Çözüm:** `e2e/flows.spec.cjs` içine `Reddet -> Beklemeye al` ve dosya ekli form yükleme testlerini ekleyin; canlı P0 adımları (`DEF-07/08/10/11/14/23/26/27/28`) tamamlandığında kullanıcı onayıyla `dev -> main` release merge yapıp eski `PR #7`'yi kapatın.
 
 ---
 
-#### DEF-24: Canlı Ortamda `CLIENT_URLS` Boş Bırakıldığında Servis Çöküşü
+### KATEGORİ 7: Güvenlik ve Bağımlılık Açıkları
+
+#### DEF-23: Bağımlılık Güvenlik Açıkları (`npm audit` — Üretim ve Geliştirme Paketleri)
+- **Dosya / Kod Konumu:** `backend/package.json`, `frontend/package.json`, `frontend/hackaton/package.json`, kök `package.json`
+- **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Üretim Çalışma Zamanı Açıkları)**
+- **Sorun Tanımı ve Etkisi:** Doğrudan `npm.cmd audit` çalıştırıldığında elde edilen doğrulanmış açık dağılımı:
+  - **`backend/` (Üretim `--omit=dev`: 5 açık — 3 high, 2 moderate; toplam dev dahil: 8 açık — 4 high, 4 moderate):**
+    - `mongoose` `9.0.0–9.11.3` (*High*, 4 danışma: GHSA-gg4r-jv3p-qx3c, GHSA-wr5m-5jph-8m96, GHSA-8332-j7wj-wjw4, GHSA-6972-9mcm-vhwj — prototype/discriminator & sanitizeFilter açıkları)
+    - `multer` `2.0.0–2.4.0` (*High*, GHSA-q7qp-rjg7-q26m — pending async fileFilter DoS)
+    - `body-parser` `2.0.0–2.3.0` (*High*, GHSA-27r3-jxmh-p828 — Express transitif DoS)
+    - `ip-address` `<=10.7.3` (*Moderate*, GHSA-rxp7-6hxx-x8q5), `qs` `6.7.0–6.16.0` (*Moderate*, GHSA-6pq8-jhm2-2vcw)
+    - Yalnız devDependencies: `follow-redirects` (*High*, via `mongodb-memory-server`), `minimatch` (*Moderate*, via `nodemon` — `--force` kırma uyarısı verir!)
+  - **`frontend/` (Üretim `--omit=dev`: 0 açık; toplam dev: 5 açık):** `zod <4.6.6` (*High*), `minimatch` (*Moderate*, via `eslint` v10).
+  - **`frontend/hackaton/` (Üretim `--omit=dev`: 0 açık; toplam dev: 1 açık):** `undici 8.0.0–8.12.1` (*High*, Vite/Vitest dev bağımlılığı).
+  - **Kök `package.json`:** `4 moderate` (`minimatch`, via `eslint` v10).
+- **Kök Neden:** Kilit (`package-lock.json`) dosyalarındaki yama (patch) güncellemelerinin henüz alınmamış olması.
+- **Adım Adım Çözüm:**
+  1. **UYARI:** Kırıcı major sıçrama yapabilecek `npm audit fix --force` veya kör `npm install ...@latest` **kullanmayın** (`nodemon` veya `eslint` v9 düşüşü zinciri bozar). Önce yalnızca semver-uyumlu yamaları uygulayın:
+     ```powershell
+     npm.cmd audit fix --prefix backend
+     npm.cmd audit fix --prefix frontend
+     npm.cmd audit fix --prefix frontend/hackaton
+     npm.cmd audit --omit=dev --prefix backend
+     ```
+  2. Eğer `mongoose` `9.11.x` / `multer` `2.4.x` / `body-parser` yamalı minor/patch sürümleri aynı major içinde temizlenirse **tüm 350 testi** (`npm.cmd run check`, `test:roadmap`, Challenger, E2E) baştan koşturup regresyon olmadığını doğrulayın. Yalnız devDependencies (`eslint` 10 -> `minimatch`) uyarısı kalırsa `--omit=dev` çıktısını CI kapısı olarak takip edin.
+
+---
+
+#### DEF-24: Canlı Ortamda (`NODE_ENV=production`) `CLIENT_URLS` Tanımsızsa `localhost` Fallback'ine Düşülmesi
 - **Dosya / Kod Konumu:** `backend/src/app.js:33-40`
-- **Öncelik / Ciddiyet:** P1 — Orta (Medium)
-- **Sorun Tanımı ve Etkisi:** `backend/src/app.js` dosyasında:
-  ```javascript
-  const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:5174')
-    .split(',').map(value => value.trim()).filter(Boolean);
-  ```
-  Eğer canlı ortamda (`NODE_ENV=production`) `CLIENT_URLS` tanımlanması unutulursa, kod sessizce `localhost` adreslerine döner. Sonuç olarak canlı alan adından (`https://hackathon.pau.edu.tr`) gelen tüm isteklere CORS `403 Forbidden` yanıtı döner ve tüm sistem erişilemez hale gelir.
-- **Kök Neden:** Üretim ortamında zorunlu ortam değişkenleri için erken doğrulama (fail-fast) yapılmaması.
-- **Adım Adım Ayrıntılı Çözüm:**
-  `backend/src/app.js` satır 35 öncesine şu fail-fast kontrolünü ekleyin:
+- **Öncelik / Ciddiyet:** **P1 — Orta (Medium)**
+- **Sorun Tanımı ve Etkisi:** `app.js:33` üzerinde `process.env.CLIENT_URLS || process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:5174'` yazmaktadır. `JWT_SECRET` eksikken sunucu fail-fast hata fırlatmasına karşın, `NODE_ENV === 'production'` iken `CLIENT_URLS` unutulursa API sessizce yalnız `localhost` origin'lerine izin vererek ayağa kalkar ve canlı siteden gelen tüm istekleri `403` ile reddeder.
+- **Kök Neden:** CORS origin yapılandırmasında production zorunluluk kontrolünün eksik bırakılması.
+- **Adım Adım Çözüm:**
+  `backend/src/app.js` satır 35 öncesine (sadece `NODE_ENV === 'production'` iken çalışacak şekilde, E2E ve unit testleri etkilemeden) şu kontrolü ekleyin:
   ```javascript
   if (process.env.NODE_ENV === 'production' && !process.env.CLIENT_URLS && !process.env.CLIENT_URL) {
-    throw new Error('Üretim (production) modunda CLIENT_URLS ortam değişkeninin tanımlanması zorunludur.');
+    throw new Error('Üretim (production) ortamında CLIENT_URLS veya CLIENT_URL tanımlanması zorunludur.');
   }
   ```
 
 ---
 
-### KATEGORİ 8: Dokümantasyon Senkronizasyonu (Documentation)
+### KATEGORİ 8: Dokümantasyon Senkronizasyonu
 
-#### DEF-25: API, Veritabanı ve Kurulum Dokümanlarındaki Bayat Açıklamalar
-- **Dosya / Kod Konumu:** `documents/API.md`, `documents/DATABASE.md`, `documents/KURULUM.md`, `documents/MEVCUT_PROJE_DURUMU.md`
-- **Öncelik / Ciddiyet:** P0 — Yüksek (High)
-- **Sorun Tanımı ve Etkisi:**
-  - `API.md`: Sistemde gerçekte **39 HTTP uç noktası** olmasına rağmen "29 uç noktası vardır" demekteydi; şifre sıfırlama (`forgot-password`, `reset-password`), `/ready` ve başvuru durum inceleme API'leri (`PATCH .../status`) belgelenmemişti.
-  - `DATABASE.md`: `FormResponse` ve `HackathonApp` modellerindeki `status`, `statusNote`, `reviewedBy` alanları yoktu; `VerificationToken` için hâlâ `Math.random()` kullanıldığı iddia edilmekteydi.
-  - `MEVCUT_PROJE_DURUMU.md`: En son commit olan `b4fbf69`'u ve güncel 350 testlik metrikleri içermiyordu.
-- **Kök Neden:** Kod geliştirmeleri (`b4fbf69` dahil) hızla tamamlanırken dokümanların eşzamanlı güncellenmemesi.
-- **Adım Adım Ayrıntılı Çözüm:**
-  1. Milestone 2 kapsamında `documents/API.md` dosyası güncellenmiş; 39 endpoint tablosu, girdi/çıktı JSON şemaları ve Brevo e-posta profilleri eklenmiştir.
-  2. `documents/DATABASE.md` dosyası güncellenmiş; `FormResponse`, `HackathonApp`, `User.roleChangeVersion`, `tokenVersion` ve `crypto.randomInt` düzeltmeleri işlenmiştir.
-  3. `documents/MEVCUT_PROJE_DURUMU.md` 11 Kasım 2026 tarihine çekilerek `b4fbf69` ve 350 test sayısı belgelenmiştir.
-  4. `documents/KURULUM.md` ve kök `README.md` içerisine Windows PowerShell `npm.cmd` yönergeleri eklenmiştir.
+#### DEF-25: Ana Dokümanlar Güncellendi — İkincil Rehber ve Alt Proje `README.md` Senkronizasyonu
+- **Dosya / Kod Konumu:** `documents/architecture.md`, `documents/KATILIMCI_DOGRULAMA.md`, `documents/GUVENLIK_VE_DOSYALAR.md`, `backend/README.md`, `frontend/README.md`, `frontend/hackaton/README.md`
+- **Öncelik / Ciddiyet:** **P2 — Düşük (Low)**
+- **Sorun Tanımı ve Etkisi:** 11 Kasım 2026 denetimi sırasında platformun 6 ana dokümanı (`documents/API.md`, `DATABASE.md`, `KURULUM.md`, `MEVCUT_PROJE_DURUMU.md`, `CANLIYA_CIKIS_KONTROL_LISTESI.md`, `README.md`) ile bu kapsamlı rehber doğrudan kod satırlarına göre senkronize edilip düzeltilmiştir (**40 uç nokta**, `b4fbf69` durum iş akışı, Brevo/Google/Cloudflare kurulumu, 350 test, gerçek boyutlar). Ancak ikincil dokümanlarda (mimari, güvenlik ve alt uygulama README'leri) önceki sprintlere ait port/kapsam ifadeleri veya Windows `npm.cmd` notu eksikleri kalmış olabilir.
+- **Kök Neden:** Denetimde birincil operasyonel ve referans dokümanlara öncelik verilmesi.
+- **Adım Adım Çözüm:** `DEF-02` (`docs/` klasör birleştirmesi) yapılırken alt `README.md` dosyaları ile `architecture.md`, `KATILIMCI_DOGRULAMA.md`, `GUVENLIK_VE_DOSYALAR.md` güncel endpoint/port/uygulama durumuna göre gözden geçirilip hizalanmalıdır.
 
 ---
 
-## 4. Bağımsız Doğrulama ve Test Kapıları
+## 4. Bağımsız Doğrulama Komutları
 
-Tüm bu tespit ve öneriler aşağıdaki komutlarla doğrulanabilir:
+Aşağıdaki komutların tamamı Windows PowerShell üzerinde mevcut kod tabanında **350/350** yeşil sonuç vermektedir (`npm.cmd` / `npx.cmd` kullanılır):
 
 ```powershell
-# 1. Kod Standartları ve Lint (0 hata, 0 uyarı beklenir)
-npm.cmd run lint
+# 1. Tüm Lint + Katman 1 (295 Test) + İki Vite Build
+npm.cmd run check
 
-# 2. Katman 1 Birim ve Entegrasyon Testleri (295 test geçer)
-npm.cmd test
-
-# 3. Katman 2 Yol Haritası Kabul Kapıları (12/12 yeşil)
+# 2. Katman 2 Yol Haritası Kabul Kapıları (12/12)
 npm.cmd run test:roadmap
 
-# 4. Challenger Güvenlik & Stres Testleri (38/38 geçer)
+# 3. İzole Challenger Güvenlik & Dayanıklılık Testleri (26 + 12 = 38)
 node --test --test-concurrency=1 backend/tests/challenger/*.test.js
 npm.cmd exec --prefix frontend -- vitest run tests/challenger/m4-challenge.test.jsx
 
-# 5. Playwright Uçtan Uca Tarayıcı Testleri (4/4 geçer)
-npx.cmd playwright test
-
-# 6. Duyarlı Tasarım Yerleşim Kontrolü (1/1 geçer)
+# 4. Playwright E2E Tarayıcı Akışları (4/4) & Responsive Layout (1/1)
+npm.cmd run test:e2e
 npm.cmd run check:layout --prefix frontend/hackaton
 
-# 7. Üretim Derlemeleri (2 Vite build geçer)
-npm.cmd run build
+# 5. Bağımlılık Güvenlik Taraması (Üretim & Tüm Bağımlılıklar)
+npm.cmd audit --omit=dev --prefix backend
+npm.cmd audit --prefix backend
+npm.cmd audit --prefix frontend
+npm.cmd audit --prefix frontend/hackaton
 ```
 
 ---
 
 ## 5. Sonuç
 
-Bu rehber, GDG On Campus Pamukkale Üniversitesi Web Platformu'nun mevcut durumunu şeffaf bir şekilde ortaya koymakta ve canlıya geçiş sürecinde atılması gereken her adımı somutlaştırmaktadır. Projenin test altyapısı ve fonksiyonel kod kalitesi son derece güçlü olup, bu raporda belirtilen iyileştirmelerin uygulanmasıyla birlikte tam kurumsal olgunluğa erişecektir.
+GDG On Campus Pamukkale Üniversitesi Web Platformu; fonksiyonel backend mantığı, MongoDB ACID transaction bütünlüğü, HMAC-OTP ve Google ID token güvenliği, `b4fbf69` başvuru değerlendirme + Brevo e-posta profilleri ve 350 testlik iki katmanlı güvence paketiyle güçlü bir çekirdeğe sahiptir. Canlı alan adı (`gdgocpamukkale.com` + `panel.gdgocpamukkale.com`) açılışı öncesinde özellikle yukarıdaki **11 adet P0 eksikliğin** (bağlantılı sırayla: `DEF-26`, `DEF-27`, `DEF-28` altyapı/harici servisler + `DEF-07`, `DEF-08`, `DEF-10`, `DEF-11`, `DEF-14` vitrin & hukuk/performans + `DEF-17`, `DEF-21`, `DEF-23` env/test/audit yamaları) kapatılması önerilir.

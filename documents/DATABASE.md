@@ -1,6 +1,6 @@
 # Veritabanı Mimarisi (11 Kasım 2026 — Güncel Sürüm)
 
-User rol listesinde `PENDING`, `ORGANIZER`, `ADMIN` tanımlıdır; eşzamanlı admin işlemleri için `roleChangeVersion`, JWT iptali için `tokenVersion` kullanılır. `VerificationToken`, `node:crypto` `randomInt` ve HMAC-SHA256 (`codeHash`) kullanır; `PASSWORD_RESET` amacını destekler ve `{ email: 1, purpose: 1 }` partial unique index ile korunur. `FormResponse` ve `HackathonApp` modellerinde başvuru inceleme alanları (`status`, `statusNote`, `reviewedBy`, `reviewedAt`, `lastNotifiedStatus`, `lastNotifiedAt`) ve durum filtreleme indeksleri yer alır. `FormResponse` üzerinde `(form, singleSubmissionKey)` partial unique index mükerrer gönderimleri engeller. `EventPage` modeli güncel etkinlik JSON'u, `formSlug`, `revision` ve `updatedBy` saklar.
+User rol listesinde `PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN` tanımlıdır; eşzamanlı admin işlemleri için `roleChangeVersion`, JWT iptali için `tokenVersion` kullanılır. `VerificationToken`, `node:crypto` `randomInt` ve HMAC-SHA256 (`codeHash`) kullanır; `PASSWORD_RESET` amacını destekler ve `{ email: 1, purpose: 1 }` partial unique index ile korunur. `FormResponse` ve `HackathonApp` modellerinde başvuru inceleme alanları (`status`, `statusNote`, `reviewedBy`, `reviewedAt`, `lastNotifiedStatus`, `lastNotifiedAt`) ve durum filtreleme indeksleri yer alır. `FormResponse` üzerinde `(form, singleSubmissionKey)` partial unique index mükerrer gönderimleri engeller. `EventPage` modeli güncel etkinlik JSON'u, `formSlug`, `revision` ve `updatedBy` saklar.
 
 [← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)
 
@@ -85,7 +85,7 @@ Diyagramdaki bağlantılar Mongoose referanslarıdır; SQL foreign key gibi DB t
 | `fullName` | String | Zorunlu, trim, 2–100 karakter |
 | `email` | String | Zorunlu, unique, lowercase/trim, üç izinli domain (`gmail.com`, `pau.edu.tr`, `posta.pau.edu.tr`) |
 | `passwordHash` | String | Zorunlu; register/seed bcrypt 10 salt round kullanır |
-| `role` | String enum | `PENDING/ORGANIZER/ADMIN`; default PENDING |
+| `role` | String enum | `PENDING/MEMBER/ORGANIZER/ADMIN`; default PENDING |
 | `isEmailVerified` | Boolean | false |
 | `roleChangeVersion` | Number | default 0; eşzamanlı admin rol değişimlerini sıraya koyar |
 | `tokenVersion` | Number | default 0; şifre sıfırlama veya rol değişiminde artırılarak eski JWT'leri anında geçersiz kılar |
@@ -103,7 +103,7 @@ Diyagramdaki bağlantılar Mongoose referanslarıdır; SQL foreign key gibi DB t
 
 `settings` içinde `verificationRequired` (true), `verificationMethods` (GOOGLE/EMAIL_OTP), `allowMultipleSubmissions` (true), eski `requireAuth` (false) ve başarı mesajı tutulur. `maxSubmissions` için min 1 doğrulaması vardır; controller 0/boş değeri null’a dönüştürerek kotayı kapatır. Sayaç rezervasyonu `updatedAt` değerini değiştirmez; bu alan şema/ayar düzenlemesinin kontrolü için kullanılır.
 
-Sorular form dokümanında gömülüdür (`fields[]`). Her sorunun kalıcı anahtarı `fieldId` değeridir. 10 farklı alan türü desteklenir (`text`, `textarea`, `email`, `tel`, `select`, `checkbox`, `radio`, `file`, `number`, `date`).
+Sorular form dokümanında gömülüdür (`fields[]`). Her sorunun kalıcı anahtarı `fieldId` değeridir. Backend `Form` şemasında 10 alan türü desteklenir (`text`, `textarea`, `number`, `email`, `phone`, `select`, `radio`, `checkbox`, `file`, `date`; etkinlik şemasındaki `tel` türü `eventPageService` tarafından `phone` türüne eşlenir).
 
 ### FormResponse → `formresponses`
 
@@ -117,6 +117,7 @@ Sorular form dokümanında gömülüdür (`fields[]`). Her sorunun kalıcı anah
 | `singleSubmissionKey` | Yalnız tek başvurulu yanıtlarda katılımcı ID’sinin metni |
 | `formSlug` | Zorunlu String; başvuru anındaki slug kopyası |
 | `answers[]` | `{fieldId, label, value}`; value `Mixed`, null varsayılan |
+| `schemaVersion` | Date veya null; başvuru anındaki form sürümü (`Form.updatedAt`) |
 | `uploadedFiles[]` | `{fieldId,originalName,filename,url,size}` |
 | `respondent` | `{ip,userAgent,user}`; user opsiyonel User referansı |
 | `submittedAt` | Date, varsayılan `Date.now`, indeksli |
@@ -141,7 +142,7 @@ Takım ve lider bilgileri (`teamName`, `leaderName`, `leaderEmail`, `leaderPhone
 - `lastNotifiedStatus`: String enum `['APPROVED', 'REJECTED', null]`.
 - `lastNotifiedAt`: Date veya null.
 
-İndeksler: `appliedAt` (-1), `status` (1) ve metin araması için `{ teamName: 'text', leaderName: 'text', leaderEmail: 'text' }`.
+İndeksler: tekil `appliedAt` (`index: true`, varsayılan `1`) ve tekil `status` (`index: true`). (`$text` indeksi tanımlı değildir; metin araması controller katmanında `literalSearch` regex'i üzerinden `teamName`, `leaderName`, `leaderEmail` alanlarında yapılır.)
 
 ### VerificationToken → `verificationtokens`
 
@@ -169,12 +170,12 @@ Her koleksiyonda MongoDB'nin `_id` indeksi beklenir; ek tanımlar:
 | Content | Tekil `isFeatured`, `type`, `createdAt`; bileşik `{type:1,createdAt:-1}`, `{isFeatured:1,createdAt:-1}` |
 | Form | `slug` unique; tekil `status`, `category`; bileşik `{status:1,createdAt:-1}`, `{category:1,status:1}` |
 | FormResponse | Tekil `form`, `formSlug`, `submittedAt`, `status`; bileşik `{form:1,submittedAt:-1}`, `{form:1,status:1,submittedAt:-1}`; `{form:1,singleSubmissionKey:1}` partial unique (anahtar String ise) |
-| HackathonApp | `appliedAt` tekil ve `{appliedAt:-1}`, `status` (1); `{teamName:'text',leaderName:'text',leaderEmail:'text'}` |
+| HackathonApp | Tekil `appliedAt` (`1`) ve tekil `status` (`1`) |
 | Participant | `email` unique; `googleSubject` unique sparse |
 | ParticipantOtp | `email` unique; `expiresAt` TTL (`expireAfterSeconds:0`) |
 | VerificationToken | Tekil `email`, `purpose`; `expiresAt` TTL (`expireAfterSeconds:0`); `{email:1,purpose:1}` partial unique (`codeHash` String ise) |
 
-Hackathon araması `$text` ve literal regex aramalarını destekler. Token için `{ email: 1, purpose: 1 }` partial unique indeksi tanımlıdır; eşzamanlı kod üretiminde birden fazla token oluşması veritabanı seviyesinde `E11000` ile engellenir ve 60 saniyelik bekleme süresi kuralı (`resendAfter`) atomik olarak işletilir.
+Hackathon araması controller katmanında `teamName`, `leaderName` ve `leaderEmail` alanları üzerinde kaçışlı `literalSearch` regex aramalarını destekler (`$text` indeksi tanımlı değildir). Token için `{ email: 1, purpose: 1 }` partial unique indeksi tanımlıdır; eşzamanlı kod üretiminde birden fazla token oluşması veritabanı seviyesinde `E11000` ile engellenir ve 60 saniyelik bekleme süresi kuralı (`resendAfter`) atomik olarak işletilir.
 
 ### Bütünlük ve eşzamanlılık
 

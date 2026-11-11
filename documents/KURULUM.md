@@ -1,6 +1,6 @@
 # Kurulum ve kontroller
 
-11 Kasım 2026. Node 24 (veya Node >=22.12.0) ve npm kullanılır.
+11 Kasım 2026. Mevcut `package.json` `engines` kuralı Node `>=24.15.0 <25` (`.nvmrc`: `24`) ve npm gerektirir; Node 22 LTS desteği için `DEF-19` kapsamındaki `engines` esnetmesi uygulanmalıdır.
 
 ### Önemli: Windows PowerShell Komut Çalıştırma Yönergesi
 
@@ -62,8 +62,8 @@ docker compose -f compose.prod.yaml up -d --build
 docker compose -f compose.prod.yaml exec backend npm run seed
 ```
 
-Nginx (`nginx/nginx.conf`), 80/443 portundan gelen `/api/v1` ve `/ready` çağrılarını backend konteynerine, kök yolları statik derlenmiş Hackathon sitesine, `admin.pau.edu.tr` veya 8080 portunu ise Core Team paneline yönlendirir.
+Mevcut [`nginx/nginx.conf`](../nginx/nginx.conf), `80` portundan gelen `/api/`, `/uploads/`, `/health`, `/ready` çağrılarını backend konteynerine ve kök yolları statik Hackathon sitesine (`/usr/share/nginx/html/hackaton`), `8080` portunu ise Core Team paneline (`/usr/share/nginx/html/panel`) yönlendirir (`listen 80` ve `listen 8080`). Canlı domain yayını öncesi `:443` SSL/TLS sonlandırması, `gdgocpamukkale.com` / `panel.gdgocpamukkale.com` sanal host ayrımı (Cloudflare `:8080` proxy desteklemediği için zorunludur) ve [`Dockerfile`](../Dockerfile) + [`compose.prod.yaml`](../compose.prod.yaml) içine `ARG VITE_GOOGLE_CLIENT_ID` eklenmelidir (bkz. [Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md)).
 
 Yedekleme: API yazmalarını durdurarak MongoDB dump'ı ile `backend/uploads` dizinini aynı bakım penceresinde birlikte yedekleyin. Dosyalar özel başvuru verisi içerir; erişimi sınırlayın. Canlıya geri yüklemeden önce ayrı replica set ve ayrı upload dizininde dump/restore, kayıt sayıları ve yetkili dosya indirmeyi doğrulayın. Bu oturumda gerçek veriye yönelik yedek/restore çalıştırılmadı.
 
-Projede tespit edilen tüm 25 mimari, güvenlik, performans ve UI/UX eksikliği ve bunların ayrıntılı çözüm planları için [Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgesini inceleyiniz.
+Projede tespit edilen tüm teknik eksiklikler (mimari, güvenlik, altyapı/Docker/Nginx, performans ve UI/UX) ve bunların adım adım çözüm yolları için [Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgesini inceleyiniz.
