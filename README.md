@@ -16,10 +16,14 @@ Docker olmadan geliştirme için kökte `npm run setup` bağımlılıkları kura
 
 `npm run dev` üç uygulamayı başlatır. Ayrı çalıştırmak için `dev:api`, `dev:panel`, `dev:hackaton` komutları vardır. `npm run check` üç paketin lint/test kontrollerini ve iki üretim build'ini çalıştırır. `npm run setup:browser` ardından `npm run test:e2e` gerçek Chromium akışlarını kontrol eder. Testler geçici veritabanı kullanır.
 
+> **Windows PowerShell Notu:** Windows üzerinde PowerShell'in varsayılan `ExecutionPolicy` politikası nedeniyle `npm.ps1` engeline takılmamak (`PSSecurityException`) için terminal komutlarını **`npm.cmd`** ve **`npx.cmd`** ile çalıştırınız (örn. `npm.cmd run check`, `npm.cmd test`, `npm.cmd run dev`, `npx.cmd playwright test`).
+
+- [Kapsamlı Eksiklikler ve Düzeltme Rehberi (25 Madde)](Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md)
 - [Mevcut proje durumu ve dokümantasyon haritası](documents/MEVCUT_PROJE_DURUMU.md)
+- [Canlıya çıkış kontrol listesi ve kabul kriterleri](documents/CANLIYA_CIKIS_KONTROL_LISTESI.md)
 - [Katılımcı doğrulaması ve test araçları](documents/KATILIMCI_DOGRULAMA.md)
 - [Backend kurulum ve kullanım](backend/README.md)
-- [API](documents/API.md), [mimari](documents/architecture.md), [veritabanı](documents/DATABASE.md)
+- [API kılavuzu](documents/API.md), [mimari](documents/architecture.md), [veritabanı](documents/DATABASE.md)
 - [Sorunlar ve geliştirme öncelikleri](documents/SORUNLAR.md)
 
 İyileştirme kapsamı ve kontrol sonuçları: [test planı](documents/IYILESTIRME_VE_TEST_PLANI.md). Eski tarihli belgeler tarihsel durum içerir; güncel kurulum için bu README ve uygulama README'lerini kullanın.

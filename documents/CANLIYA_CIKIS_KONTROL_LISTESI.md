@@ -58,11 +58,14 @@ Tüm geliştirmeler Git izolasyon kuralına uygun olarak **yalnızca `iyilestirm
    - İstemci tarafında `frontend/hackaton/.env` içine `VITE_GOOGLE_CLIENT_ID=<istemci_kimligi>.apps.googleusercontent.com` tanımlanmalıdır.
    - Client Secret sunucu tarafında katılımcı doğrulaması için **gerekli değildir**; backend Google'ın resmi ortak anahtarlarıyla JWT imzasını doğrular.
 
-### 3.2. Brevo (Sendinblue) E-posta ve Domain Doğrulaması
+### 3.2. Brevo (Sendinblue) E-posta, Domain ve Gönderici Profili Doğrulaması
 1. **API Anahtarı:** Brevo panelinde "SMTP & API" -> "API Keys" altından yeni bir API anahtarı üretilmeli ve `BREVO_API_KEY` değişkenine girilmelidir.
 2. **Domain Doğrulaması (SPF / DKIM / DMARC):**
    - Gönderici e-posta adresinin (`BREVO_SENDER_EMAIL=noreply@pau.edu.tr`) teslimat oranının %100 olması ve spam klasörüne düşmemesi için PAU DNS sunucusunda Brevo TXT (SPF ve DKIM) kayıtları doğrulanmalıdır.
-3. **Üretim Güvenliği:**
+3. **E-posta Gönderici Profilleri (Commit `b4fbf69`):**
+   - Genel E-posta Göndericisi: `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, `BREVO_REPLY_TO`.
+   - Başvuru Durum Bildirimleri Göndericisi: `BREVO_APPLICATION_SENDER_EMAIL` (veya `BREVO_STATUS_SENDER_EMAIL`), `BREVO_APPLICATION_SENDER_NAME` (veya `BREVO_STATUS_SENDER_NAME`), `BREVO_APPLICATION_REPLY_TO`.
+4. **Üretim Güvenliği:**
    - `NODE_ENV=production` modunda simülasyon modu kesinlikle kapatılmıştır; geçersiz veya eksik API anahtarında e-posta doğrulaması güvenli bir şekilde reddedilir.
 
 ### 3.3. MongoDB Replica Set ve Transaction Desteği
@@ -100,10 +103,11 @@ Proje iki katmanlı test mimarisiyle %100 oranında doğrulanmıştır:
 
 ### Katman 1: Kod Standartları, Birim/Entegrasyon Testleri ve Derleme
 - **Lint Kontrolü:** `npm.cmd run lint` -> **0 Hata, 0 Uyarı** (Backend, Frontend Panel ve Hackathon Sitesi).
-- **Birim ve Entegrasyon Testleri:** `npm.cmd test` -> **289/289 Test Başarılı:**
-  - `backend`: 44 test başarılı.
-  - `frontend` (Panel): 24 test başarılı.
+- **Birim ve Entegrasyon Testleri:** `npm.cmd test` -> **295/295 Test Başarılı:**
+  - `backend`: 47 test başarılı (commit `b4fbf69` ile eklenen `application-status-and-email.test.js` dahil).
+  - `frontend` (Panel): 27 test başarılı (yeni başvuru durum inceleme testleri dahil).
   - `frontend/hackaton` (Etkinlik Sitesi): 221 test başarılı.
+  - *Not:* Katman 2 kabul kapıları (12), Challenger testleri (38), E2E testleri (4) ve Layout testi (1) ile birlikte projede **tam 350 test** mevcuttur ve tümü yeşildir.
 - **Üretim Derlemeleri (Production Builds):** `npm.cmd run build` -> **2/2 Başarılı:**
   - Panel Vite derlemesi: `dist/` çıktıları üretildi.
   - Hackathon Vite derlemesi: `dist/` çıktıları ve `404.html` üretildi.

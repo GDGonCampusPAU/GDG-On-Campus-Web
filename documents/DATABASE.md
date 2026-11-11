@@ -1,22 +1,19 @@
-# 21 Ekim model güncellemesi
+# Veritabanı Mimarisi (11 Kasım 2026 — Güncel Sürüm)
 
-User rol listesine PENDING eklendi; eşzamanlı admin işlemleri için roleChangeVersion kullanılır. VerificationToken yeni challenge'larda düz kod yerine codeHash, attempts ve resendAfter saklar; hash alanlı kayıtlar için email+purpose unique partial index vardır. Eski plaintext challenge'lar doğrulanmaz. HackathonApp, controller'ın takım/lider alanlarını kabul eder ve eski referans alanlarını korur. Form eventKey ve isteğe bağlı Content referansı taşır. FormResponse schemaVersion ve soru etiketi snapshot'ıyla geçmiş export'u korur. Yeni EventPage, yayınlanan etkinlik JSON'u, formSlug, revision ve updatedBy saklar. Başlangıç yalnız eksik sayfa/form ekler; canlı kayıtları toplu taşımaz.
-
-> Bu belgenin aşağıdaki incelemesi 12 Ekim 2026 tarihli geçmiş kayıttır. 21 Ekim düzeltmeleri için [güncel durum](MEVCUT_PROJE_DURUMU.md), [backend README](../backend/README.md) ve [kurulum](KURULUM.md) geçerlidir.
-
-# Veritabanı mimarisi
+User rol listesinde `PENDING`, `ORGANIZER`, `ADMIN` tanımlıdır; eşzamanlı admin işlemleri için `roleChangeVersion`, JWT iptali için `tokenVersion` kullanılır. `VerificationToken`, `node:crypto` `randomInt` ve HMAC-SHA256 (`codeHash`) kullanır; `PASSWORD_RESET` amacını destekler ve `{ email: 1, purpose: 1 }` partial unique index ile korunur. `FormResponse` ve `HackathonApp` modellerinde başvuru inceleme alanları (`status`, `statusNote`, `reviewedBy`, `reviewedAt`, `lastNotifiedStatus`, `lastNotifiedAt`) ve durum filtreleme indeksleri yer alır. `FormResponse` üzerinde `(form, singleSubmissionKey)` partial unique index mükerrer gönderimleri engeller. `EventPage` modeli güncel etkinlik JSON'u, `formSlug`, `revision` ve `updatedBy` saklar.
 
 [← Mevcut proje durumu](MEVCUT_PROJE_DURUMU.md)
 
-> Güncelleme: 12 Ekim 2026 — `feature/participant-verification` çalışma ağacı. Katılımcı doğrulaması ve testler dahil.
+> Güncelleme: 11 Kasım 2026 — `iyilestirme-ve-test` çalışma dalı (Commit: `b4fbf69`). Başvuru durum alanları, şifre sıfırlama token'ları ve güvenli indeksler dahil.
 
-Varsayılan veritabanı `gdg_pau`; toplam sekiz model vardır. Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinin varsayılan koleksiyon adları aşağıdadır; bunlar koddan beklenen adlardır, canlı DB'de incelenmedi. Bütün modellerde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
+Varsayılan veritabanı `gdg_pau`; toplam dokuz model (`User`, `Form`, `FormResponse`, `EventPage`, `Content`, `HackathonApp`, `VerificationToken`, `Participant`, `ParticipantOtp`) vardır (eski `Team` modeli `@deprecated` olarak korunmaktadır). Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
 
 ```mermaid
 erDiagram
     User ||--o{ Form : createdBy
     Form ||--o{ FormResponse : form
     User o|--o{ FormResponse : respondent_user
+    User o|--o{ FormResponse : reviewedBy
     Participant o|--o{ FormResponse : participant
     Participant {
         ObjectId _id
@@ -36,6 +33,8 @@ erDiagram
         string email
         string role
         boolean isEmailVerified
+        number roleChangeVersion
+        number tokenVersion
     }
     Form {
         ObjectId _id
@@ -47,6 +46,10 @@ erDiagram
     FormResponse {
         ObjectId form
         string formSlug
+        string status
+        string statusNote
+        ObjectId reviewedBy
+        date reviewedAt
         array answers
         array uploadedFiles
     }
@@ -58,12 +61,17 @@ erDiagram
     HackathonApp {
         string leaderEmail
         number memberCount
+        string status
+        string statusNote
+        ObjectId reviewedBy
+        date reviewedAt
         string resumeUrl
     }
     VerificationToken {
         string email
         string purpose
-        string code
+        string codeHash
+        number attempts
         date expiresAt
     }
 ```
@@ -75,17 +83,19 @@ Diyagramdaki bağlantılar Mongoose referanslarıdır; SQL foreign key gibi DB t
 | Alan | Tip | Kural / varsayılan |
 | --- | --- | --- |
 | `fullName` | String | Zorunlu, trim, 2–100 karakter |
-| `email` | String | Zorunlu, unique, lowercase/trim, üç izinli domain |
+| `email` | String | Zorunlu, unique, lowercase/trim, üç izinli domain (`gmail.com`, `pau.edu.tr`, `posta.pau.edu.tr`) |
 | `passwordHash` | String | Zorunlu; register/seed bcrypt 10 salt round kullanır |
 | `role` | String enum | `PENDING/ORGANIZER/ADMIN`; default PENDING |
 | `isEmailVerified` | Boolean | false |
+| `roleChangeVersion` | Number | default 0; eşzamanlı admin rol değişimlerini sıraya koyar |
+| `tokenVersion` | Number | default 0; şifre sıfırlama veya rol değişiminde artırılarak eski JWT'leri anında geçersiz kılar |
 | `createdAt` | Date | Şimdiki zaman |
 
-`toJSON()` passwordHash'ı çıkarır; her tür sorgu dönüşünün otomatik güvenli olduğu varsayılmamalı. Auth controller'ları alan seçerek yanıt verir. Şifre model hook'unda değil register/seed içinde hash edilir. Doğrudan DB/model yazan gelecekteki kod aynı kuralı korumalı.
+`toJSON()` passwordHash'ı çıkarır; auth controller'ları seçici projection ile yanıt verir. Şifre bcrypt ile hash edilir. Eski `permissions` alanı `@deprecated` ve `select: false` yapılmış olup, yetkilendirme doğrudan `role` alanı üzerinden yürütülür.
 
 ### Content → `contents`
 
-`title,description,type` zorunlu; `coverImageUrl,bevyLink,eventDate` null; `isFeatured` false; `createdAt` şimdi. Content'in `createdBy`, `updatedAt`, yayın durumu veya ayrı slug alanı yok. EVENT/ANNOUNCEMENT ortak koleksiyonda tutulur; etkinliklere özel kapasite veya katılımcı ilişkisi bulunmaz.
+`title,description,type` zorunlu; `coverImageUrl,bevyLink,eventDate` null; `isFeatured` false; `createdAt` şimdi. Content silindiğinde veya güncellendiğinde eski yerel kapak görseli (`/uploads/public/...`) diskten güvenli şekilde silinir (`unlink`). EVENT/ANNOUNCEMENT ortak koleksiyonda tutulur.
 
 ### Form → `forms`
 
@@ -93,7 +103,7 @@ Diyagramdaki bağlantılar Mongoose referanslarıdır; SQL foreign key gibi DB t
 
 `settings` içinde `verificationRequired` (true), `verificationMethods` (GOOGLE/EMAIL_OTP), `allowMultipleSubmissions` (true), eski `requireAuth` (false) ve başarı mesajı tutulur. `maxSubmissions` için min 1 doğrulaması vardır; controller 0/boş değeri null’a dönüştürerek kotayı kapatır. Sayaç rezervasyonu `updatedAt` değerini değiştirmez; bu alan şema/ayar düzenlemesinin kontrolü için kullanılır.
 
-Sorular ayrı koleksiyonda değil aynı form dokümanında gömülüdür. Her sorunun `_id` alanı yok; kimlik `fieldId`. Bu yapı tek sorguda formu getirmek için uygundur. Ancak aynı formu düzenleyince eski yanıtlar için soru şeması sürümü saklanmaz.
+Sorular form dokümanında gömülüdür (`fields[]`). Her sorunun kalıcı anahtarı `fieldId` değeridir. 10 farklı alan türü desteklenir (`text`, `textarea`, `email`, `tel`, `select`, `checkbox`, `radio`, `file`, `number`, `date`).
 
 ### FormResponse → `formresponses`
 
@@ -109,19 +119,37 @@ Sorular ayrı koleksiyonda değil aynı form dokümanında gömülüdür. Her so
 | `answers[]` | `{fieldId, label, value}`; value `Mixed`, null varsayılan |
 | `uploadedFiles[]` | `{fieldId,originalName,filename,url,size}` |
 | `respondent` | `{ip,userAgent,user}`; user opsiyonel User referansı |
-| `submittedAt` | Date, şimdi |
+| `submittedAt` | Date, varsayılan `Date.now`, indeksli |
+| `status` | String enum `['PENDING', 'APPROVED', 'REJECTED']`, varsayılan `'PENDING'`, indeksli |
+| `statusNote` | String, trim, en fazla 1000 karakter, varsayılan `''` |
+| `reviewedBy` | Opsiyonel ObjectId → User; inceleyen yönetici/organizatör |
+| `reviewedAt` | Date, inceleme zamanı veya null |
+| `lastNotifiedStatus` | String enum `['APPROVED', 'REJECTED', null]`, son e-posta bildirimi durumu |
+| `lastNotifiedAt` | Date, son e-posta bildiriminin başarıyla gönderildiği tarih veya null |
 
-Cevaplar formdan ayrı koleksiyonda tutulduğu için form büyüklüğü cevap sayısıyla artmaz. `label` kopyası soru metninin gönderim anını kısmen korur; fakat export güncel `Form.fields` şemasını kullanır. `Mixed` esneklik sağlar, tip güvenliği için controller doğrulaması gerekir. IP ve user agent veri olarak saklanır.
+Cevaplar formdan ayrı koleksiyonda tutulur. İndeksler: `{ form: 1, submittedAt: -1 }`, `{ form: 1, status: 1, submittedAt: -1 }` ve `{ form: 1, singleSubmissionKey: 1 }` (partial unique). Bu partial unique indeks, tek başvurulu formlarda mükerrer gönderimleri veritabanı düzeyinde engeller.
 
 ### HackathonApp → `hackathonapps`
 
-Takım/lider bilgileri, üye sayısı, proje fikri, isteğe bağlı CV URL'si ve `appliedAt`. Takım üyelerinin bireysel bilgileri yok; yalnızca sayı tutulur. Başvurunun onay/red durumu, etkinlik ID'si, yıl veya hakem değerlendirmesi yok. Takım adı/e-posta unique değil; birden çok kodla tekrar başvuru mümkündür.
+Takım ve lider bilgileri (`teamName`, `leaderName`, `leaderEmail`, `leaderPhone`, `memberCount`, `projectIdea`, `resumeUrl`, `appliedAt`).
+
+11 Kasım 2026 güncellemesiyle modele başvuru durum inceleme alanları eklenmiştir:
+- `status`: String enum `['PENDING', 'APPROVED', 'REJECTED']`, varsayılan `'PENDING'`, indeksli.
+- `statusNote`: String, trim, en fazla 1000 karakter, varsayılan `''`.
+- `reviewedBy`: Opsiyonel ObjectId → User referansı.
+- `reviewedAt`: Date veya null.
+- `lastNotifiedStatus`: String enum `['APPROVED', 'REJECTED', null]`.
+- `lastNotifiedAt`: Date veya null.
+
+İndeksler: `appliedAt` (-1), `status` (1) ve metin araması için `{ teamName: 'text', leaderName: 'text', leaderEmail: 'text' }`.
 
 ### VerificationToken → `verificationtokens`
 
-E-posta, düz metin kod, amaç, attempts, expiresAt, createdAt. Amaçlar `REGISTER`, `LOGIN_2FA`, `HACKATHON_APPLY`, `FORM_SUBMIT`; mevcut controller'lar yalnızca REGISTER ve HACKATHON_APPLY kullanır.
+E-posta, `codeHash` (HMAC-SHA256), amaç (`purpose`), `attempts`, `expiresAt`, `resendAfter`, `createdAt`. Amaçlar `REGISTER`, `PASSWORD_RESET`, `HACKATHON_APPLY`, `LOGIN_2FA` (ayrılmış/legacy).
 
-`expiresAt` TTL indeksi kaydı süre dolunca otomatik temizlemek üzere tanımlanmış. Kod ayrıca süreyi kontrol eder; TTL temizliği tam süre sonunda gerçekleşecek diye varsayılmaz. Kod üretimindeki `Math.random()` kriptografik rastgelelik sağlamaz; kaynak yorumundaki güvenlik iddiasıyla uyumlu değildir.
+`VerificationToken.generateOtp`, `node:crypto` kütüphanesinin `randomInt(100000, 1000000)` fonksiyonunu kullanarak kriptografik olarak güvenli 6 haneli rastgele kod üretir. Kod açık metin olarak saklanmaz; backend sırrı (`TEAM_AUTH_SECRET` veya `JWT_SECRET`) ile HMAC-SHA256 hash'lenerek `codeHash` alanına kaydedilir. 10 dakika geçerlidir ve 60 saniyelik yeniden gönderme bekleme süresi (`resendAfter`) uygular.
+
+İndeksler: `expiresAt` TTL (`expireAfterSeconds: 0`), `{ email: 1, purpose: 1 }` partial unique index (`codeHash: { $type: 'string' }`). Bu sayede eşzamanlı isteklerde mükerrer token oluşması `E11000` ile engellenir.
 
 ### Participant → `participants`
 
@@ -140,21 +168,20 @@ Her koleksiyonda MongoDB'nin `_id` indeksi beklenir; ek tanımlar:
 | User | `email` unique |
 | Content | Tekil `isFeatured`, `type`, `createdAt`; bileşik `{type:1,createdAt:-1}`, `{isFeatured:1,createdAt:-1}` |
 | Form | `slug` unique; tekil `status`, `category`; bileşik `{status:1,createdAt:-1}`, `{category:1,status:1}` |
-| FormResponse | Tekil `form`, `formSlug`, `submittedAt`; bileşik `{form:1,submittedAt:-1}`; `{form:1,singleSubmissionKey:1}` partial unique (anahtar String ise) |
-| HackathonApp | `appliedAt` için alan üzerinde ve ayrıca `{appliedAt:-1}`; `{teamName:'text',leaderName:'text',leaderEmail:'text'}` |
+| FormResponse | Tekil `form`, `formSlug`, `submittedAt`, `status`; bileşik `{form:1,submittedAt:-1}`, `{form:1,status:1,submittedAt:-1}`; `{form:1,singleSubmissionKey:1}` partial unique (anahtar String ise) |
+| HackathonApp | `appliedAt` tekil ve `{appliedAt:-1}`, `status` (1); `{teamName:'text',leaderName:'text',leaderEmail:'text'}` |
 | Participant | `email` unique; `googleSubject` unique sparse |
 | ParticipantOtp | `email` unique; `expiresAt` TTL (`expireAfterSeconds:0`) |
-| VerificationToken | Tekil `email`, `purpose`; `expiresAt` TTL (`expireAfterSeconds:0`) |
+| VerificationToken | Tekil `email`, `purpose`; `expiresAt` TTL (`expireAfterSeconds:0`); `{email:1,purpose:1}` partial unique (`codeHash` String ise) |
 
-Hackathon araması `$text` kullanmadığı için text indeksi bu aramayı doğrudan karşılamaz. Sınırsız, başlangıca sabitlenmemiş regex aramalarının maliyeti veri büyüdükçe artabilir. Featured sıralamasındaki `eventDate` mevcut bileşik indekste yok. Token için sık kullanılan `(email,purpose)` sorgusu bileşik unique indeksle korunmuyor; eşzamanlı kod üretiminde birden fazla token riski var. İndekslerin fiilen oluştuğu ve performansı `getIndexes()/explain` ile ayrıca ölçülmeli.
+Hackathon araması `$text` ve literal regex aramalarını destekler. Token için `{ email: 1, purpose: 1 }` partial unique indeksi tanımlıdır; eşzamanlı kod üretiminde birden fazla token oluşması veritabanı seviyesinde `E11000` ile engellenir ve 60 saniyelik bekleme süresi kuralı (`resendAfter`) atomik olarak işletilir.
 
 ### Bütünlük ve eşzamanlılık
 
 - Submit, Form kaydını transaction içinde önce yazar; kota rezervasyonu, tekrar başvuru kontrolü ve FormResponse oluşturma aynı transaction’dadır. Çakışan işlemler MongoDB/Mongoose transaction yeniden denemeleriyle işlenir. Başarısız işlem sayaç artışını geri alır.
-- Aynı katılımcının aynı tek başvurulu forma eşzamanlı gönderiminde yalnız bir kayıt oluştuğu test edildi. Partial unique indeks ek DB korumasıdır; önceki çoklu cevaplar ve eski anonim cevaplar dönüştürülmez.
-- Form `updatedAt` değeri upload sırasında değişirse submit 409 verir. Bu kontrol tam şema sürümleme/snapshot değildir; eski cevapları export ederken hâlâ güncel sorular kullanılır.
-- Katılımcı OTP tüketimi atomiktir. Ekip/hackathon VerificationToken tüketimi eski okuma/silme davranışındadır; aynı güvenceye sahip değildir.
-- Form ve yanıtların silinmesi hâlâ transaction kullanmaz.
-- Dosya sistemi ile DB arasında transaction yok. Submit controller’ının reddettiği dosyalar silinmeye çalışılır; süreç çökmesi veya disk hatasında yetim dosya riski sürer.
-- Slug kontrolü yarışabilir; unique indeks çakışmada son korumadır.
+- Aynı katılımcının aynı tek başvurulu forma eşzamanlı gönderiminde yalnız bir kayıt oluştuğu test edildi. Partial unique indeks ek DB korumasıdır.
+- Form `updatedAt` değeri upload sırasında değişirse submit 409 verir.
+- Katılımcı OTP tüketimi atomiktir (`findOneAndDelete`). Ekip şifre sıfırlama OTP'si `verifyOtp` ile doğrulanıp atomik olarak silinir.
+- Rol güncellemeleri transaction içinde aktörün `roleChangeVersion` değerini artırarak eşzamanlı admin kaybını engeller.
+- Dosya sistemi ile DB arasında transaction yoktur. Submit controller’ının reddettiği dosyalar `unlink` ile silinir.
 - Başlangıçta Participant, ParticipantOtp ve FormResponse indekslerinin init işlemi beklenir. Canlı ortamın tüm indeksleri ve performansı ayrıca incelenmelidir.

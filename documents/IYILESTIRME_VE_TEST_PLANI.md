@@ -1,15 +1,15 @@
 # Proje İyileştirme Yol Haritası ve Test Planı
 
-> **Güncelleme (10 Kasım 2026 — `dev` / `3723e57` incelemesi → `iyilestirme-ve-test` Uygulama Sonucu):** Bu belgedeki `P0 → P3` yol haritası `iyilestirme-ve-test` dalında Teamwork M1–M5 ekipleri tarafından uygulanmış; daha önce beklenen şekilde fail veren **Katman 2 yol haritası kabul kapılarının tamamı (`12/12`), Katman 1 (`44+24+221`), E2E (`4/4`) ve Challenger stres testleri (`26+12`) yeşile geçmiştir.** Son canlıya çıkış/varlık ön koşulları [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md) dosyasındadır.
+> **Güncelleme (11 Kasım 2026 — `iyilestirme-ve-test` / Commit `b4fbf69` & Milestone 2):** Bu belgedeki `P0 → P3` yol haritası ve commit `b4fbf69` ile eklenen Başvuru Durum İnceleme İş Akışı tamamlanmış; **Katman 2 yol haritası kabul kapılarının tamamı (`12/12`), Katman 1 (`47 + 27 + 221 = 295`), E2E (`4/4`), Layout (`1/1`) ve Challenger stres testleri (`26 + 12 = 38`) olmak üzere toplam 350 test yeşile geçmiştir.** Canlıya çıkış kontrolleri [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md) dosyasındadır.
 
 ---
 
-## 1. Doğrulama Sonuçları (`iyilestirme-ve-test`)
+## 1. Doğrulama Sonuçları (`iyilestirme-ve-test` — Commit `b4fbf69`)
 
 | Parça | Sorumluluk | Doğrulanmış Sonuç |
 | --- | --- | --- |
-| `backend/` | Ekip auth (`tokenVersion` + şifre sıfırlama), katılımcı doğrulama, `Form`/`FormResponse` (`singleSubmissionKey` indeksi + transaction), `EventPage`, `Content` CMS ve legacy hackathon | **44/44** `npm test` + **5/5** `test:roadmap` + **26/26** `challenger`, ESLint **0** hata |
-| `frontend/` | Core Team yönetim paneli (Giriş, Kayıt/OTP, Başvurular, CSV, Özel/Harici dosya indirme, rol filtreli `Users`) | **24/24** `npm test` + **3/3** `test:roadmap` + **12/12** `challenger`, build + ESLint **0** hata |
+| `backend/` | Ekip auth (`tokenVersion` + şifre sıfırlama), katılımcı doğrulama, `Form`/`FormResponse` (`singleSubmissionKey` indeksi + transaction), başvuru durum inceleme (`applicationStatusService` & e-posta profilleri), `EventPage`, `Content` CMS ve legacy hackathon | **47/47** `npm test` + **5/5** `test:roadmap` + **26/26** `challenger`, ESLint **0** hata |
+| `frontend/` | Core Team yönetim paneli (Giriş, Kayıt/OTP, Başvurular inceleme modalı ve filtreleri, CSV, Özel/Harici dosya indirme, rol filtreli `Users`) | **27/27** `npm test` + **3/3** `test:roadmap` + **12/12** `challenger`, build + ESLint **0** hata |
 | `frontend/hackaton/` | Etkinlik vitrin sitesi (API SPOF korumalı), KVKK & 10 alan destekli başvuru sihirbazı, `/admin` editör (`serverEvent` reset + boş isim reddi) | **221/221** `npm test` (`0` `act` uyarısı) + **4/4** `test:roadmap`, build + ESLint **0** hata |
 | `shared/` & `e2e/` | Ortak etkinlik şablonu (`kvkkConsent`, 10 alan türü) + doğrulayıcı; Chromium + MongoDB `rs0` E2E + Layout | **4/4** `test:e2e` + **1/1** `check:layout` geçti |
 
@@ -103,7 +103,7 @@ Bu incelemede yalnızca düzeltilen kısımları değil, sitenin tamamını ve y
 
 ### Katman 1 — Regresyon ve Site Kapsam Paketi (`npm run check`)
 
-Her commit ve CI koşumunda çalışması beklenen, mevcut davranışları ve yeni kapatılan boşlukları doğrulayan **geçer durumda** testler (`44` backend + `24` panel + `221` etkinlik sitesi, `0` ESLint/build/`act` uyarısı + `4` E2E):
+Her commit ve CI koşumunda çalışması beklenen, mevcut davranışları ve yeni kapatılan boşlukları doğrulayan **geçer durumda** testler (`47` backend + `27` panel + `221` etkinlik sitesi = **295 birim/entegrasyon testi**, `0` ESLint/build/`act` uyarısı + `4` E2E):
 
 | Paket | Yeni / Genişletilen Dosyalar | Test Edilen Gerçek Davranışlar |
 | --- | --- | --- |
@@ -127,8 +127,9 @@ Yol haritasındaki **P0 → P2** maddeleri için **TDD / Kabul Testi** olarak ya
 
 ### Hedef Ölçüt ve Gerçekleşen Çıktı
 
-- `npm.cmd run check` (`44` backend + `24` panel + `221` hackaton + lint + 2 build) → **GEÇTİ**
+- `npm.cmd run check` (`47` backend + `27` panel + `221` hackaton = `295` test + lint + 2 build) → **GEÇTİ**
 - `npm.cmd run test:roadmap` (`5` backend + `3` panel + `4` hackaton) → **12/12 GEÇTİ**
 - Challenger ek stres testleri (`node --test --test-concurrency=1 backend/tests/challenger/*.test.js` → **26/26**, `npm.cmd exec --prefix frontend -- vitest run tests/challenger/m4-challenge.test.jsx` → **12/12**) → **38/38 GEÇTİ**
 - `npm.cmd run test:e2e` → **4/4 GEÇTİ** | `npm.cmd run check:layout --prefix frontend/hackaton` → **1/1 GEÇTİ**
+- **Toplam Test Sayısı:** 295 + 12 + 38 + 4 + 1 = **Tam 350 Test (%100 Başarılı)**.
 - Canlıya çıkış (`main` merge) öncesi yalnızca dış kabul kontrolleri (Google OAuth origin, Brevo DNS/key, `.woff2`/logo/gerçek içerik, DB+uploads yedek/restore tatbikatı) kalmıştır.

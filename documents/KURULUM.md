@@ -1,13 +1,38 @@
 # Kurulum ve kontroller
 
-21 Ekim 2026. Node 24 ve npm kullanılır.
+11 Kasım 2026. Node 24 (veya Node >=22.12.0) ve npm kullanılır.
 
-1. Kök dizinde `npm run setup` çalıştırın. Bu, kök test araçları ile backend/panel/hackaton lockfile'larını kurar.
+### Önemli: Windows PowerShell Komut Çalıştırma Yönergesi
+
+Windows işletim sisteminde varsayılan PowerShell `ExecutionPolicy` politikası (`Restricted` veya `RemoteSigned`) nedeniyle terminale doğrudan `npm` veya `npx` yazıldığında, PowerShell `npm.ps1` dosyasını yürütmeye çalışır ve `PSSecurityException` güvenlik engeline takılır:
+```powershell
+# Hata örneği:
+# File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled on this system.
+```
+
+Bu kısıtlamayı aşmak için iki yöntem mevcuttur:
+1. **Önerilen Doğrudan Yöntem (`npm.cmd` / `npx.cmd`):** Komutları doğrudan `.cmd` uzantısıyla çağırın. Bu sayede PowerShell `.ps1` dosyasını atlar ve komut doğrudan Windows komut yorumlayıcısı ile çalışır:
+   ```powershell
+   npm.cmd run check
+   npm.cmd test
+   npm.cmd run dev
+   npx.cmd playwright test
+   ```
+2. **Oturum Bazlı İzin:** Yalnızca aktif terminal penceresi için çalıştırma ilkesini esnetin:
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   ```
+
+---
+
+### Kurulum Adımları
+
+1. Kök dizinde `npm.cmd run setup` (Linux/macOS: `npm run setup`) çalıştırın. Bu, kök test araçları ile backend/panel/hackaton lockfile'larını kurar.
 2. Backend ve iki ön yüzün `.env.example` dosyalarından, yalnız yoksa `.env` oluşturun. Mevcut dosyaları ezmeyin.
 3. Backend için replica set/Atlas `MONGO_URI`, en az 32 karakterlik `JWT_SECRET`, ayrı güçlü `PARTICIPANT_JWT_SECRET` ve `CLIENT_URLS` tanımlayın. Geliştirme origin'leri `http://localhost:5173,http://localhost:5174`.
 4. Yeni yerel DB gerekiyorsa kökten `docker compose up -d --wait mongo` çalıştırın. 27017 zaten kullanılıyorsa mevcut replica set'i kullanın veya `MONGO_PORT` ayarlayın. Replica set adı rs0'dır.
-5. `npm run dev`: API 5000, etkinlik 5173, panel 5174. `dev:api`, `dev:panel`, `dev:hackaton` ayrı çalıştırır. Portlar otomatik değişmez; çakışma açık hata verir.
-6. İlk admin gerekiyorsa backend env içinde özel `DEFAULT_ADMIN_PASSWORD` (en az 12 karakter) belirleyip `npm run seed --prefix backend` çalıştırın. Seed veri ekler; gerçek DB'de bilinçli çalıştırın. Sunucu etkinlik sayfası/formunu eksikse oluşturur; mevcut yayını ezmez.
+5. `npm.cmd run dev`: API 5000, etkinlik 5173, panel 5174. `dev:api`, `dev:panel`, `dev:hackaton` ayrı çalıştırır. Portlar otomatik değişmez; çakışma açık hata verir.
+6. İlk admin gerekiyorsa backend env içinde özel `DEFAULT_ADMIN_PASSWORD` (en az 12 karakter) belirleyip `npm.cmd run seed --prefix backend` çalıştırın. Seed veri ekler; gerçek DB'de bilinçli çalıştırın. Sunucu etkinlik sayfası/formunu eksikse oluşturur; mevcut yayını ezmez.
 
 Örnek yerel bağlantı: `mongodb://127.0.0.1:27017/gdg_pau?replicaSet=rs0&directConnection=true`.
 
@@ -21,4 +46,24 @@ E-posta OTP geliştirmede konsola düşebilir; production gerçek Brevo ayarı i
 
 Üretim build'inde her ön yüzde `VITE_API_URL` belirleyin veya aynı origin'de `/api/v1` proxy'sini kurun. SPA rotalarını index.html'e yönlendirin. `TRUST_PROXY_HOPS` yalnız gerçek proxy topolojisine göre belirlenir. `/health` canlılık, `/ready` DB bağlantısı kontrolüdür.
 
+### Üretim Ortamı Dağıtımı (Docker Compose Production)
+
+Canlı ortam için optimize edilmiş multi-stage `Dockerfile`, Nginx ters proxy'si ve MongoDB `rs0` otomatik ilklendirmesi içeren üretim yapısı:
+
+```bash
+# 1. Ortam dosyalarını oluşturun
+cp .env.example .env
+cp backend/.env.example backend/.env
+
+# 2. Üretim servislerini başlatın
+docker compose -f compose.prod.yaml up -d --build
+
+# 3. İlk yönetici hesabını oluşturun
+docker compose -f compose.prod.yaml exec backend npm run seed
+```
+
+Nginx (`nginx/nginx.conf`), 80/443 portundan gelen `/api/v1` ve `/ready` çağrılarını backend konteynerine, kök yolları statik derlenmiş Hackathon sitesine, `admin.pau.edu.tr` veya 8080 portunu ise Core Team paneline yönlendirir.
+
 Yedekleme: API yazmalarını durdurarak MongoDB dump'ı ile `backend/uploads` dizinini aynı bakım penceresinde birlikte yedekleyin. Dosyalar özel başvuru verisi içerir; erişimi sınırlayın. Canlıya geri yüklemeden önce ayrı replica set ve ayrı upload dizininde dump/restore, kayıt sayıları ve yetkili dosya indirmeyi doğrulayın. Bu oturumda gerçek veriye yönelik yedek/restore çalıştırılmadı.
+
+Projede tespit edilen tüm 25 mimari, güvenlik, performans ve UI/UX eksikliği ve bunların ayrıntılı çözüm planları için [Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgesini inceleyiniz.
