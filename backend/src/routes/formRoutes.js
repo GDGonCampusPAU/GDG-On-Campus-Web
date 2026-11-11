@@ -25,8 +25,9 @@ router.put('/:id', formController.updateForm);
 router.patch('/:id/status', formController.updateFormStatus);
 router.delete('/:id', formController.deleteForm);
 
-// Responses & Export
+// Responses, Status & Export
 router.get('/:id/responses', formController.getFormResponses);
+router.patch('/:id/responses/:responseId/status', formController.updateFormResponseStatus);
 router.get('/:id/responses/export', formController.exportFormResponses);
 
 module.exports = router;

@@ -30,10 +30,17 @@ test('verified website submission appears in staff panel and downloaded CSV', as
   expect((await (await request.get(`${api}/__test__/state`)).json()).responses).toBe(1);
   await login(page);
   await expect(page.getByRole('link', { name: 'browser@example.com' })).toBeVisible();
+  await page.getByLabel(/Değerlendirme notu/).fill('E2E Onaylandı');
+  await page.getByRole('button', { name: 'Onayla' }).click();
+  await expect(page.getByRole('status')).toContainText('Başvuru onaylandı');
+  await expect(page.locator('.app-card .panel__badge--approved')).toHaveText('Onaylandı');
+  await expect(page.getByRole('button', { name: 'Beklemeye al' })).toBeVisible();
   const pendingDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'CSV indir' }).click();
   const csv = await fs.readFile(await (await pendingDownload).path(), 'utf8');
   expect(csv).toContain('browser@example.com');
+  expect(csv).toContain('APPROVED');
+  expect(csv).toContain('E2E Onaylandı');
 });
 test('team account needs ADMIN approval before it can log in', async ({ page, request }) => {
   await page.goto('http://127.0.0.1:4174/#/register');

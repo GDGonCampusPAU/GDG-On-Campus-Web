@@ -3,6 +3,12 @@ const HackathonApp = require('../models/HackathonApp');
 const VerificationToken = require('../../../models/VerificationToken');
 const { validateHackathonInput, isValidEmail } = require('../../../utils/validators');
 const { sendTeamOtp } = require('../../../services/teamOtpService');
+const {
+  APPLICATION_STATUSES,
+  buildStatusFilter,
+  combineFilters,
+  updateApplicationDecision
+} = require('../../../services/applicationStatusService');
 
 /**
  * Helper to resolve resume URL from file upload or body
@@ -154,20 +160,31 @@ const applyHackathon = async (req, res, next) => {
  */
 const getApplications = async (req, res, next) => {
   try {
+    const rawStatus = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    if (rawStatus && !APPLICATION_STATUSES.includes(rawStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz başvuru durumu filtresi (PENDING, APPROVED, REJECTED olmalıdır).'
+      });
+    }
+
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
     const skip = (page - 1) * limit;
 
-    const filter = {};
-
+    let searchClause = null;
     if (req.query.search && typeof req.query.search === 'string') {
       const searchRegex = literalSearch(req.query.search);
-      filter.$or = [
-        { teamName: searchRegex },
-        { leaderName: searchRegex },
-        { leaderEmail: searchRegex }
-      ];
+      searchClause = {
+        $or: [
+          { teamName: searchRegex },
+          { leaderName: searchRegex },
+          { leaderEmail: searchRegex }
+        ]
+      };
     }
+
+    const filter = combineFilters(buildStatusFilter(rawStatus), searchClause);
 
     const [applications, totalItems] = await Promise.all([
       HackathonApp.find(filter)
@@ -178,11 +195,16 @@ const getApplications = async (req, res, next) => {
       HackathonApp.countDocuments(filter)
     ]);
 
+    const normalizedApplications = applications.map((application) => ({
+      ...application,
+      status: application.status || 'PENDING'
+    }));
+
     const totalPages = Math.ceil(totalItems / limit) || 1;
 
     return res.status(200).json({
       success: true,
-      data: applications,
+      data: normalizedApplications,
       pagination: {
         totalItems,
         totalPages,
@@ -198,6 +220,52 @@ const getApplications = async (req, res, next) => {
 };
 
 /**
+ * @desc    Update legacy hackathon application status and notify team leader
+ * @route   PATCH /api/v1/hackathon/applications/:id/status
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const updateApplicationStatus = async (req, res, next) => {
+  try {
+    const application = await HackathonApp.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hackathon başvurusu bulunamadı.'
+      });
+    }
+
+    const { application: updated, emailSent } = await updateApplicationDecision({
+      doc: application,
+      reviewerId: req.user?._id,
+      status: req.body.status,
+      note: req.body.note,
+      notify: req.body.notify,
+      recipientEmail: application.leaderEmail,
+      recipientName: application.leaderName || application.fullName || application.teamName || 'Takım Lideri',
+      teamName: application.teamName || '',
+      eventTitle: 'PAU Hackathon 2026'
+    });
+
+    const statusLabel = updated.status === 'APPROVED'
+      ? 'onaylandı'
+      : updated.status === 'REJECTED'
+        ? 'reddedildi'
+        : 'beklemeye alındı';
+
+    return res.status(200).json({
+      success: true,
+      emailSent,
+      message: emailSent
+        ? `Başvuru ${statusLabel} ve takım liderine bilgilendirme e-postası gönderildi.`
+        : `Başvuru durumu güncellendi (${statusLabel}).`,
+      data: updated
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Export applications as CSV or JSON
  * @route   GET /api/v1/hackathon/applications/export
  * @access  Private (ORGANIZER, ADMIN)
@@ -205,17 +273,24 @@ const getApplications = async (req, res, next) => {
 const exportApplications = async (req, res, next) => {
   try {
     const { write, streamJson } = require('../../../utils/streamExport');
+    const rawStatus = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    if (rawStatus && !APPLICATION_STATUSES.includes(rawStatus)) {
+      return res.status(400).json({ message: 'Geçersiz başvuru durumu filtresi (PENDING, APPROVED, REJECTED olmalıdır).' });
+    }
     const format = req.query.format || 'csv';
     if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
-    const filter = {};
+    let searchClause = null;
     if (req.query.search && typeof req.query.search === 'string' && req.query.search.trim()) {
       const searchRegex = literalSearch(req.query.search);
-      filter.$or = [
-        { teamName: searchRegex },
-        { leaderName: searchRegex },
-        { leaderEmail: searchRegex }
-      ];
+      searchClause = {
+        $or: [
+          { teamName: searchRegex },
+          { leaderName: searchRegex },
+          { leaderEmail: searchRegex }
+        ]
+      };
     }
+    const filter = combineFilters(buildStatusFilter(rawStatus), searchClause);
     const cursor = HackathonApp.find(filter).sort({ appliedAt: -1 }).lean().cursor();
     res.setHeader('Content-Disposition', `attachment; filename="hackathon_applications.${format}"`);
     if (format === 'json') {
@@ -224,11 +299,11 @@ const exportApplications = async (req, res, next) => {
     }
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     try {
-      await write(res, '\uFEFF' + ['ID', 'Takım Adı', 'Lider Adı', 'Lider E-posta', 'Lider Telefon', 'Üye Sayısı', 'Proje Fikri', 'Özgeçmiş / CV Linki', 'Başvuru Tarihi'].map(escapeCsvCell).join(',') + '\r\n');
+      await write(res, '\uFEFF' + ['ID', 'Takım Adı', 'Lider Adı', 'Lider E-posta', 'Lider Telefon', 'Üye Sayısı', 'Proje Fikri', 'Özgeçmiş / CV Linki', 'Başvuru Tarihi', 'Durum', 'Değerlendirme Notu'].map(escapeCsvCell).join(',') + '\r\n');
       for await (const application of cursor) {
         await write(res, [application._id, application.teamName, application.leaderName || application.fullName,
           application.leaderEmail, application.leaderPhone, application.memberCount, application.projectIdea || application.motivation,
-          application.resumeUrl, new Date(application.appliedAt).toISOString()].map(escapeCsvCell).join(',') + '\r\n');
+          application.resumeUrl, new Date(application.appliedAt).toISOString(), application.status || 'PENDING', application.statusNote || ''].map(escapeCsvCell).join(',') + '\r\n');
       }
     } finally { await cursor.close(); }
     res.end();
@@ -239,5 +314,6 @@ module.exports = {
   sendHackathonVerification,
   applyHackathon,
   getApplications,
+  updateApplicationStatus,
   exportApplications
 };

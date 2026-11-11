@@ -76,20 +76,37 @@ export function updateUserRole(id, role, token) {
 
 // --- Hackathon başvuruları (ORGANIZER / ADMIN) -------------------------------
 
-export async function getHackathonApplications({ page = 1, limit = 10, search = '', source = 'forms' }, token) {
+export async function getHackathonApplications({ page = 1, limit = 10, search = '', source = 'forms', status = 'ALL' }, token) {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) })
   if (search.trim()) params.set('search', search.trim())
+  if (status && status !== 'ALL') params.set('status', status)
   if (source === 'legacy') return request(`/hackathon/applications?${params}`, { token })
   const pageData = await request('/event-page/hackathon')
   return request(`/forms/${pageData.data.formId}/responses?${params}`, { token })
 }
 
+export async function updateApplicationStatus({ id, formId, source = 'forms', status, note = '', notify }, token) {
+  const body = { status, note, ...(typeof notify === 'boolean' ? { notify } : {}) }
+  if (source === 'legacy') {
+    return request(`/hackathon/applications/${encodeURIComponent(id)}/status`, { method: 'PATCH', body, token })
+  }
+  const resolvedFormId = formId || (await request('/event-page/hackathon')).data.formId
+  return request(`/forms/${encodeURIComponent(resolvedFormId)}/responses/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    body,
+    token,
+  })
+}
+
 // CSV dosyasını Authorization başlığı gerektiği için fetch ile indirip Blob olarak döndürür.
-export async function downloadHackathonApplicationsCsv(token, { source = 'forms', search = '' } = {}) {
+export async function downloadHackathonApplicationsCsv(token, { source = 'forms', search = '', status = 'ALL' } = {}) {
   let path = `/hackathon/applications/export?format=csv${search ? `&search=${encodeURIComponent(search)}` : ''}`
   if (source !== 'legacy') {
     const page = await request('/event-page/hackathon')
     path = `/forms/${page.data.formId}/responses/export?format=csv&search=${encodeURIComponent(search)}`
+  }
+  if (status && status !== 'ALL') {
+    path = `${path}&status=${encodeURIComponent(status)}`
   }
   const response = await send(path, { token })
   if (!response.ok) {

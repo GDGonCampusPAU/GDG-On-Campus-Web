@@ -34,6 +34,36 @@ const hackathonAppSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
       index: true
+    },
+    status: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: 'PENDING',
+      index: true
+    },
+    statusNote: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: ''
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    reviewedAt: {
+      type: Date,
+      default: null
+    },
+    lastNotifiedStatus: {
+      type: String,
+      enum: ['APPROVED', 'REJECTED', null],
+      default: null
+    },
+    lastNotifiedAt: {
+      type: Date,
+      default: null
     }
   },
   {

@@ -22,6 +22,13 @@ router.get(
   hackathonController.getApplications
 );
 
+router.patch(
+  '/applications/:id/status',
+  authMiddleware,
+  requireRoles('ORGANIZER', 'ADMIN'),
+  hackathonController.updateApplicationStatus
+);
+
 router.get(
   '/applications/export',
   authMiddleware,

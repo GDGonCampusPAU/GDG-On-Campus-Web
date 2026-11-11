@@ -5,6 +5,7 @@ import {
   downloadPrivateFile,
   getHackathonApplications,
   getUsers,
+  updateApplicationStatus,
   updateUserRole,
 } from './api.js'
 
@@ -127,6 +128,39 @@ describe('panel API client', () => {
       expect.stringMatching(/\/api\/v1\/files\/resume-1\.pdf$/),
       expect.objectContaining({
         headers: { Authorization: 'Bearer secret-token' },
+      }),
+    )
+  })
+
+  test('updateApplicationStatus and status-filtered list/CSV call expected endpoints', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: { formId: 'form-99' } }))
+      .mockResolvedValueOnce(jsonResponse({ data: [], pagination: { totalItems: 0 } }))
+
+    await getHackathonApplications({ source: 'forms', status: 'APPROVED' }, 'jwt-1')
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringMatching(/\/api\/v1\/forms\/form-99\/responses\?page=1&limit=10&status=APPROVED$/),
+      expect.any(Object),
+    )
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, emailSent: true, data: { _id: 'resp-1', status: 'APPROVED' } }))
+    await updateApplicationStatus({ id: 'resp-1', formId: 'form-99', source: 'forms', status: 'APPROVED', note: 'Uygun', notify: true }, 'jwt-1')
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringMatching(/\/api\/v1\/forms\/form-99\/responses\/resp-1\/status$/),
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.objectContaining({ Authorization: 'Bearer jwt-1' }),
+        body: JSON.stringify({ status: 'APPROVED', note: 'Uygun', notify: true }),
+      }),
+    )
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, emailSent: false, data: { _id: 'leg-1', status: 'REJECTED' } }))
+    await updateApplicationStatus({ id: 'leg-1', source: 'legacy', status: 'REJECTED', notify: false }, 'jwt-1')
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringMatching(/\/api\/v1\/hackathon\/applications\/leg-1\/status$/),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'REJECTED', note: '', notify: false }),
       }),
     )
   })

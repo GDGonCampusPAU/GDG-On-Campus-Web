@@ -2,7 +2,15 @@ const mongoose = require('mongoose');
 const { answerError } = require('../utils/formValidation');
 const { escapeCsvCell, literalSearch } = require('../utils/query');
 const { saveSubmission } = require('../services/formSubmissionService');
+const {
+  APPLICATION_STATUSES,
+  buildStatusFilter,
+  combineFilters,
+  resolveFormApplicant,
+  updateApplicationDecision
+} = require('../services/applicationStatusService');
 const { unlink } = require('node:fs/promises');
+const EventPage = require('../models/EventPage');
 const Form = require('../models/Form');
 const FormResponse = require('../models/FormResponse');
 
@@ -381,12 +389,23 @@ const getFormResponses = async (req, res, next) => {
       });
     }
 
+    const rawStatus = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    if (rawStatus && !APPLICATION_STATUSES.includes(rawStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz başvuru durumu filtresi (PENDING, APPROVED, REJECTED olmalıdır).'
+      });
+    }
+
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
-    const filter = { form: form._id };
-    if (typeof req.query.search === 'string' && req.query.search.trim()) filter.$or = [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }];
+    const searchClause = (typeof req.query.search === 'string' && req.query.search.trim())
+      ? { $or: [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }] }
+      : null;
+    const filter = combineFilters({ form: form._id }, buildStatusFilter(rawStatus), searchClause);
+
     const [responses, totalItems] = await Promise.all([
       FormResponse.find(filter)
         .sort({ submittedAt: -1 })
@@ -395,6 +414,11 @@ const getFormResponses = async (req, res, next) => {
         .lean(),
       FormResponse.countDocuments(filter)
     ]);
+
+    const normalizedResponses = responses.map((response) => ({
+      ...response,
+      status: response.status || 'PENDING'
+    }));
 
     const totalPages = Math.ceil(totalItems / limit) || 1;
 
@@ -406,7 +430,7 @@ const getFormResponses = async (req, res, next) => {
         slug: form.slug,
         fields: form.fields
       },
-      data: responses,
+      data: normalizedResponses,
       pagination: {
         totalItems,
         totalPages,
@@ -422,6 +446,67 @@ const getFormResponses = async (req, res, next) => {
 };
 
 /**
+ * @desc    Update application status on a form response and notify applicant
+ * @route   PATCH /api/v1/forms/:id/responses/:responseId/status
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const updateFormResponseStatus = async (req, res, next) => {
+  try {
+    const form = await Form.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({
+        success: false,
+        message: 'Form bulunamadı.'
+      });
+    }
+
+    const response = await FormResponse.findOne({ _id: req.params.responseId, form: form._id });
+    if (!response) {
+      return res.status(404).json({
+        success: false,
+        message: 'Başvuru yanıtı bulunamadı.'
+      });
+    }
+
+    let eventTitle = form.title || 'GDG On Campus PAU';
+    if (form.eventKey) {
+      const eventPage = await EventPage.findById(form.eventKey).select('event.name').lean();
+      eventTitle = eventPage?.event?.name || 'PAU Hackathon 2026';
+    }
+
+    const { email, recipientName, teamName } = resolveFormApplicant(response);
+    const { application, emailSent } = await updateApplicationDecision({
+      doc: response,
+      reviewerId: req.user?._id,
+      status: req.body.status,
+      note: req.body.note,
+      notify: req.body.notify,
+      recipientEmail: email,
+      recipientName,
+      teamName,
+      eventTitle
+    });
+
+    const statusLabel = application.status === 'APPROVED'
+      ? 'onaylandı'
+      : application.status === 'REJECTED'
+        ? 'reddedildi'
+        : 'beklemeye alındı';
+
+    return res.status(200).json({
+      success: true,
+      emailSent,
+      message: emailSent
+        ? `Başvuru ${statusLabel} ve katılımcıya bilgilendirme e-postası gönderildi.`
+        : `Başvuru durumu güncellendi (${statusLabel}).`,
+      data: application
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Export form responses as CSV or JSON
  * @route   GET /api/v1/forms/:id/responses/export
  * @access  Private (ORGANIZER, ADMIN)
@@ -430,9 +515,15 @@ const exportFormResponses = async (req, res, next) => {
   try {
     const form = await Form.findById(req.params.id);
     if (!form) return res.status(404).json({ message: 'Form bulunamadı.' });
+    const rawStatus = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    if (rawStatus && !APPLICATION_STATUSES.includes(rawStatus)) {
+      return res.status(400).json({ message: 'Geçersiz başvuru durumu filtresi (PENDING, APPROVED, REJECTED olmalıdır).' });
+    }
     const { write, streamJson } = require('../utils/streamExport');
-    const filter = { form: form._id };
-    if (typeof req.query.search === 'string' && req.query.search.trim()) filter.$or = [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }];
+    const searchClause = (typeof req.query.search === 'string' && req.query.search.trim())
+      ? { $or: [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }] }
+      : null;
+    const filter = combineFilters({ form: form._id }, buildStatusFilter(rawStatus), searchClause);
     const format = req.query.format || 'csv';
     if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
     res.setHeader('Content-Disposition', `attachment; filename="${form.slug}-responses.${format}"`);
@@ -449,12 +540,12 @@ const exportFormResponses = async (req, res, next) => {
     if (!columns.size) for (const field of form.fields || []) columns.set(columnKey(field), field);
     const fields = [...columns.values()];
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    await write(res, '\uFEFF' + ['Yanıt ID', 'Tarih', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi', ...fields.map(field => field.label || field.fieldId), 'Eklenen Dosyalar'].map(escapeCsvCell).join(',') + '\r\n');
+    await write(res, '\uFEFF' + ['Yanıt ID', 'Tarih', 'Başvuru Durumu', 'Değerlendirme Notu', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi', ...fields.map(field => field.label || field.fieldId), 'Eklenen Dosyalar'].map(escapeCsvCell).join(',') + '\r\n');
     const cursor = FormResponse.find(filter).sort({ submittedAt: -1 }).lean().cursor();
     try {
       for await (const response of cursor) {
         const answers = new Map((response.answers || []).map(answer => [columnKey(answer), answer.value]));
-        const row = [response._id, new Date(response.submittedAt).toISOString(), response.respondent?.ip || '',
+        const row = [response._id, new Date(response.submittedAt).toISOString(), response.status || 'PENDING', response.statusNote || '', response.respondent?.ip || '',
           response.verifiedEmail || '', response.verificationMethod || '', ...fields.map(field => answers.get(columnKey(field)) ?? ''),
           (response.uploadedFiles || []).map(file => file.url).join(' | ')];
         await write(res, row.map(escapeCsvCell).join(',') + '\r\n');
@@ -693,6 +784,7 @@ module.exports = {
   updateFormStatus,
   deleteForm,
   getFormResponses,
+  updateFormResponseStatus,
   exportFormResponses,
   getPublicForm,
   submitFormResponse

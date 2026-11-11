@@ -8,6 +8,7 @@ vi.mock('../lib/api.js', () => ({
   getHackathonApplications: vi.fn(),
   downloadHackathonApplicationsCsv: vi.fn(),
   downloadPrivateFile: vi.fn(),
+  updateApplicationStatus: vi.fn(),
 }))
 
 const session = { token: 'staff', user: { id: 'staff', role: 'ADMIN', fullName: 'Staff' } }
@@ -94,9 +95,78 @@ test('debounced search resets pagination to page 1 and passes query to CSV expor
   )
 
   await user.click(screen.getByRole('button', { name: 'CSV indir' }))
-  expect(api.downloadHackathonApplicationsCsv).toHaveBeenCalledWith('staff', { source: 'forms', search: 'Participant' })
+  expect(api.downloadHackathonApplicationsCsv).toHaveBeenCalledWith('staff', { source: 'forms', search: 'Participant', status: 'ALL' })
   expect(createUrl).toHaveBeenCalled()
   expect(revokeUrl).toHaveBeenCalledWith('blob:mock-csv')
+})
+
+test('status filter passes status parameter and approve/reject controls update status & notification choice', async () => {
+  const user = userEvent.setup()
+  api.getHackathonApplications.mockResolvedValue({
+    form: { id: 'form-10' },
+    data: [{ ...record, status: 'PENDING' }],
+    pagination: { totalItems: 1, totalPages: 1, currentPage: 1, hasPrevPage: false, hasNextPage: false },
+  })
+  api.updateApplicationStatus.mockResolvedValueOnce({
+    success: true,
+    message: 'Başvuru onaylandı ve katılımcıya bilgilendirme e-postası gönderildi.',
+    data: { ...record, status: 'APPROVED', statusNote: 'Tebrikler!' },
+  })
+
+  render(<Applications session={session} onUnauthorized={vi.fn()} />)
+  await screen.findByRole('button', { name: 'Onayla' })
+  expect(document.querySelector('.app-card .panel__badge--pending')).toHaveTextContent('Beklemede')
+
+  await user.type(screen.getByLabelText('Değerlendirme notu — Participant Test'), 'Tebrikler!')
+  await user.click(screen.getByRole('button', { name: 'Onayla' }))
+
+  expect(api.updateApplicationStatus).toHaveBeenCalledWith(
+    { id: 'response', formId: 'form-10', source: 'forms', status: 'APPROVED', note: 'Tebrikler!', notify: true },
+    'staff',
+  )
+  expect(await screen.findByRole('status')).toHaveTextContent('Başvuru onaylandı')
+  expect(document.querySelector('.app-card .panel__badge--approved')).toHaveTextContent('Onaylandı')
+  expect(screen.getByRole('button', { name: 'Beklemeye al' })).toBeInTheDocument()
+
+  api.updateApplicationStatus.mockResolvedValueOnce({
+    success: true,
+    message: 'Başvuru durumu güncellendi (reddedildi).',
+    data: { ...record, status: 'REJECTED', statusNote: 'Tebrikler!' },
+  })
+  await user.click(screen.getByRole('checkbox', { name: 'Karar e-postası gönder' }))
+  await user.click(screen.getByRole('button', { name: 'Reddet' }))
+  expect(api.updateApplicationStatus).toHaveBeenLastCalledWith(
+    { id: 'response', formId: 'form-10', source: 'forms', status: 'REJECTED', note: 'Tebrikler!', notify: false },
+    'staff',
+  )
+
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Durum filtresi' }), 'APPROVED')
+  await waitFor(() =>
+    expect(api.getHackathonApplications).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: 'APPROVED', page: 1 }),
+      'staff',
+    ),
+  )
+})
+
+test('status update errors surface alert and 401 expires session', async () => {
+  const user = userEvent.setup()
+  const unauthorized = vi.fn()
+  api.getHackathonApplications.mockResolvedValue({
+    form: { id: 'form-10' },
+    data: [{ ...record, status: 'PENDING' }],
+    pagination: { totalItems: 1, totalPages: 1 },
+  })
+  api.updateApplicationStatus.mockRejectedValueOnce(new Error('Brevo başarısız'))
+
+  render(<Applications session={session} onUnauthorized={unauthorized} />)
+  await screen.findByRole('button', { name: 'Onayla' })
+  await user.click(screen.getByRole('button', { name: 'Onayla' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Brevo başarısız')
+
+  api.updateApplicationStatus.mockRejectedValueOnce({ status: 401, message: 'Yetkisiz' })
+  await user.click(screen.getByRole('button', { name: 'Reddet' }))
+  await waitFor(() => expect(unauthorized).toHaveBeenCalled())
 })
 
 test('private attachment button downloads via authorized client and handles CSV/file errors + 401', async () => {
