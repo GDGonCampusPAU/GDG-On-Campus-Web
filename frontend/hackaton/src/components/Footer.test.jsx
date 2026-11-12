@@ -1,21 +1,23 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import Footer from './Footer.jsx'
+import { EventProvider } from '../context/EventContext.jsx'
 import { fixtureEvent } from '../test/fixtures.js'
 
-vi.mock('../data/event.js', async () => {
-  const { fixtureEvent } = await import('../test/fixtures.js')
-  return { event: fixtureEvent }
-})
+const renderFooter = () => render(
+  <EventProvider initial={{ event: fixtureEvent, formSlug: 'test' }}>
+    <Footer />
+  </EventProvider>,
+)
 
 describe('Footer', () => {
   it('düzenleyen adını gösterir', () => {
-    render(<Footer />)
+    renderFooter()
     expect(screen.getByText(fixtureEvent.organizer)).toBeInTheDocument()
   })
 
   it('sosyal bağlantıları yeni sekmede ve noopener noreferrer ile verir', () => {
-    render(<Footer />)
+    renderFooter()
     for (const s of fixtureEvent.socials) {
       const link = screen.getByRole('link', { name: s.label })
       expect(link).toHaveAttribute('href', s.url)

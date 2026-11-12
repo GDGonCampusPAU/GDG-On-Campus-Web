@@ -5,6 +5,7 @@ import base from '../data/base.js'
 import { choices, clearDraft, isEventShape, readDraft, typeLabels, writeDraft } from '../lib/content.js'
 import './Admin.css'
 import { loginEditor, getEventPage, publishEventPage } from '../lib/eventApi.js'
+import { useEvent } from '../context/EventContext.jsx'
 
 const labels = {
   organizer: 'Organizatör',
@@ -254,6 +255,7 @@ function Gate({ onUnlock }) {
 }
 
 function Editor({ session, onLock }) {
+  const { refreshEvent } = useEvent()
   const [revision, setRevision] = useState(null)
   const [publishing, setPublishing] = useState(false)
   const [serverEvent, setServerEvent] = useState(null)
@@ -294,6 +296,8 @@ function Editor({ session, onLock }) {
       const page = await publishEventPage(draft, revision, session.token)
       setRevision(page.revision); clearDraft(); setSaved(false)
       setServerEvent(draft)
+      // Sitenin geri kalanı (Ana sayfa, Kayıt, Program...) yenilemeden güncel içeriği gösterir.
+      void refreshEvent()
       setNote({ text: 'Yayınlandı. Etkinlik bilgileri ve başvuru alanları tüm ziyaretçiler için güncellendi.' })
     } catch (error) {
       writeDraft(base, draft)

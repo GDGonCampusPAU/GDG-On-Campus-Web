@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../components/Button.jsx'
 import StepForm from '../components/StepForm.jsx'
-import { event, formSlug } from '../data/event.js'
+import { useEvent } from '../context/EventContext.jsx'
 import ParticipantVerification from '../components/ParticipantVerification.jsx'
 import { API_URL } from '../lib/eventApi.js'
 import { submitRegistration } from '../lib/registration.js'
 import './Register.css'
 
-export default function Register({ data = event }) {
+export default function Register({ data: dataProp }) {
+  const { event, formSlug } = useEvent()
+  const data = dataProp ?? event
   const { register } = data
   const [done, setDone] = useState(false)
   const [identity, setIdentity] = useState(null)

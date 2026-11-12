@@ -2,7 +2,7 @@ import PersonCard from '../components/PersonCard.jsx'
 import SponsorGrid from '../components/SponsorGrid.jsx'
 import SectionHeading from '../components/SectionHeading.jsx'
 import Reveal from '../components/Reveal.jsx'
-import { event } from '../data/event.js'
+import { useEvent } from '../context/EventContext.jsx'
 import './Team.css'
 
 const TONES = ['blue', 'red', 'yellow', 'green']
@@ -23,7 +23,9 @@ function PeopleSection({ title, eyebrow, people }) {
   )
 }
 
-export default function Team({ data = event }) {
+export default function Team({ data: dataProp }) {
+  const { event } = useEvent()
+  const data = dataProp ?? event
   const jury = data.people?.jury ?? []
   const mentors = data.people?.mentors ?? []
   const sponsors = data.sponsors ?? []

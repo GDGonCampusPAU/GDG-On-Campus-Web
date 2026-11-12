@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { event } from '../data/event.js'
+import { useEvent } from '../context/EventContext.jsx'
 import Navbar from './Navbar.jsx'
 import Footer from './Footer.jsx'
 import StickyCta from './StickyCta.jsx'
@@ -9,6 +9,7 @@ import './Layout.css'
 const PAGE_TITLES = { '/': null, '/kayit': 'Kayıt', '/program': 'Program', '/ekip': 'Ekip' }
 
 export default function Layout() {
+  const { event } = useEvent()
   const { pathname } = useLocation()
   // '/kayit/' de aynı rotaya eşleşir; sondaki eğik çizgiyi atıp tek biçime indir.
   const path = pathname.replace(/\/+$/, '') || '/'
@@ -27,7 +28,7 @@ export default function Layout() {
   useEffect(() => {
     const page = path in PAGE_TITLES ? PAGE_TITLES[path] : 'Sayfa bulunamadı'
     document.title = page ? `${page} | ${event.name}` : `${event.name} | ${event.organizer}`
-  }, [path])
+  }, [path, event.name, event.organizer])
 
   return (
     <div className={`app${hasCta ? ' app--has-cta' : ''}`}>

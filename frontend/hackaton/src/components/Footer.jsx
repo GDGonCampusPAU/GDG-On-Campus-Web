@@ -1,7 +1,8 @@
-import { event } from '../data/event.js'
+import { useEvent } from '../context/EventContext.jsx'
 import './Footer.css'
 
 export default function Footer() {
+  const { event } = useEvent()
   return (
     <footer className="footer">
       <div className="footer__inner container">

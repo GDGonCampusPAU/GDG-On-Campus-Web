@@ -5,10 +5,12 @@ import Marquee from '../components/Marquee.jsx'
 import Reveal from '../components/Reveal.jsx'
 import SectionHeading from '../components/SectionHeading.jsx'
 import SponsorGrid from '../components/SponsorGrid.jsx'
-import { event } from '../data/event.js'
+import { useEvent } from '../context/EventContext.jsx'
 import './Home.css'
 
-export default function Home({ data = event }) {
+export default function Home({ data: dataProp }) {
+  const { event } = useEvent()
+  const data = dataProp ?? event
   const about = data.about ?? []
   const prizes = data.prizes ?? []
   const sponsors = data.sponsors ?? []

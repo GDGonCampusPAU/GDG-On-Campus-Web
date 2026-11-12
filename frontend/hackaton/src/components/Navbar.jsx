@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import Button from './Button.jsx'
-import { event } from '../data/event.js'
+import { useEvent } from '../context/EventContext.jsx'
 import './Navbar.css'
 
 const links = [
@@ -11,6 +11,7 @@ const links = [
 ]
 
 export default function Navbar() {
+  const { event } = useEvent()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
 

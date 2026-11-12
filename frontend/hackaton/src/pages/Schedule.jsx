@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import Timeline from '../components/Timeline.jsx'
-import { event } from '../data/event.js'
+import { useEvent } from '../context/EventContext.jsx'
 import './Schedule.css'
 
-export default function Schedule({ data = event }) {
+export default function Schedule({ data: dataProp }) {
+  const { event } = useEvent()
+  const data = dataProp ?? event
   const days = data.days ?? []
   const [active, setActive] = useState(0)
 
