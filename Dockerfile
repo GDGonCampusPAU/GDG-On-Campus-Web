@@ -8,6 +8,7 @@
 FROM node:24-bookworm-slim AS base
 WORKDIR /app
 # npm workspaces: one root lockfile; every workspace manifest must be present for `npm ci -w`.
+# Workspaces are selected by package name (a path like `frontend` would also match frontend/hackaton).
 COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
@@ -22,7 +23,7 @@ EXPOSE 5000
 CMD ["/app/node_modules/.bin/nodemon", "--watch", "src", "--watch", "/app/shared", "--ext", "js,mjs,json", "src/server.js"]
 
 FROM base AS panel
-RUN npm ci --workspace frontend --no-audit --no-fund
+RUN npm ci --workspace gdg-pau-panel --no-audit --no-fund
 WORKDIR /app/frontend
 COPY frontend/index.html frontend/vite.config.js ./
 COPY frontend/src ./src
@@ -31,7 +32,7 @@ EXPOSE 5174
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 FROM base AS hackaton
-RUN npm ci --workspace frontend/hackaton --no-audit --no-fund
+RUN npm ci --workspace gdg-pau-hackathon --no-audit --no-fund
 WORKDIR /app/frontend/hackaton
 COPY frontend/hackaton/index.html frontend/hackaton/vite.config.js ./
 COPY frontend/hackaton/src ./src
@@ -61,11 +62,11 @@ COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
 COPY frontend/hackaton/package.json ./frontend/hackaton/
-RUN npm ci --workspace frontend --workspace frontend/hackaton --no-audit --no-fund
+RUN npm ci --workspace gdg-pau-panel --workspace gdg-pau-hackathon --no-audit --no-fund
 
 # Build Admin Panel and Hackathon Showcase Site
 COPY frontend ./frontend
-RUN npm run build --workspace frontend && npm run build --workspace frontend/hackaton
+RUN npm run build --workspace gdg-pau-panel --workspace gdg-pau-hackathon
 
 # ------------------------------------------------------------------------------
 # 3. Production Reverse Proxy & Static Web Serving (Nginx)
