@@ -4,6 +4,7 @@
 **Hazırlayan:** Teknik Denetim ve Dokümantasyon Ekibi  
 **Kapsam:** GDG On Campus Pamukkale Üniversitesi Web Platformu (Kök Yapı, Backend REST API, Core Team Yönetim Paneli, Hackathon Vitrin ve Başvuru Sitesi, Paylaşılan Modüller, Docker/Nginx Altyapısı, Dış Servisler, Test & CI/CD)  
 **Çalışma Dalı (Branch):** `iyilestirme-ve-test` (`b4fbf69` + `d53b4e2` dokümantasyon/audit senkronizasyonu -> `dev` dalına fast-forward merge; `main` kullanıcı onayına kadar dokunulmaz)  
+**Güncelleme (12 Kasım 2026):** `fix/security-hardening` dalında bu rehberde **yer almayan** 9 ek güvenlik bulgusu (SEC-01 – SEC-09) giderildi ve `DEF-17` kısmen çözüldü; ayrıntılar [Bölüm 5](#5-ek-güvenlik-sertleştirmesi-sec-01--sec-09). Diğer 29 madde açıktır. Bu dalda backend testi 47 → 55'e çıktı.  
 **Doğrulama Durumu:** **350/350 Test Başarılı** (`47` Backend + `27` Panel + `221` Hackaton + `12` Yol Haritası + `38` Challenger + `4` E2E + `1` Layout), **0 ESLint Hatası**, **2 Vite Derlemesi Başarılı**
 
 ---
@@ -25,7 +26,7 @@ Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTT
 | **DEF-10** | Arayüz & İçerik | Etkinlik Vitrini Yer Tutucu Verileri & Kök Sosyal Medya Bağlantıları (`label`/`url`) | `shared/hackathon-event.json:7,34-53,104-154,444-457` | High | **P0** |
 | **DEF-11** | Hukuk & KVKK | Formda Tıklanabilir KVKK Aydınlatma Bağlantısı / Modalının Olmaması | `StepForm.jsx:154,177`, `Field.jsx:8-12`, `hackathon-event.json:432` | High | **P0** |
 | **DEF-14** | Mimari & Durum | Etkinlik Vitrininde Reaktif Olmayan Modül Değişkeni (`let event = base`) | `frontend/hackaton/src/data/event.js:9-16`, `main.jsx:11-41` | High | **P0** |
-| **DEF-17** | Ortam & Dağıtım | Ortam Değişkeni Şablonlarının Parçalı Olması (`.env.example` vs `.env.docker.example` vs `compose.prod.yaml`) | `.env.example`, `.env.docker.example`, `compose.prod.yaml` | High | **P0** |
+| **DEF-17** | Ortam & Dağıtım | Ortam Değişkeni Şablonlarının Parçalı Olması (`.env.example` vs `.env.docker.example` vs `compose.prod.yaml`) — **Kısmen çözüldü** (`9488de3`) | `.env.example`, `.env.docker.example`, `compose.prod.yaml` | High | **P0** |
 | **DEF-21** | Test & CI/CD | Challenger Güvenlik Testlerinin (26 Backend + 12 Panel = 38 Test) Varsayılan `npm test` Dışında Kalması | `backend/package.json:10`, `frontend/vitest.config.js:5` | High | **P0** |
 | **DEF-23** | Güvenlik & Paket | Bağımlılık Güvenlik Açıkları (`backend --omit=dev` 5 üretim açığı dahil toplam 18 audit uyarısı) | `backend/package.json`, `frontend/`, `hackaton/`, kök | High | **P0** |
 | **DEF-26** | Ortam & Dağıtım | Production `Dockerfile` & `compose.prod.yaml` İçinde `VITE_GOOGLE_CLIENT_ID` Build Argümanı Eksikliği | `Dockerfile:44-61`, `compose.prod.yaml:63-70` | High | **P0** |
@@ -607,6 +608,31 @@ npm.cmd audit --prefix frontend/hackaton
 
 ---
 
-## 5. Sonuç
+## 5. Ek Güvenlik Sertleştirmesi (SEC-01 – SEC-09)
+
+**Dal:** `fix/security-hardening` (`dev` / `ed9f7a3` üzerine) · **Commitler:** `25251f1` (kod + testler), `9488de3` (env şablonları; `DEF-17`)
+**Durum:** Hepsi **Çözüldü**. Bu maddeler yukarıdaki 30 maddelik listede yoktu; 12 Kasım 2026 kod incelemesinde bulundu.
+
+| No | Sorun | Çözüm | Konum |
+|---|---|---|---|
+| **SEC-01** | `forgot-password` / `reset-password` sıkı auth hız sınırının dışındaydı (yalnız genel 200/15 dk); OTP tahmini ve e-posta bombardımanına açık | Her iki uca `authLimiter` (30/15 dk) eklendi | `backend/src/app.js` |
+| **SEC-02** | Hesap varlığı sızıyordu: `forgot-password`, `verify-email`, `reset-password` kayıtsız e-postaya **404**; `send-otp` / `register` kayıtlı hesaba **409**; cooldown **429**'u yalnız gerçek hesaplarda oluşuyordu | Kayıtlı/kayıtsız/doğrulanmış tüm durumlar aynı yanıtı veriyor (genel 200 veya "Kod hatalı" 400); kayıtlı hesaba gereksiz e-posta gitmiyor; OTP yakılmıyor | `backend/src/controllers/authController.js` |
+| **SEC-03** | Hackathon başvurusu istemcinin gönderdiği `resumeUrl`'i doğrulamadan kaydediyordu; panelde "Özgeçmiş indir" bağlantısı olarak görünüyordu (oltalama vektörü) | `resumeUrl` yalnız doğrulanmış yüklemeden üretiliyor; gövdedeki değer yok sayılıyor | `backend/src/modules/hackathon/controllers/hackathonController.js` |
+| **SEC-04** | Doğrulama istemeyen formlara anonim olarak istek başına 5 × 15 MB dosya yüklenebiliyordu (disk doldurma) | Dosya alanı olan formlar her zaman doğrulanmış katılımcı istiyor; kontrol dosya diske yazılmadan önce yapılıyor | `backend/src/modules/participantAuth/middleware/formParticipantMiddleware.js` |
+| **SEC-05** | `tokenVersion` içermeyen JWT'ler iptal kontrolünü atlıyordu | Eksik `tokenVersion` 0 sayılıyor; şifre sıfırlama / rol değişikliği bu token'ları da iptal ediyor | `backend/src/middleware/authMiddleware.js` |
+| **SEC-06** | JSON / urlencoded gövde sınırı gereksiz büyüktü (10 MB) | 1 MB'a indirildi; aşan istek Türkçe mesajlı **413** alıyor | `backend/src/app.js`, `backend/src/middleware/errorHandler.js` |
+| **SEC-07** | Panel token'ı `localStorage`'da ve varsayılan **7 gün** geçerliydi | Varsayılan `JWT_EXPIRES_IN` **12h**; şablonlar ve `KATILIMCI_DOGRULAMA.md` güncellendi | `backend/src/utils/jwt.js`, `backend/.env.example` |
+| **SEC-08** | Nginx: statik dosya `location` bloklarındaki `add_header Cache-Control`, sunucu düzeyindeki güvenlik başlıklarını o blokta siliyordu; geçersiz `X-XSS-Protection` kullanılıyordu | Güvenlik başlıkları statik bloklarda tekrarlandı; `X-XSS-Protection` kaldırıldı (`nginx -t` ile doğrulandı) | `nginx/nginx.conf` |
+| **SEC-09** | Cloudflare + Nginx arkasında `TRUST_PROXY_HOPS=1` kalırsa hız sınırları tüm ziyaretçileri Cloudflare IP'leri altında birleştirir | Şablonlara "Cloudflare + Nginx → 2" notu eklendi; prod'da değerin kök `.env`'den geldiği belgelendi (bkz. `DEF-27`) | kök `.env.example`, `backend/.env.example` |
+
+**Testler:** Yeni [`backend/tests/security-hardening.test.js`](../backend/tests/security-hardening.test.js) dosyası her madde için 8 regresyon testi içerir; testlerin hepsi düzeltmeden önceki kodda **başarısız**, sonrasında **başarılı** doğrulandı. Davranış değişikliği nedeniyle 5 mevcut test güncellendi (404/409 beklentileri → 400/200; anonim dosya yükleyen testler katılımcı token'ı gönderiyor). Sonuç: Backend **55/55**, Yol Haritası **5/5**, Backend Challenger **26/26**, ESLint temiz. Ön yüz ve E2E paketleri bu dalda yeniden koşturulmadı.
+
+**Bilinçli olarak yapılmayanlar:**
+- **CSP başlığı:** Google girişi ve API origin'i tarayıcıda denenmeden eklenirse siteyi bozabilir; canlı alan adları netleşince eklenmeli.
+- **Üretimde zorunlu ayrı `PARTICIPANT_JWT_SECRET`:** Mevcut kurulumları kırmamak için zorunlu tutulmadı; token türü/audience ayrımı karışmayı zaten engelliyor. Şablonlarda ayrı anahtar öneriliyor.
+
+---
+
+## 6. Sonuç
 
 GDG On Campus Pamukkale Üniversitesi Web Platformu; fonksiyonel backend mantığı, MongoDB ACID transaction bütünlüğü, HMAC-OTP ve Google ID token güvenliği, `b4fbf69` başvuru değerlendirme + Brevo e-posta profilleri ve 350 testlik iki katmanlı güvence paketiyle güçlü bir çekirdeğe sahiptir. Canlı alan adı (`gdgocpamukkale.com` + `panel.gdgocpamukkale.com`) açılışı öncesinde özellikle yukarıdaki **11 adet P0 eksikliğin** (bağlantılı sırayla: `DEF-26`, `DEF-27`, `DEF-28` altyapı/harici servisler + `DEF-07`, `DEF-08`, `DEF-10`, `DEF-11`, `DEF-14` vitrin & hukuk/performans + `DEF-17`, `DEF-21`, `DEF-23` env/test/audit yamaları) kapatılması önerilir.
