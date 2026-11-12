@@ -101,3 +101,6 @@ Docs/superpowers/
 # Browser test artifacts
 playwright-report/
 test-results/
+
+# TLS certificates / private keys for nginx
+nginx/certs/

@@ -71,7 +71,11 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
       - "${PANEL_PORT:-8080}:8080"
+    volumes:
+      # origin.pem + origin.key here enable the HTTPS hosts (see nginx/https.conf).
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       backend:
         condition: service_healthy

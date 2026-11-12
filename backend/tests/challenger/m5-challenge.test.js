@@ -304,3 +304,34 @@ test('[CHALLENGE F19.5] seed.js alignment with server.js & password hardening', 
   assert.equal(createdAdmin.role, 'ADMIN');
   assert.equal(createdAdmin.isEmailVerified, true);
 });
+
+test('[CHALLENGE F19.6] HTTPS hosts, Cloudflare real IP and Vite build args are wired (DEF-26/27)', async () => {
+  const read = file => fs.readFile(path.join(projectRoot, file), 'utf8');
+  const [dockerfile, compose, https, common, enable, gitignore] = await Promise.all([
+    read('Dockerfile'), read('compose.prod.yaml'), read('nginx/https.conf'),
+    read('nginx/https-common.conf'), read('nginx/enable-https.sh'), read('.gitignore')
+  ]);
+
+  // Vite values are build-time only: Dockerfile must accept and compose must forward them.
+  assert.match(dockerfile, /ARG VITE_GOOGLE_CLIENT_ID/);
+  assert.match(dockerfile, /ENV VITE_GOOGLE_CLIENT_ID=\$\{VITE_GOOGLE_CLIENT_ID\}/);
+  assert.match(compose, /VITE_GOOGLE_CLIENT_ID: \$\{VITE_GOOGLE_CLIENT_ID:-\}/);
+
+  // HTTPS config ships in the image and is enabled only when certificates are mounted.
+  assert.match(dockerfile, /COPY nginx\/https\.conf nginx\/https-common\.conf nginx\/https-headers\.conf \/etc\/nginx\//);
+  assert.match(dockerfile, /docker-entrypoint\.d\/40-enable-https\.sh/);
+  assert.match(enable, /origin\.pem/);
+  assert.match(compose, /\.\/nginx\/certs:\/etc\/nginx\/certs:ro/);
+  assert.match(compose, /:443"/);
+  assert.match(gitignore, /^nginx\/certs\/$/m, 'private keys must never be committed');
+
+  // Production hosts: HTTP -> HTTPS redirect, panel never indexed.
+  assert.match(https, /return 301 https:\/\/\$host\$request_uri;/);
+  assert.match(https, /server_name panel\.gdgocpamukkale\.com;[\s\S]*X-Robots-Tag "noindex, nofollow"/);
+
+  // Real client IP only from Cloudflare edges, forwarded as a single hop (TRUST_PROXY_HOPS=1).
+  assert.match(common, /real_ip_header CF-Connecting-IP;/);
+  assert.ok((common.match(/set_real_ip_from /g) || []).length >= 15);
+  assert.doesNotMatch(common, /\$proxy_add_x_forwarded_for/);
+  assert.match(common, /proxy_set_header X-Forwarded-For \$remote_addr;/);
+});
