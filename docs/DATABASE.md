@@ -6,7 +6,7 @@ User rol listesinde `PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN` tanımlıdır; eş
 
 > Güncelleme: 11 Kasım 2026 — `iyilestirme-ve-test` çalışma dalı (Commit: `b4fbf69`). Başvuru durum alanları, şifre sıfırlama token'ları ve güvenli indeksler dahil.
 
-Varsayılan veritabanı `gdg_pau`; toplam dokuz model (`User`, `Form`, `FormResponse`, `EventPage`, `Content`, `HackathonApp`, `VerificationToken`, `Participant`, `ParticipantOtp`) vardır (eski `Team` modeli `@deprecated` olarak korunmaktadır). Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
+Varsayılan veritabanı `gdg_pau`; toplam dokuz model (`User`, `Form`, `FormResponse`, `EventPage`, `Content`, `HackathonApp`, `VerificationToken`, `Participant`, `ParticipantOtp`) vardır (eski `Team` modeli kaldırıldı; koleksiyondaki eski veriler silinmez). Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
 
 ```mermaid
 erDiagram
@@ -91,7 +91,7 @@ Diyagramdaki bağlantılar Mongoose referanslarıdır; SQL foreign key gibi DB t
 | `tokenVersion` | Number | default 0; şifre sıfırlama veya rol değişiminde artırılarak eski JWT'leri anında geçersiz kılar |
 | `createdAt` | Date | Şimdiki zaman |
 
-`toJSON()` passwordHash'ı çıkarır; auth controller'ları seçici projection ile yanıt verir. Şifre bcrypt ile hash edilir. Eski `permissions` alanı `@deprecated` ve `select: false` yapılmış olup, yetkilendirme doğrudan `role` alanı üzerinden yürütülür.
+`toJSON()` passwordHash'ı çıkarır; auth controller'ları seçici projection ile yanıt verir. Şifre bcrypt ile hash edilir. Eski `permissions` alanı şemadan kaldırıldı (eski belgelerde kalsa da okunmaz); yetkilendirme doğrudan `role` alanı üzerinden yürütülür.
 
 ### Content → `contents`
 

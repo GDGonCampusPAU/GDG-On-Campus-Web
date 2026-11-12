@@ -7,9 +7,9 @@ const hackathonAppSchema = new mongoose.Schema(
       required: false,
       trim: true
     },
+    // Legacy field from the removed Team model; kept so old documents stay readable.
     teamId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Team',
       required: false
     },
     mailId: {

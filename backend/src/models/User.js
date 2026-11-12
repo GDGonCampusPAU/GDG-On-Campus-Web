@@ -4,18 +4,6 @@ const bcrypt = require('bcryptjs');
 
 const PAU_OR_GMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@(gmail\.com|pau\.edu\.tr|posta\.pau\.edu\.tr)$/i;
 
-// Permission Schema (True/False access rights)
-// @deprecated Legacy permission schema. Access rights are determined strictly by user role.
-const permissionSchema = new mongoose.Schema(
-  {
-    canManageHackathon: { type: Boolean, default: false },
-    canManageUsers: { type: Boolean, default: false },
-    canManageForms: { type: Boolean, default: false },
-    canManageContent: { type: Boolean, default: false }
-  },
-  { _id: false }
-);
-
 const userSchema = new mongoose.Schema(
   {
     fullName: {
@@ -52,12 +40,6 @@ const userSchema = new mongoose.Schema(
     },
     roleChangeVersion: { type: Number, default: 0, select: false },
     tokenVersion: { type: Number, default: 0, select: false },
-    /** @deprecated Unused legacy field; RBAC roles govern permissions. */
-    permissions: {
-      type: permissionSchema,
-      default: () => ({}),
-      select: false
-    },
     isEmailVerified: {
       type: Boolean,
       default: false

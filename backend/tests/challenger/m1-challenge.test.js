@@ -446,10 +446,15 @@ test('CHALLENGE 5.1: Password reset flow revokes existing JWTs immediately via t
 // ============================================================================
 // CHALLENGE 6: Deprecated Schemas & Attributes (Issue A2)
 // ============================================================================
-test('CHALLENGE 6.1: User.permissions is not exposed by default query & Team model deprecation notice', async () => {
-  const user = await User.findOne({ email: adminUser.email });
-  assert.equal(user.permissions, undefined, 'user.permissions must be excluded from default query (select: false)');
+test('CHALLENGE 6.1: legacy User.permissions and Team model are gone (DEF-15)', async () => {
+  // Old documents may still carry `permissions`; the schema no longer knows it, so it is never returned.
+  await User.collection.updateOne({ email: adminUser.email }, { $set: { permissions: { canManageUsers: true } } });
+  const user = await User.findOne({ email: adminUser.email }).lean({ virtuals: false });
+  const hydrated = await User.findOne({ email: adminUser.email });
+  assert.equal(hydrated.permissions, undefined, 'permissions is not part of the schema');
+  assert.equal(User.schema.path('permissions'), undefined);
+  assert.ok(user, 'legacy document is still readable');
 
-  const Team = require('../../src/models/Team');
-  assert.ok(Team, 'Team model exists for backwards compatibility');
+  assert.throws(() => require('../../src/models/Team'), /Cannot find module/);
+  assert.throws(() => require('../../src/models/HackathonApp'), /Cannot find module/);
 });

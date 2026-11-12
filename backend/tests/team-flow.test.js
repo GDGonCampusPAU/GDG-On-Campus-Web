@@ -17,7 +17,7 @@ mail.sendRegistrationOtpEmail = mail.sendHackathonOtpEmail = async (message) => 
 const app = require('../src/app');
 const User = require('../src/models/User');
 const Otp = require('../src/models/VerificationToken');
-const HackathonApp = require('../src/models/HackathonApp');
+const HackathonApp = require('../src/modules/hackathon/models/HackathonApp');
 const { generateToken } = require('../src/utils/jwt');
 let repl;
 before(async () => {
