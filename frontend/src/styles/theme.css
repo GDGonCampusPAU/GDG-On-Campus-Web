@@ -1,10 +1,10 @@
 /* Global tema katmanı: fontlar, marka renk token'ları ve temel sıfırlamalar.
    Marka kuralları: documents/gdg_guideline_instructions.md
-   Font dosyaları: frontend/public/fonts/ altında (design folders/fonts içinden kopyalanır). */
+   Font dosyaları: frontend/public/fonts/ altında Latin + Türkçe alt kümeli .woff2 (kaynak: design folders/fonts). */
 
 @font-face {
   font-family: 'Google Sans';
-  src: local('Google Sans'), url('/fonts/GoogleSans-Regular.ttf') format('truetype');
+  src: local('Google Sans'), url('/fonts/GoogleSans-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -12,7 +12,7 @@
 
 @font-face {
   font-family: 'Google Sans';
-  src: local('Google Sans Medium'), url('/fonts/GoogleSans-Medium.ttf') format('truetype');
+  src: local('Google Sans Medium'), url('/fonts/GoogleSans-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -20,7 +20,7 @@
 
 @font-face {
   font-family: 'Google Sans';
-  src: local('Google Sans Bold'), url('/fonts/GoogleSans-Bold.ttf') format('truetype');
+  src: local('Google Sans Bold'), url('/fonts/GoogleSans-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -28,7 +28,7 @@
 
 @font-face {
   font-family: 'Google Sans Mono';
-  src: local('Google Sans Mono'), url('/fonts/GoogleSansMono-Regular.ttf') format('truetype');
+  src: local('Google Sans Mono'), url('/fonts/GoogleSansMono-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -36,7 +36,7 @@
 
 @font-face {
   font-family: 'Google Sans Mono';
-  src: local('Google Sans Mono Medium'), url('/fonts/GoogleSansMono-Medium.ttf') format('truetype');
+  src: local('Google Sans Mono Medium'), url('/fonts/GoogleSansMono-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;

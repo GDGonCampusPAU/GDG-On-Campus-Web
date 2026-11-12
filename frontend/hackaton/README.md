@@ -10,7 +10,7 @@ Site içerikleri `/api/v1/event-page/hackathon` üzerinden yüklenir. İlk kurul
 
 `/admin` gerçek Core Team ADMIN/ORGANIZER hesabıyla açılır. Kaydet yerel taslak saklar; Yayınla sunucuya kalıcı yazar ve form alanlarını aynı transaction'da günceller. Başka editör değişiklik yaptıysa eski sürümün yayını 409 ile reddedilir. Tarayıcıya gömülü yönetici parolası yoktur.
 
-Fontlar repodaki mevcut TTF dosyalarından `public/fonts/` altına alındı. Sponsor logoları ve kişi fotoğrafları editörden URL verilerek eklenir; mevcut yer tutucu içerikler etkinlik ekibi tarafından gerçek içerikle değiştirilmelidir.
+Fontlar `public/fonts/` altında Latin + Türkçe alt kümeli WOFF2 olarak tutulur; kökte `bash scripts/build-fonts.sh` ile `design folders/fonts` kaynaklarından yeniden üretilir. Sponsor logoları ve kişi fotoğrafları editörden URL verilerek eklenir; mevcut yer tutucu içerikler etkinlik ekibi tarafından gerçek içerikle değiştirilmelidir.
 
 Komutlar: `npm test`, `npm run lint`, `npm run build`. Build `dist/` ve SPA fallback `404.html` üretir. Netlify/Cloudflare `_redirects`, Vercel rewrite dosyası korunur. Yayında `/kayit`, `/admin` gibi rotaları yenilemenin çalıştığını ayrıca doğrulayın. `npm run check:layout` üç ekran boyutunu izole API ve Chromium ile kontrol eder. Tüm tarayıcı regresyon testleri kökten `npm run test:e2e` ile çalışır. Önce kök bağımlılıklarını ve `npm run setup:browser` ile Chromium'u kurun.
 
