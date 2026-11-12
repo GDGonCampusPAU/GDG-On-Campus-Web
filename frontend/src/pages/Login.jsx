@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import AuthLayout from '../components/layout/AuthLayout.jsx'
 import TextField from '../components/common/TextField.jsx'
 import OtpForm from '../components/common/OtpForm.jsx'
@@ -76,7 +77,7 @@ export default function Login({ onSuccess, notice }) {
         subtitle="Giriş yapmadan önce e-posta adresini doğrulaman gerekiyor."
         footer={
           <>
-            Hesabın yok mu? <a href="#/register">Kayıt Ol</a>
+            Hesabın yok mu? <Link to="/register">Kayıt Ol</Link>
           </>
         }
       >
@@ -97,7 +98,7 @@ export default function Login({ onSuccess, notice }) {
       subtitle="Core Team hesabınla giriş yap."
       footer={
         <>
-          Hesabın yok mu? <a href="#/register">Kayıt Ol</a>
+          Hesabın yok mu? <Link to="/register">Kayıt Ol</Link>
         </>
       }
     >

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import AuthLayout from '../components/layout/AuthLayout.jsx'
 import TextField from '../components/common/TextField.jsx'
 import OtpForm from '../components/common/OtpForm.jsx'
@@ -73,7 +74,7 @@ export default function Register() {
         title="Kaydın iletildi"
         footer={
           <>
-            Zaten onaylandın mı? <a href="#/login">Giriş Yap</a>
+            Zaten onaylandın mı? <Link to="/login">Giriş Yap</Link>
           </>
         }
       >
@@ -92,7 +93,7 @@ export default function Register() {
         subtitle="Kaydı tamamlamak için e-postana gelen kodu yaz."
         footer={
           <>
-            Zaten hesabın var mı? <a href="#/login">Giriş Yap</a>
+            Zaten hesabın var mı? <Link to="/login">Giriş Yap</Link>
           </>
         }
       >
@@ -113,7 +114,7 @@ export default function Register() {
       subtitle="Core Team'e katılmak için hesabını oluştur."
       footer={
         <>
-          Zaten hesabın var mı? <a href="#/login">Giriş Yap</a>
+          Zaten hesabın var mı? <Link to="/login">Giriş Yap</Link>
         </>
       }
     >

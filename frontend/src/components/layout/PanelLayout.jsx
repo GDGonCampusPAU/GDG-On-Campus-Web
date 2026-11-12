@@ -1,3 +1,5 @@
+import { NavLink } from 'react-router-dom'
+
 /**
  * Giriş yapmış Core Team üyeleri için sayfa iskeleti: üst çubuk + içerik alanı.
  */
@@ -19,8 +21,8 @@ export default function PanelLayout({ user, onLogout, title, children, actions }
       </header>
       <main className="panel__main">
         <nav aria-label="Panel menüsü">
-          {['ADMIN', 'ORGANIZER'].includes(user.role) && <a href="#/applications">Başvurular</a>}
-          {user.role === 'ADMIN' && <> · <a href="#/users">Ekip ve onaylar</a></>}
+          {['ADMIN', 'ORGANIZER'].includes(user.role) && <NavLink to="/applications">Başvurular</NavLink>}
+          {user.role === 'ADMIN' && <> · <NavLink to="/users">Ekip ve onaylar</NavLink></>}
         </nav>
         <div className="panel__heading">
           <h1 className="panel__title">{title}</h1>

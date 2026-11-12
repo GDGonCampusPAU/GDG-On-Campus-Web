@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import '../../src/test/setup.js'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { render } from '../../src/test/render.jsx'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import Applications from '../../src/pages/Applications.jsx'

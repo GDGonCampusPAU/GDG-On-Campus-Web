@@ -43,7 +43,7 @@ test('verified website submission appears in staff panel and downloaded CSV', as
   expect(csv).toContain('E2E Onaylandı');
 });
 test('team account needs ADMIN approval before it can log in', async ({ page, request }) => {
-  await page.goto('http://127.0.0.1:4174/#/register');
+  await page.goto('http://127.0.0.1:4174/register');
   await page.getByLabel('Ad Soyad', { exact: true }).fill('Browser Team Member');
   await page.getByLabel('E-posta', { exact: true }).fill('browserteam@gmail.com');
   await page.getByLabel('Şifre', { exact: true }).fill('browser-team-password');
