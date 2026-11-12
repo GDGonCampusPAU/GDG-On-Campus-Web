@@ -252,12 +252,19 @@ test('[CHALLENGE F19.4] Environment example documentation & replica set instruct
   const rootEnv = await fs.readFile(path.join(projectRoot, '.env.example'), 'utf8');
   const backendEnv = await fs.readFile(path.join(projectRoot, 'backend/.env.example'), 'utf8');
 
-  for (const envText of [rootEnv, backendEnv]) {
-    assert.match(envText, /replicaSet=rs0/);
-    assert.match(envText, /CLIENT_URLS/);
-    assert.match(envText, /Admin123456!/);
-    assert.match(envText, /BREVO_API_KEY/);
-    assert.match(envText, /GOOGLE_CLIENT_ID/);
+  // backend/.env.example is the single template for backend settings and secrets.
+  assert.match(backendEnv, /replicaSet=rs0/);
+  assert.match(backendEnv, /CLIENT_URLS/);
+  assert.match(backendEnv, /Admin123456!/);
+  assert.match(backendEnv, /BREVO_API_KEY/);
+  assert.match(backendEnv, /GOOGLE_CLIENT_ID/);
+
+  // Root .env.example only feeds Docker Compose and must never carry backend secrets.
+  for (const name of ['API_PORT', 'PANEL_PORT', 'HACKATON_PORT', 'MONGO_PORT', 'WEB_PORT', 'CLIENT_URLS', 'TRUST_PROXY_HOPS']) {
+    assert.match(rootEnv, new RegExp(name));
+  }
+  for (const secret of ['JWT_SECRET=', 'BREVO_API_KEY=', 'DEFAULT_ADMIN_PASSWORD=', 'MONGO_URI=']) {
+    assert.ok(!rootEnv.includes(secret), `root .env.example must not define ${secret}`);
   }
 });
 

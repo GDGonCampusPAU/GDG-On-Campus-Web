@@ -9,9 +9,7 @@
 .env.production.local
 *.env
 *.env.*
-/env
 !.env.example
-!.env.docker.example
 !backend/.env.example
 
 # Certificates & Private Keys

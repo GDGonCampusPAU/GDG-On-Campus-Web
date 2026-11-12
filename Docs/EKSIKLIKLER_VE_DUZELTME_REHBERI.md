@@ -323,6 +323,8 @@ Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTT
 ### KATEGORİ 4: Ortam Değişkenleri, Geliştirici Deneyimi ve Dağıtım Altyapısı (Docker / Nginx)
 
 #### DEF-17: Ortam Değişkeni Şablonlarının Parçalı Olması
+> **Kısmen çözüldü:** Backend şablonunun kopyası olan kök `.env.example` kaldırıldı; `.env.docker.example` kök `.env.example` olarak yeniden adlandırıldı ve yalnızca Compose değişkenlerini (dev + prod portları, `CLIENT_URLS`, `TRUST_PROXY_HOPS`) içeriyor. Backend ayarlarının tek şablonu `backend/.env.example`. `VITE_GOOGLE_CLIENT_ID` build-arg eksikliği DEF-26 kapsamında açık.
+
 - **Dosya / Kod Konumu:** `.env.example:1-78`, `.env.docker.example:1-11`, `backend/.env.example:1-92`, `frontend/.env.example:1-3`, `frontend/hackaton/.env.example:1-3`, `compose.prod.yaml:22,47-70`
 - **Öncelik / Ciddiyet:** **P0 — Yüksek (High / DevOps & Dağıtım Riski)**
 - **Sorun Tanımı ve Etkisi:** Kök `.env.example` artık `BREVO_APPLICATION_SENDER_*` değişkenlerini (satır 60–63) içerse de, geliştirme Docker Compose'un kullandığı port/origin değişkenleri `.env.docker.example` (`API_PORT`, `PANEL_PORT`, `HACKATON_PORT`, `MONGO_PORT`, `PUBLIC_API_URL`, `UPLOADS_PATH`) içine dağılmıştır; `compose.prod.yaml` ise ek olarak `WEB_PORT`, `PANEL_PORT` (8080 vs 5174 çakışabilir!) ve ön yüz Google butonu için gerekli `VITE_GOOGLE_CLIENT_ID` build-arg değişkenini kullanır/bekler. Tek kaynak rehber olmadığı için `.env` ve `backend/.env` karıştırılmakta veya `frontend/hackaton/.env` atlanmaktadır.
