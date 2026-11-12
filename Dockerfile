@@ -7,20 +7,23 @@
 # ------------------------------------------------------------------------------
 FROM node:24-bookworm-slim AS base
 WORKDIR /app
+# npm workspaces: one root lockfile; every workspace manifest must be present for `npm ci -w`.
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+COPY frontend/hackaton/package.json ./frontend/hackaton/
 
 FROM base AS backend
-COPY backend/package.json backend/package-lock.json ./backend/
-RUN MONGOMS_DISABLE_POSTINSTALL=1 npm ci --prefix backend --no-audit --no-fund
+RUN MONGOMS_DISABLE_POSTINSTALL=1 npm ci --workspace backend --no-audit --no-fund
 COPY backend/src ./backend/src
 COPY shared ./shared
 WORKDIR /app/backend
 EXPOSE 5000
-CMD ["node_modules/.bin/nodemon", "--watch", "src", "--watch", "/app/shared", "--ext", "js,mjs,json", "src/server.js"]
+CMD ["/app/node_modules/.bin/nodemon", "--watch", "src", "--watch", "/app/shared", "--ext", "js,mjs,json", "src/server.js"]
 
 FROM base AS panel
+RUN npm ci --workspace frontend --no-audit --no-fund
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
 COPY frontend/index.html frontend/vite.config.js ./
 COPY frontend/src ./src
 COPY frontend/public ./public
@@ -28,9 +31,8 @@ EXPOSE 5174
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 FROM base AS hackaton
+RUN npm ci --workspace frontend/hackaton --no-audit --no-fund
 WORKDIR /app/frontend/hackaton
-COPY frontend/hackaton/package.json frontend/hackaton/package-lock.json ./
-RUN npm ci --no-audit --no-fund
 COPY frontend/hackaton/index.html frontend/hackaton/vite.config.js ./
 COPY frontend/hackaton/src ./src
 COPY frontend/hackaton/public ./public
@@ -54,17 +56,16 @@ ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 # Shared content models required during build
 COPY shared ./shared
 
-# Build Admin Panel
-COPY frontend/package.json frontend/package-lock.json ./frontend/
-RUN npm ci --prefix frontend --no-audit --no-fund
-COPY frontend ./frontend
-RUN npm run build --prefix frontend
+# Install both frontends from the root workspace lockfile
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+COPY frontend/hackaton/package.json ./frontend/hackaton/
+RUN npm ci --workspace frontend --workspace frontend/hackaton --no-audit --no-fund
 
-# Build Hackathon Showcase Site
-COPY frontend/hackaton/package.json frontend/hackaton/package-lock.json ./frontend/hackaton/
-RUN npm ci --prefix frontend/hackaton --no-audit --no-fund
-COPY frontend/hackaton ./frontend/hackaton
-RUN npm run build --prefix frontend/hackaton
+# Build Admin Panel and Hackathon Showcase Site
+COPY frontend ./frontend
+RUN npm run build --workspace frontend && npm run build --workspace frontend/hackaton
 
 # ------------------------------------------------------------------------------
 # 3. Production Reverse Proxy & Static Web Serving (Nginx)
@@ -83,12 +84,16 @@ CMD ["nginx", "-g", "daemon off;"]
 # 4. Stage 2: Production Node.js Runtime for Backend API
 # ------------------------------------------------------------------------------
 FROM node:24-bookworm-slim AS production
-WORKDIR /app/backend
+WORKDIR /app
 ENV NODE_ENV=production
 
-# Install only production dependencies
-COPY backend/package.json backend/package-lock.json ./
-RUN MONGOMS_DISABLE_POSTINSTALL=1 npm ci --omit=dev --no-audit --no-fund
+# Install only the backend's production dependencies from the workspace lockfile
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+COPY frontend/hackaton/package.json ./frontend/hackaton/
+RUN MONGOMS_DISABLE_POSTINSTALL=1 npm ci --workspace backend --omit=dev --no-audit --no-fund
+WORKDIR /app/backend
 
 # Copy backend source code and shared models
 COPY backend/src ./src

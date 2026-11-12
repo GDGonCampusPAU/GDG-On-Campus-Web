@@ -187,12 +187,11 @@ test('[CHALLENGE F19.1] Multi-stage Dockerfile targets and referenced source pat
 
   // Verify critical files referenced in COPY exist in the repository
   const referencedPaths = [
+    'package.json',
+    'package-lock.json', // single npm-workspaces lockfile (DEF-04)
     'backend/package.json',
-    'backend/package-lock.json',
     'frontend/package.json',
-    'frontend/package-lock.json',
     'frontend/hackaton/package.json',
-    'frontend/hackaton/package-lock.json',
     'nginx/nginx.conf',
     'shared/hackathon-event.json',
     'shared/eventContent.mjs',

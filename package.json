@@ -1,19 +1,24 @@
 {
   "name": "gdg-on-campus-pau",
   "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "frontend/hackaton"
+  ],
   "engines": {
     "node": ">=24.15.0 <25"
   },
   "scripts": {
-    "setup": "npm ci && npm ci --prefix backend && npm ci --prefix frontend && npm ci --prefix frontend/hackaton",
+    "setup": "npm ci",
     "dev": "node scripts/dev.mjs",
-    "dev:api": "npm run dev --prefix backend",
-    "dev:panel": "npm run dev --prefix frontend",
-    "dev:hackaton": "npm run dev --prefix frontend/hackaton",
-    "test": "npm test --prefix backend && npm test --prefix frontend && npm test --prefix frontend/hackaton",
-    "test:roadmap": "npm run test:roadmap --prefix backend && npm run test:roadmap --prefix frontend && npm run test:roadmap --prefix frontend/hackaton",
-    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend && npm run lint --prefix frontend/hackaton",
-    "build": "npm run build --prefix frontend && npm run build --prefix frontend/hackaton",
+    "dev:api": "npm run dev --workspace backend",
+    "dev:panel": "npm run dev --workspace frontend",
+    "dev:hackaton": "npm run dev --workspace frontend/hackaton",
+    "test": "npm test --workspaces",
+    "test:roadmap": "npm run test:roadmap --workspaces",
+    "lint": "npm run lint --workspaces",
+    "build": "npm run build --workspace frontend --workspace frontend/hackaton",
     "check": "npm run lint && npm test && npm run build",
     "test:e2e": "playwright test",
     "setup:browser": "playwright install chromium"
