@@ -3,6 +3,14 @@ import { NavLink } from 'react-router-dom'
 /**
  * Giriş yapmış Core Team üyeleri için sayfa iskeleti: üst çubuk + içerik alanı.
  */
+/**
+ * @param {object} props
+ * @param {{ fullName: string, role: string }} props.user
+ * @param {() => void} props.onLogout
+ * @param {string} props.title
+ * @param {import('react').ReactNode} props.children
+ * @param {import('react').ReactNode} [props.actions]
+ */
 export default function PanelLayout({ user, onLogout, title, children, actions }) {
   return (
     <div className="panel">

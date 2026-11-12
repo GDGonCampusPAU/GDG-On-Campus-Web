@@ -28,5 +28,5 @@ export function useReveal() {
     return () => io.disconnect()
   }, [visible])
 
-  return [ref, visible]
+  return /** @type {[import('react').RefObject<any>, boolean]} */ ([ref, visible])
 }

@@ -134,7 +134,7 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
         step.fields.map((f) => {
           const required = f.required === 'yes'
           const aria = {
-            'aria-invalid': errors[f.id] ? 'true' : undefined,
+            'aria-invalid': errors[f.id] ? /** @type {const} */ ('true') : undefined,
             'aria-describedby': describe(f.id, Boolean(f.hint)),
           }
           if (f.kind === 'checkbox')

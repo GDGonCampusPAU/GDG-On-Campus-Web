@@ -43,7 +43,7 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Handle JSON parse errors
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+  if (err instanceof SyntaxError && /** @type {any} */ (err).status === 400 && 'body' in err) {
     statusCode = 400;
     message = 'Geçersiz JSON formatı gönderildi.';
   }

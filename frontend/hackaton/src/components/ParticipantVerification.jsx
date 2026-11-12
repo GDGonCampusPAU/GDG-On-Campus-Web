@@ -77,6 +77,7 @@ function GoogleVerification({ onCredential, onError }) {
       window.google.accounts.id.initialize({ client_id: clientId, callback: result => callbacks.current.onCredential(result.credential) })
       window.google.accounts.id.renderButton(container.current, { theme: 'outline', size: 'large', text: 'continue_with' })
     }
+    /** @type {HTMLScriptElement | null} */
     let script = document.querySelector('script[data-google-identity]')
     if (window.google?.accounts?.id) initialize()
     else {

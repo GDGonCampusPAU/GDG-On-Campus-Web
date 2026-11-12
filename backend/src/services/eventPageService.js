@@ -8,8 +8,8 @@ const fieldsFor = event => event.register.steps.flatMap(step => step.fields).map
   required: field.required === 'yes', options: field.options.map(option => option.value), order
 }));
 const formData = event => ({ title: event.register.title, slug: FORM_SLUG, category: 'HACKATHON', eventKey: 'hackathon',
-  fields: fieldsFor(event), status: event.register.status === 'open' ? 'PUBLISHED' : 'CLOSED',
-  settings: { verificationRequired: true, verificationMethods: ['GOOGLE', 'EMAIL_OTP'], allowMultipleSubmissions: false, successMessage: event.register.successText }
+  fields: fieldsFor(event), status: /** @type {'PUBLISHED' | 'CLOSED'} */ (event.register.status === 'open' ? 'PUBLISHED' : 'CLOSED'),
+  settings: { verificationRequired: true, verificationMethods: /** @type {('GOOGLE' | 'EMAIL_OTP')[]} */ (['GOOGLE', 'EMAIL_OTP']), allowMultipleSubmissions: false, successMessage: event.register.successText }
 });
 const ensureHackathonPage = async () => {
   await mongoose.connection.transaction(async session => {

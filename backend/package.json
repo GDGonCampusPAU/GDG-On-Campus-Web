@@ -9,7 +9,8 @@
     "seed": "node src/utils/seed.js",
     "test": "node --test --test-concurrency=1 tests/*.test.js tests/challenger/*.test.js",
     "test:roadmap": "node --test --test-concurrency=1 tests/roadmap/*.roadmap.test.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json"
   },
   "keywords": [],
   "author": "",

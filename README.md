@@ -14,7 +14,7 @@ Compose kendi MongoDB volume'unu ve kalıcı `backend/uploads` dizinini kullanı
 
 Docker olmadan geliştirme için kökte `npm run setup` bağımlılıkları kurar. Proje npm workspaces kullanır: üç paketin (`backend`, `frontend`, `frontend/hackaton`) bağımlılıkları tek bir kök `package-lock.json` ile kökteki `node_modules` altına kurulur; yeni paket eklerken `npm install <paket> --workspace backend` gibi kökten çalıştırın. İlk kurulumda örnek env dosyalarını ilgili dizinlerde `.env` olarak kopyalayıp düzenleyin; mevcut dosyaları ezmeyin. Sadece MongoDB'yi Compose ile çalıştırmak için `docker compose up -d --wait mongo` kullanabilirsiniz.
 
-`npm run dev` üç uygulamayı başlatır. Ayrı çalıştırmak için `dev:api`, `dev:panel`, `dev:hackaton` komutları vardır. `npm run check` üç paketin lint/test kontrollerini ve iki üretim build'ini çalıştırır. `npm run setup:browser` ardından `npm run test:e2e` gerçek Chromium akışlarını kontrol eder. Testler geçici veritabanı kullanır.
+`npm run dev` üç uygulamayı başlatır. Ayrı çalıştırmak için `dev:api`, `dev:panel`, `dev:hackaton` komutları vardır. `npm run check` üç paketin lint, tip denetimi (`npm run typecheck`: JSDoc + `checkJs`, her pakette `jsconfig.json`), test kontrollerini ve iki üretim build'ini çalıştırır. `npm run setup:browser` ardından `npm run test:e2e` gerçek Chromium akışlarını kontrol eder. Testler geçici veritabanı kullanır.
 
 > **Windows PowerShell Notu:** Windows üzerinde PowerShell'in varsayılan `ExecutionPolicy` politikası nedeniyle `npm.ps1` engeline takılmamak (`PSSecurityException`) için terminal komutlarını **`npm.cmd`** ve **`npx.cmd`** ile çalıştırınız (örn. `npm.cmd run check`, `npm.cmd test`, `npm.cmd run dev`, `npx.cmd playwright test`).
 

@@ -279,7 +279,7 @@ const updateForm = async (req, res, next) => {
 
     // Update questions/fields
     if (Array.isArray(fields)) {
-      form.fields = fields.map((f, index) => ({
+      form.set('fields', fields.map((f, index) => ({
         fieldId: f.fieldId || `field_${index + 1}_${Date.now().toString(36)}`,
         label: f.label || `Soru ${index + 1}`,
         description: f.description || '',
@@ -289,7 +289,7 @@ const updateForm = async (req, res, next) => {
         options: Array.isArray(f.options) ? f.options : [],
         validation: f.validation || {},
         order: f.order !== undefined ? f.order : index
-      }));
+      })));
     }
 
     await form.save();
@@ -544,7 +544,7 @@ const exportFormResponses = async (req, res, next) => {
     const cursor = FormResponse.find(filter).sort({ submittedAt: -1 }).lean().cursor();
     try {
       for await (const response of cursor) {
-        const answers = new Map((response.answers || []).map(answer => [columnKey(answer), answer.value]));
+        const answers = new Map((response.answers || []).map(answer => /** @type {[string, unknown]} */ ([columnKey(answer), answer.value])));
         const row = [response._id, new Date(response.submittedAt).toISOString(), response.status || 'PENDING', response.statusNote || '', response.respondent?.ip || '',
           response.verifiedEmail || '', response.verificationMethod || '', ...fields.map(field => answers.get(columnKey(field)) ?? ''),
           (response.uploadedFiles || []).map(file => file.url).join(' | ')];
@@ -569,6 +569,7 @@ const getPublicForm = async (req, res, next) => {
     const { slugOrId } = req.params;
 
     // Search by slug first, then fallback to ObjectId if valid
+    /** @type {Record<string, unknown>} */
     let query = { slug: slugOrId };
     if (/^[0-9a-fA-F]{24}$/.test(slugOrId)) {
       query = { $or: [{ slug: slugOrId }, { _id: slugOrId }] };

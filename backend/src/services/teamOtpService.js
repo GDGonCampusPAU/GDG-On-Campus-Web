@@ -6,6 +6,7 @@ const sendTeamOtp = async ({ email: address, purpose, ...details }) => {
   }
   const code = await VerificationToken.generateOtp(address, purpose, 10);
   try {
+    /** @type {(message: Record<string, any>) => Promise<unknown>} */
     const send = purpose === 'REGISTER' ? email.sendRegistrationOtpEmail : email.sendHackathonOtpEmail;
     await send({ email: address, code, ...details });
   } catch {

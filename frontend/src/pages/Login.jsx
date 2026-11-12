@@ -14,7 +14,7 @@ export default function Login({ onSuccess, notice }) {
   const formRef = useRef(null)
   const [step, setStep] = useState('form') // 'form' | 'code'
   const [values, setValues] = useState({ email: '', password: '' })
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}))
   const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
 

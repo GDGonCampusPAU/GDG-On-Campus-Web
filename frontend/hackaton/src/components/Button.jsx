@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 import './Button.css'
 
+/**
+ * Link (`to`), dış bağlantı (`href`) veya düğme olarak render edilir.
+ * @param {{ to?: string, href?: string, variant?: string, children?: import('react').ReactNode } & Record<string, any>} props
+ */
 export default function Button({ to, href, variant = 'primary', children, ...rest }) {
   const className = `btn btn--${variant}`
   if (to) {

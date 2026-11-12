@@ -1,4 +1,8 @@
 export const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/$/, '')
+/**
+ * @param {string} path
+ * @param {{ token?: string, body?: unknown, method?: string }} [options]
+ */
 export async function api(path, { token, body, method = 'GET' } = {}) {
   let response
   try {

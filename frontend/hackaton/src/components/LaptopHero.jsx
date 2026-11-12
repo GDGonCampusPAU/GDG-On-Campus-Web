@@ -90,7 +90,7 @@ export default function LaptopHero({ data, children }) {
               <i className="laptop__shadow" />
               <div className="laptop__scene">
                 <div className="laptop__base">
-                  <i className="laptop__keys" style={{ '--keys': KEYBOARD_URL, '--keys-ratio': KEYBOARD_RATIO }} />
+                  <i className="laptop__keys" style={/** @type {import('react').CSSProperties} */ ({ '--keys': KEYBOARD_URL, '--keys-ratio': KEYBOARD_RATIO })} />
                 </div>
                 <div className="laptop__lip" />
                 <div className="laptop__lid">

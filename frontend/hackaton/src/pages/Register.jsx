@@ -7,6 +7,7 @@ import { API_URL } from '../lib/eventApi.js'
 import { submitRegistration } from '../lib/registration.js'
 import './Register.css'
 
+/** @param {{ data?: any }} props Testler için isteğe bağlı veri; verilmezse useEvent() kullanılır. */
 export default function Register({ data: dataProp }) {
   const { event, formSlug } = useEvent()
   const data = dataProp ?? event

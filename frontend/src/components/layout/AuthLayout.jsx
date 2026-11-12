@@ -2,6 +2,15 @@
  * Login ve Register için ortak sayfa iskeleti.
  * Resmi logo dosyasının yolu belli olunca `logoSrc` ile verilir; verilmezse logo gösterilmez.
  */
+/**
+ * @param {object} props
+ * @param {string} props.title
+ * @param {string} [props.subtitle]
+ * @param {import('react').ReactNode} props.children
+ * @param {import('react').ReactNode} [props.footer]
+ * @param {string} [props.logoSrc]
+ * @param {string} [props.logoAlt]
+ */
 export default function AuthLayout({ title, subtitle, children, footer, logoSrc, logoAlt = '' }) {
   return (
     <main className="auth-page">

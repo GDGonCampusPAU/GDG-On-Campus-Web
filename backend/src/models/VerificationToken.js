@@ -62,6 +62,7 @@ verificationTokenSchema.index({ email: 1, purpose: 1 }, {
 });
 const hash = (email, purpose, code) => createHmac('sha256', getTeamConfig().secret)
   .update(`${purpose}:${email}:${code}`).digest('hex');
+/** @this {import('mongoose').Model<any>} */
 verificationTokenSchema.statics.generateOtp = async function (email, purpose, ttlMinutes = 10) {
   const code = String(randomInt(100000, 1000000));
   const now = new Date();
@@ -77,6 +78,7 @@ verificationTokenSchema.statics.generateOtp = async function (email, purpose, tt
   }
   return code;
 };
+/** @this {import('mongoose').Model<any>} */
 verificationTokenSchema.statics.verifyOtp = async function (email, code, purpose) {
   if (typeof code !== 'string' || !/^\d{6}$/.test(code)) return { success: false, message: 'Kod 6 haneli olmalıdır.' };
   const filter = { email, purpose, expiresAt: { $gt: new Date() }, attempts: { $lt: 5 } };
@@ -85,9 +87,17 @@ verificationTokenSchema.statics.verifyOtp = async function (email, code, purpose
   await this.updateOne(filter, { $inc: { attempts: 1 } });
   return { success: false, message: 'Kod hatalı, süresi dolmuş veya deneme hakkı bitmiş.' };
 };
+/** @this {import('mongoose').Model<any>} */
 verificationTokenSchema.statics.invalidateOtp = function (email, purpose, code) {
   return this.deleteOne({ email, purpose, codeHash: hash(email, purpose, code) });
 };
 
-const VerificationToken = mongoose.model('VerificationToken', verificationTokenSchema);
+/**
+ * @typedef {object} VerificationTokenStatics
+ * @property {(email: string, purpose: string, ttlMinutes?: number) => Promise<string>} generateOtp
+ * @property {(email: string, code: unknown, purpose: string) => Promise<{ success: boolean, message?: string }>} verifyOtp
+ * @property {(email: string, purpose: string, code: string) => Promise<unknown>} invalidateOtp
+ */
+/** @type {import('mongoose').Model<any> & VerificationTokenStatics} */
+const VerificationToken = /** @type {any} */ (mongoose.model('VerificationToken', verificationTokenSchema));
 module.exports = VerificationToken;

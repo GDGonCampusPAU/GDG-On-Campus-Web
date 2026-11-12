@@ -4,6 +4,7 @@ export const fieldsOf = (steps) => steps.flatMap((s) => s.fields)
 
 const collapse = (s) => (typeof s === 'string' ? s.trim().replace(/\s+/g, ' ') : s)
 const isChecklist = (f) => f.kind === 'checkbox'
+/** @param {unknown} v @returns {v is File} */
 const isFile = (v) =>
   (typeof File !== 'undefined' && v instanceof File) ||
   (typeof Blob !== 'undefined' && v instanceof Blob)
@@ -59,9 +60,13 @@ export function validateStep(step, values) {
   return errors
 }
 
+/**
+ * @param {Record<string, unknown>} values
+ * @param {{ endpoint?: string, token?: string, formVersion?: string, fetchImpl?: typeof fetch }} [options]
+ */
 export async function submitRegistration(
   values,
-  { endpoint, token, formVersion, fetchImpl = (...args) => fetch(...args) } = {},
+  { endpoint, token, formVersion, fetchImpl = (input, init) => fetch(input, init) } = {},
 ) {
   if (!endpoint) {
     // Yayında adres yoksa kayıt hiçbir yere gitmez; başarı göstermek sessiz veri kaybı olur.

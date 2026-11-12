@@ -8,6 +8,7 @@ import SponsorGrid from '../components/SponsorGrid.jsx'
 import { useEvent } from '../context/EventContext.jsx'
 import './Home.css'
 
+/** @param {{ data?: any }} props Testler için isteğe bağlı veri; verilmezse useEvent() kullanılır. */
 export default function Home({ data: dataProp }) {
   const { event } = useEvent()
   const data = dataProp ?? event

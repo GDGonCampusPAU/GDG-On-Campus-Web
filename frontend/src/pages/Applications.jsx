@@ -29,7 +29,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
   const [source, setSource] = useState('forms')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [revision, setRevision] = useState(0)
-  const [state, setState] = useState({ status: 'loading', items: [], pagination: null, formId: null, error: '' })
+  const [state, setState] = useState({ key: '', status: 'loading', items: [], pagination: null, formId: null, error: '' })
   const [exporting, setExporting] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionNotice, setActionNotice] = useState('')
@@ -120,6 +120,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     }
   }
 
+  /** @param {any} record @param {string} nextStatus @param {{ forceNotify?: boolean }} [options] */
   const handleStatusChange = async (record, nextStatus, { forceNotify } = {}) => {
     const id = record._id
     const draftNote = notesById[id] ?? record.statusNote ?? ''

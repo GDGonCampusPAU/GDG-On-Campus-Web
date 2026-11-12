@@ -17,7 +17,7 @@ export default function Register() {
   const formRef = useRef(null)
   const [step, setStep] = useState('form') // 'form' | 'code' | 'done'
   const [values, setValues] = useState(EMPTY)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}))
   const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
 

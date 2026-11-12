@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
+const { default: helmet } = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-const rateLimit = require('express-rate-limit');
+const { rateLimit } = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');

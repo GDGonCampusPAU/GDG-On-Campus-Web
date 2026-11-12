@@ -20,7 +20,7 @@ function RequireStaff({ session, allowedRoles, onLogout, children }) {
     )
   }
   // Yetkisiz rol (ör. ORGANIZER -> /users) kendi ana sayfasına döner.
-  if (allowedRoles && !allowedRoles.includes(session.user.role)) return <Navigate to={homePath(session.user)} replace />
+  if (allowedRoles && !allowedRoles.includes(session.user.role)) return <Navigate to={homePath()} replace />
   return children
 }
 
@@ -52,7 +52,7 @@ export default function App() {
   const guard = (page, allowedRoles) => (
     <RequireStaff session={session} allowedRoles={allowedRoles} onLogout={handleLogout}>{page}</RequireStaff>
   )
-  const home = session ? homePath(session.user) : '/login'
+  const home = session ? homePath() : '/login'
   // Page the user asked for before being sent to /login (same-site paths only).
   const from = location.state?.from
   const returnTo = typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/login') ? from : home

@@ -4,6 +4,7 @@ const FormResponse = require('../models/FormResponse');
 const { failure } = require('../modules/participantAuth/services/otpService');
 
 const saveSubmission = async (formId, responseData, participant) => {
+  /** @type {import('mongoose').HydratedDocument<any> | undefined} */
   let response;
   await mongoose.connection.transaction(async (session) => {
     // Every submission writes the same form first. Transaction retries serialize
@@ -33,6 +34,8 @@ const saveSubmission = async (formId, responseData, participant) => {
     }], { session });
     response = created[0];
   });
+  // The transaction either assigned the response or threw; guard keeps the contract explicit.
+  if (!response) throw new Error('Form yanıtı kaydedilemedi.');
   return response;
 };
 module.exports = { saveSubmission };

@@ -3,6 +3,7 @@ import Timeline from '../components/Timeline.jsx'
 import { useEvent } from '../context/EventContext.jsx'
 import './Schedule.css'
 
+/** @param {{ data?: any }} props Testler için isteğe bağlı veri; verilmezse useEvent() kullanılır. */
 export default function Schedule({ data: dataProp }) {
   const { event } = useEvent()
   const data = dataProp ?? event

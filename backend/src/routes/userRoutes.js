@@ -4,14 +4,16 @@ const mongoose = require('mongoose');
 const auth = require('../middleware/authMiddleware');
 const { requireRoles } = require('../middleware/roleMiddleware');
 const router = express.Router();
+/** Role enum straight from the User schema (single source of truth). */
+const ROLES = /** @type {string[]} */ (/** @type {any} */ (User.schema.path('role')).enumValues);
 router.use(auth, requireRoles('ADMIN'));
 router.get('/', async (req, res, next) => {
   try {
-    const roles = User.schema.path('role').enumValues;
-    if (req.query.role && !roles.includes(req.query.role)) return res.status(400).json({ message: 'Geçersiz rol.' });
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const role = req.query.role;
+    if (role !== undefined && (typeof role !== 'string' || !ROLES.includes(role))) return res.status(400).json({ message: 'Geçersiz rol.' });
+    const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
     const limit = 50;
-    const filter = req.query.role ? { role: req.query.role } : {};
+    const filter = role ? { role } : {};
     const [data, totalItems] = await Promise.all([
       User.find(filter).select('-passwordHash').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       User.countDocuments(filter)
@@ -34,7 +36,7 @@ router.get('/', async (req, res, next) => {
 router.patch('/:id/role', async (req, res, next) => {
   try {
     const { role } = req.body;
-    if (!User.schema.path('role').enumValues.includes(role)) return res.status(400).json({ message: 'Geçersiz rol.' });
+    if (!ROLES.includes(role)) return res.status(400).json({ message: 'Geçersiz rol.' });
     if (String(req.user._id) === req.params.id) return res.status(400).json({ message: 'Kendi rolünüzü değiştiremezsiniz.' });
     let user;
     await mongoose.connection.transaction(async session => {

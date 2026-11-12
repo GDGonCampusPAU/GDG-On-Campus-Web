@@ -11,7 +11,13 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * @typedef {{ method?: string, body?: unknown, token?: string }} RequestOptions
+ */
+
+/** @param {string} path @param {RequestOptions} [options] */
 async function send(path, { method = 'GET', body, token } = {}) {
+  /** @type {Record<string, string>} */
   const headers = {}
   if (body) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
@@ -28,6 +34,7 @@ async function send(path, { method = 'GET', body, token } = {}) {
   }
 }
 
+/** @param {string} path @param {RequestOptions} [options] */
 async function request(path, options) {
   const response = await send(path, options)
   const data = await response.json().catch(() => ({}))
@@ -45,6 +52,7 @@ export function login({ email, password }) {
 
 // `code` verilmezse backend e-postaya 6 haneli kod gönderir ve requiresVerification döner.
 // `code` ile çağrılırsa kayıt tamamlanır (hesap yönetici onayını bekler).
+/** @param {{ fullName: string, email: string, password: string, code?: string }} input */
 export function register({ fullName, email, password, code }) {
   return request('/auth/register', {
     method: 'POST',
@@ -52,6 +60,7 @@ export function register({ fullName, email, password, code }) {
   })
 }
 
+/** @param {{ email: string, fullName?: string }} input */
 export function sendOtp({ email, fullName }) {
   return request('/auth/send-otp', { method: 'POST', body: { email, fullName } })
 }
@@ -60,10 +69,15 @@ export function verifyEmail({ email, code }) {
   return request('/auth/verify-email', { method: 'POST', body: { email, code } })
 }
 
+/**
+ * @param {string} token
+ * @param {number | { page?: number, role?: string } | null} [pageOrOptions]
+ * @param {string} [maybeRole]
+ */
 export function getUsers(token, pageOrOptions = 1, maybeRole = '') {
-  const isOptions = typeof pageOrOptions === 'object' && pageOrOptions !== null
-  const page = isOptions ? (pageOrOptions.page ?? 1) : (pageOrOptions ?? 1)
-  const role = isOptions ? (pageOrOptions.role ?? '') : (maybeRole ?? '')
+  const options = typeof pageOrOptions === 'object' && pageOrOptions !== null ? pageOrOptions : null
+  const page = options ? (options.page ?? 1) : (pageOrOptions ?? 1)
+  const role = options ? (options.role ?? '') : (maybeRole ?? '')
   const params = new URLSearchParams({ page: String(page) })
   if (role && role !== 'ALL') {
     params.set('role', role)

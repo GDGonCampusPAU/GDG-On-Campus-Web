@@ -14,7 +14,8 @@
     "test:roadmap": "vitest run --config vitest.roadmap.config.js",
     "test:watch": "vitest",
     "check:layout": "node scripts/check-layout.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json"
   },
   "dependencies": {
     "react": "^19.3.1",

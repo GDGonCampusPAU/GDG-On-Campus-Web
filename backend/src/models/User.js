@@ -67,5 +67,6 @@ userSchema.methods.toJSON = function () {
   return userObject;
 };
 
-const User = mongoose.model('User', userSchema);
+/** @type {import('mongoose').Model<any, {}, { comparePassword(candidatePassword: string): Promise<boolean> }>} */
+const User = /** @type {any} */ (mongoose.model('User', userSchema));
 module.exports = User;

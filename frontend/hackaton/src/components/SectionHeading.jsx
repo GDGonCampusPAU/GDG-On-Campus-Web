@@ -1,5 +1,6 @@
 import './SectionHeading.css'
 
+/** @param {{ eyebrow?: string, title: string, children?: import('react').ReactNode }} props */
 export default function SectionHeading({ eyebrow, title, children }) {
   return (
     <header className="section-heading">

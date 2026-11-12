@@ -52,6 +52,18 @@ const sanitizeHeader = (str) => String(str || '').replace(/[\r\n]+/g, ' ').trim(
  * Send transactional email using Brevo REST API
  * Falls back to console log preview if BREVO_API_KEY is not configured
  */
+/**
+ * @param {object} message
+ * @param {string} message.to
+ * @param {string} [message.toName]
+ * @param {string} message.subject
+ * @param {string} message.htmlContent
+ * @param {string} [message.textContent]
+ * @param {string} [message.profile]
+ * @param {string} [message.fromEmail]
+ * @param {string} [message.fromName]
+ * @param {string} [message.replyTo]
+ */
 const sendEmail = async ({ to, toName, subject, htmlContent, textContent, profile = 'default', fromEmail, fromName, replyTo }) => {
   const apiKey = process.env.BREVO_API_KEY;
   const resolved = getEmailProfile(profile);
@@ -251,6 +263,18 @@ const sendPasswordResetOtpEmail = async ({ email, fullName, code }) => {
 
 /**
  * Send Hackathon / Form Application Approval or Rejection Email
+ */
+/**
+ * @param {object} message
+ * @param {string} message.email
+ * @param {string} [message.recipientName]
+ * @param {string} [message.teamName]
+ * @param {string} [message.eventTitle]
+ * @param {'APPROVED' | 'REJECTED'} message.status
+ * @param {string} [message.note]
+ * @param {string} [message.fromEmail]
+ * @param {string} [message.fromName]
+ * @param {string} [message.replyTo]
  */
 const sendApplicationStatusEmail = async ({
   email,

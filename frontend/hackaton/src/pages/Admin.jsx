@@ -99,6 +99,7 @@ const optionLabels = {
   no: 'Hayır',
 }
 const nullable = new Set(['photo', 'logo', 'url'])
+/** @type {[string, string[]][]} */
 const tabs = [
   ['Genel', ['organizer', 'name', 'tagline', 'theme', 'startsAt', 'location']],
   ['Hakkında', ['about']],
@@ -115,6 +116,7 @@ const UNLOCK_KEY = 'hackathon-admin-unlocked'
 // Kart başlığı öğenin kendi alanlarından gelir; boşsa sıra adı kullanılır.
 const cardLabel = (item) => [item.time, item.name || item.title || item.label].filter(Boolean).join(' ')
 
+/** @param {any} obj @param {(string | number)[]} path @param {unknown} value @returns {any} */
 function setIn(obj, [k, ...rest], value) {
   const copy = Array.isArray(obj) ? [...obj] : { ...obj }
   copy[k] = rest.length ? setIn(obj[k], rest, value) : value
@@ -123,6 +125,7 @@ function setIn(obj, [k, ...rest], value) {
 
 // Kartın kimliği dizideki konumu değil kendi anahtarıdır; taşıma ve kaldırmada açık/kapalı durumu öğeyle gider.
 // slots, ilk taşıma/ekleme/kaldırmaya kadar boştur ve o zamana dek kimlik konumdur.
+/** @param {{ name: string, title?: string, path: (string | number)[], value: any, update: Function }} props */
 function ArrayNode({ name, title, path, value, update }) {
   const [slots, setSlots] = useState([])
   const added = useRef(0)
@@ -187,6 +190,7 @@ function ArrayNode({ name, title, path, value, update }) {
 }
 
 // name: dizi öğelerinde dizinin anahtarı; başlık ve şablon bununla seçilir.
+/** @param {{ name: string, title?: string, path: (string | number)[], value: any, update: Function }} props */
 function Node({ name, title, path, value, update }) {
   const id = `f-${path.join('-')}`
   const heading = title ?? labels[name] ?? name

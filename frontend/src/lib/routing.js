@@ -3,7 +3,7 @@ export const STAFF_ROLES = ['ADMIN', 'ORGANIZER']
 
 export const isStaff = (user) => Boolean(user && STAFF_ROLES.includes(user.role))
 
-/** Giriş yapmış kullanıcının varsayılan sayfası. */
+/** Giriş yapmış kullanıcının varsayılan sayfası (şu an tüm ekip rolleri için aynı). */
 export const homePath = () => '/applications'
 
 /**

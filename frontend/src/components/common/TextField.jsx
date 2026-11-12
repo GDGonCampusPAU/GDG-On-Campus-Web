@@ -4,6 +4,22 @@ import { useId, useState } from 'react'
  * Etiketli form alanı. Şifre alanlarında "Göster/Gizle" düğmesi otomatik eklenir.
  * Hata ve ipucu metinleri aria-describedby ile alana bağlanır.
  */
+/**
+ * @param {object} props
+ * @param {string} props.label
+ * @param {string} props.name
+ * @param {string} [props.type]
+ * @param {string} props.value
+ * @param {(event: any) => void} props.onChange
+ * @param {string} [props.error]
+ * @param {string} [props.hint]
+ * @param {string} [props.autoComplete]
+ * @param {boolean} [props.required]
+ * @param {boolean} [props.disabled]
+ * @param {string} [props.inputClassName]
+ * @param {import('react').HTMLAttributes<HTMLInputElement>['inputMode']} [props.inputMode]
+ * @param {number} [props.maxLength]
+ */
 export default function TextField({
   label,
   name,

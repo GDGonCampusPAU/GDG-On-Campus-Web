@@ -23,6 +23,7 @@ function PeopleSection({ title, eyebrow, people }) {
   )
 }
 
+/** @param {{ data?: any }} props Testler için isteğe bağlı veri; verilmezse useEvent() kullanılır. */
 export default function Team({ data: dataProp }) {
   const { event } = useEvent()
   const data = dataProp ?? event
