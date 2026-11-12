@@ -2,7 +2,7 @@ import './SponsorGrid.css'
 
 function SponsorItem({ sponsor }) {
   const content = sponsor.logo ? (
-    <img src={sponsor.logo} alt={sponsor.name} />
+    <img src={sponsor.logo} alt={sponsor.name} loading="lazy" decoding="async" />
   ) : (
     <span>{sponsor.name}</span>
   )

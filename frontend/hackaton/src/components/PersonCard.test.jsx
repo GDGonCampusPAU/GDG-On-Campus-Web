@@ -9,6 +9,15 @@ describe('PersonCard', () => {
     expect(screen.queryByText('AY')).not.toBeInTheDocument()
   })
 
+  it('fotoğraf ekran okuyucuya ad ve unvanla tanıtılır, tembel yüklenir', () => {
+    render(<PersonCard person={{ name: 'Ayşe Yılmaz', title: 'Jüri Üyesi', photo: '/ayse.jpg' }} />)
+    const img = screen.getByRole('img', { name: 'Ayşe Yılmaz — Jüri Üyesi' })
+    expect(img).toHaveAttribute('loading', 'lazy')
+    expect(img).toHaveAttribute('decoding', 'async')
+    render(<PersonCard person={{ name: 'Mehmet Kaya', title: '', photo: '/m.jpg' }} />)
+    expect(screen.getByRole('img', { name: 'Mehmet Kaya' })).toBeInTheDocument()
+  })
+
   it('fotoğraf yoksa baş harfleri gösterir', () => {
     const { container } = render(<PersonCard person={{ name: 'Ayşe Yılmaz', title: 'Unvan', photo: null }} />)
     expect(container.querySelector('img')).toBeNull()

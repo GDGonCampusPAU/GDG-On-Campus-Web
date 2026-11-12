@@ -20,6 +20,7 @@ describe('SponsorGrid', () => {
   it('logo varsa ad alt metniyle görseli gösterir', () => {
     render(<SponsorGrid sponsors={[{ name: 'Logolu', tier: 'main', logo: '/logo.png', url: null }]} />)
     expect(screen.getByRole('img', { name: 'Logolu' })).toHaveAttribute('src', '/logo.png')
+    expect(screen.getByRole('img', { name: 'Logolu' })).toHaveAttribute('loading', 'lazy')
   })
 
   it('ana sponsoru destek sponsorlarının önüne alır', () => {
