@@ -18,4 +18,4 @@ Node 24, Express ve MongoDB replica set/Atlas kullanır. Kök dizindeki `npm run
 
 `npm run seed` için yeni admin parolasını `DEFAULT_ADMIN_PASSWORD` ile en az 12 karakter olarak belirleyin. Seed doğrulanmış ADMIN oluşturur; aynı admin tekrar çalıştırıldığında parola değişmez ve loglanmaz. Başka rolü otomatik ADMIN yapmaz.
 
-Otomatik testler geçici MongoDB kullanır; gerçek `.env`, Google hesabı ve Brevo teslimatı kullanılmaz. Tarayıcı testleri kökten `npm run test:e2e` ile çalışır. Güncel sonuçlar [mevcut durum](../documents/MEVCUT_PROJE_DURUMU.md) belgesindedir.
+Otomatik testler geçici MongoDB kullanır; gerçek `.env`, Google hesabı ve Brevo teslimatı kullanılmaz. Tarayıcı testleri kökten `npm run test:e2e` ile çalışır. Güncel sonuçlar [mevcut durum](../docs/MEVCUT_PROJE_DURUMU.md) belgesindedir.

@@ -18,12 +18,12 @@ Docker olmadan geliştirme için kökte `npm run setup` bağımlılıkları kura
 
 > **Windows PowerShell Notu:** Windows üzerinde PowerShell'in varsayılan `ExecutionPolicy` politikası nedeniyle `npm.ps1` engeline takılmamak (`PSSecurityException`) için terminal komutlarını **`npm.cmd`** ve **`npx.cmd`** ile çalıştırınız (örn. `npm.cmd run check`, `npm.cmd test`, `npm.cmd run dev`, `npx.cmd playwright test`).
 
-- [Kapsamlı Eksiklikler ve Düzeltme Rehberi (30 Madde)](Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md)
-- [Mevcut proje durumu ve dokümantasyon haritası](documents/MEVCUT_PROJE_DURUMU.md)
-- [Canlıya çıkış kontrol listesi ve kabul kriterleri](documents/CANLIYA_CIKIS_KONTROL_LISTESI.md)
-- [Katılımcı doğrulaması ve test araçları](documents/KATILIMCI_DOGRULAMA.md)
+- [Kapsamlı Eksiklikler ve Düzeltme Rehberi (30 Madde)](docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md)
+- [Mevcut proje durumu ve dokümantasyon haritası](docs/MEVCUT_PROJE_DURUMU.md)
+- [Canlıya çıkış kontrol listesi ve kabul kriterleri](docs/CANLIYA_CIKIS_KONTROL_LISTESI.md)
+- [Katılımcı doğrulaması ve test araçları](docs/KATILIMCI_DOGRULAMA.md)
 - [Backend kurulum ve kullanım](backend/README.md)
-- [API kılavuzu](documents/API.md), [mimari](documents/architecture.md), [veritabanı](documents/DATABASE.md)
-- [Sorunlar ve geliştirme öncelikleri](documents/SORUNLAR.md)
+- [API kılavuzu](docs/API.md), [mimari](docs/architecture.md), [veritabanı](docs/DATABASE.md)
+- [Sorunlar ve geliştirme öncelikleri](docs/SORUNLAR.md)
 
-İyileştirme kapsamı ve kontrol sonuçları: [test planı](documents/IYILESTIRME_VE_TEST_PLANI.md). Eski tarihli belgeler tarihsel durum içerir; güncel kurulum için bu README ve uygulama README'lerini kullanın.
+İyileştirme kapsamı ve kontrol sonuçları: [test planı](docs/IYILESTIRME_VE_TEST_PLANI.md). Eski tarihli belgeler tarihsel durum içerir; güncel kurulum için bu README ve uygulama README'lerini kullanın.

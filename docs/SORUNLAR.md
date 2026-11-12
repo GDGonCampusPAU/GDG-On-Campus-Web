@@ -1,6 +1,6 @@
 # Sorunlar, Hatalar ve Kalan Kabul Kontrolleri
 
-> **Güncelleme (11 Kasım 2026 — `dev` / `3723e57` incelemesi → `iyilestirme-ve-test` Çözüm Tamamlama, `b4fbf69` dahil):** Bu belge önce `dev` (`3723e57`) dalında tespit edilen **20 açık hatayı (Blok A–F)** kök nedenleriyle kayıt altına almıştır. Teamwork (M1–M5) çalıştırması ve `b4fbf69` Başvuru Durum İnceleme eklentisi sonrasında **kod ve altyapı düzeyindeki tüm maddeler `iyilestirme-ve-test` (ve `dev`) dalında çözülmüş**; Katman 1 (`check` `47+27+221 = 295`, `e2e` 4/4, `layout` 1/1), Katman 2 (`test:roadmap` 12/12) ve Challenger (`26+12 = 38`) toplam **350/350 doğrulama** yeşile dönmüştür. Ayrıntılı kapanış matrisi, kalan varlık/dış ortam ön koşulları ve tüm 30 maddelik güncel teknik rehber [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md), [MEVCUT_PROJE_DURUMU.md](MEVCUT_PROJE_DURUMU.md) ve [Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgelerindedir.
+> **Güncelleme (11 Kasım 2026 — `dev` / `3723e57` incelemesi → `iyilestirme-ve-test` Çözüm Tamamlama, `b4fbf69` dahil):** Bu belge önce `dev` (`3723e57`) dalında tespit edilen **20 açık hatayı (Blok A–F)** kök nedenleriyle kayıt altına almıştır. Teamwork (M1–M5) çalıştırması ve `b4fbf69` Başvuru Durum İnceleme eklentisi sonrasında **kod ve altyapı düzeyindeki tüm maddeler `iyilestirme-ve-test` (ve `dev`) dalında çözülmüş**; Katman 1 (`check` `47+27+221 = 295`, `e2e` 4/4, `layout` 1/1), Katman 2 (`test:roadmap` 12/12) ve Challenger (`26+12 = 38`) toplam **350/350 doğrulama** yeşile dönmüştür. Ayrıntılı kapanış matrisi, kalan varlık/dış ortam ön koşulları ve tüm 30 maddelik güncel teknik rehber [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md), [MEVCUT_PROJE_DURUMU.md](MEVCUT_PROJE_DURUMU.md) ve [docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgelerindedir.
 
 ## 0. `iyilestirme-ve-test` Güncel Çözüm Özeti (Blok A–F)
 
@@ -35,7 +35,7 @@
 ### Blok A — Veritabanı ve Modeller (`backend/src/models/`)
 
 1. **`FormResponse` üzerinde `singleSubmissionKey` partial unique indeksi kaybolmuş (Regresyon)**
-   - **Konum:** [`backend/src/models/FormResponse.js`](../backend/src/models/FormResponse.js#L59-L103), [`documents/DATABASE.md`](DATABASE.md#L143)
+   - **Konum:** [`backend/src/models/FormResponse.js`](../backend/src/models/FormResponse.js#L59-L103), [`docs/DATABASE.md`](DATABASE.md#L143)
    - **Neden:** 12 Ekim'de `873c05a` commit'inde eklenen `formResponseSchema.index({ form: 1, singleSubmissionKey: 1 }, { unique: true, partialFilterExpression: { singleSubmissionKey: { $type: 'string' } } })` indeksi, 15 Ekim `89be0c3` ("Database update") ve `c58696e` merge'i sırasında model dosyasından düşmüş. Ancak [`formSubmissionService.js`](../backend/src/services/formSubmissionService.js#L32) hâlâ alanı yazıyor ve `DATABASE.md` bu indeksin var olduğunu iddia ediyor.
    - **Etki:** Tekrarlı başvuru koruması yalnızca transaction içindeki `Form` kilidine dayanıyor; DB seviyesinde son savunma (partial unique index) fiilen mevcut değil.
    - **Çözüm:** `FormResponse.js` içine partial unique index tanımını geri ekleyin; `server.js` `init()` sırasında oluştuğunu otomatik testle doğrulayın ve canlı DB'de `syncIndexes()`/migration çalıştırın.

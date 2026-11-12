@@ -1,6 +1,6 @@
 # Mevcut Proje Durumu
 
-> **Güncelleme (11 Kasım 2026 — `iyilestirme-ve-test` / Commit `b4fbf69` & Milestone 2):** Bu belge, `iyilestirme-ve-test` dalında `b4fbf69` commit'i ile eklenen Başvuru Durum İnceleme İş Akışı (`PENDING`, `APPROVED`, `REJECTED`, `statusNote`, bilgilendirme e-postaları), Brevo E-posta Gönderici Profilleri ve Core Team paneli inceleme kontrollerinin ardından güncellenmiştir. Projedeki tüm testler (Katman 1: 295 birim/entegrasyon testi, Katman 2: 12 yol haritası kabul kapısı, 38 Challenger testi, 4 E2E senaryosu ve 1 Layout testi olmak üzere **tam 350 test**) eksiksiz olarak geçmektedir. Dokümantasyon haritası, sorun matrisi [SORUNLAR.md](SORUNLAR.md), yol haritası [IYILESTIRME_VE_TEST_PLANI.md](IYILESTIRME_VE_TEST_PLANI.md), canlıya çıkış adımları [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md) ve kapsamlı eksiklik rehberi [Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) dosyalarındadır.
+> **Güncelleme (11 Kasım 2026 — `iyilestirme-ve-test` / Commit `b4fbf69` & Milestone 2):** Bu belge, `iyilestirme-ve-test` dalında `b4fbf69` commit'i ile eklenen Başvuru Durum İnceleme İş Akışı (`PENDING`, `APPROVED`, `REJECTED`, `statusNote`, bilgilendirme e-postaları), Brevo E-posta Gönderici Profilleri ve Core Team paneli inceleme kontrollerinin ardından güncellenmiştir. Projedeki tüm testler (Katman 1: 295 birim/entegrasyon testi, Katman 2: 12 yol haritası kabul kapısı, 38 Challenger testi, 4 E2E senaryosu ve 1 Layout testi olmak üzere **tam 350 test**) eksiksiz olarak geçmektedir. Dokümantasyon haritası, sorun matrisi [SORUNLAR.md](SORUNLAR.md), yol haritası [IYILESTIRME_VE_TEST_PLANI.md](IYILESTIRME_VE_TEST_PLANI.md), canlıya çıkış adımları [CANLIYA_CIKIS_KONTROL_LISTESI.md](CANLIYA_CIKIS_KONTROL_LISTESI.md) ve kapsamlı eksiklik rehberi [docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md](EKSIKLIKLER_VE_DUZELTME_REHBERI.md) dosyalarındadır.
 
 ---
 
@@ -50,7 +50,7 @@ Doğrudan bu dal üzerinde çalıştırılan doğrulamalar:
 - **Kapsam Sınırı / Faz 2 Olarak Korunanlar:**
   - **Backend-Hazır Modüller (P2.3 / C9):** `Content` (`/api/v1/content`) ve çoklu `Form` (`/api/v1/forms`) CRUD API'leri backend tarafında tam hazır ve testlidir; ön yüz panelleri Faz 2 genel kulüp sitesi genişlemesi için ayrılmıştır.
   - **Opsiyonel `/admin` Cila Kalemleri:** `409 Conflict` sonrası otomatik revision yenileme ve açılışta `/auth/me` kontrolü opsiyonel cila olarak korunmaktadır.
-- **Canlıya Çıkış İçin Kalan Varlık & Dış Ortam Ön Koşulları (BKZ: [`CANLIYA_CIKIS_KONTROL_LISTESI.md`](CANLIYA_CIKIS_KONTROL_LISTESI.md) ve [`Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md)):**
+- **Canlıya Çıkış İçin Kalan Varlık & Dış Ortam Ön Koşulları (BKZ: [`CANLIYA_CIKIS_KONTROL_LISTESI.md`](CANLIYA_CIKIS_KONTROL_LISTESI.md) ve [`docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`](EKSIKLIKLER_VE_DUZELTME_REHBERI.md)):**
   1. `frontend/hackaton/public/fonts/` (~4,31 MB) ve `frontend/public/fonts/` (~6,48 MB) altındaki ham `.ttf` fontlarının `.woff2` alt kümesine düşürülmesi, `favicon.svg` ve `og-image.png` (1200x630) varlıklarının eklenmesi.
   2. Gerçek Google Cloud Web Client ID & Authorized JavaScript Origins eşleşmesi.
   3. Gerçek Brevo API anahtarı + PAU domain SPF/DKIM teslimat doğrulaması.
@@ -58,11 +58,11 @@ Doğrudan bu dal üzerinde çalıştırılan doğrulamalar:
 
 ---
 
-## 4. `documents/` Klasörü Güncellik Denetim Matrisi
+## 4. `docs/` Klasörü Güncellik Denetim Matrisi
 
 | Belge | Güncellik Durumu | Açıklama |
 | --- | --- | --- |
-| [`Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) | **Yeni Oluşturuldu (11 Kasım)** | Tüm tespit edilen eksiklikler (30 madde), kök neden analizi ve adım adım düzeltme rehberi. |
+| [`docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`](EKSIKLIKLER_VE_DUZELTME_REHBERI.md) | **Yeni Oluşturuldu (11 Kasım)** | Tüm tespit edilen eksiklikler (30 madde), kök neden analizi ve adım adım düzeltme rehberi. |
 | [`API.md`](API.md) | **Güncellendi (11 Kasım)** | Toplam 40 HTTP uç noktası (37 `/api/v1` + `/health`, `/ready`, `/uploads/:filename`), durum inceleme API'leri, şifre sıfırlama, e-posta profilleri ve request/response modelleri. |
 | [`DATABASE.md`](DATABASE.md) | **Güncellendi (11 Kasım)** | `FormResponse` ve `HackathonApp` inceleme alanları, `crypto.randomInt` + HMAC düzeltmesi, `roleChangeVersion` ve güncel indeksler. |
 | [`MEVCUT_PROJE_DURUMU.md`](MEVCUT_PROJE_DURUMU.md) | **Güncellendi (11 Kasım)** | Commit `b4fbf69`, 350 testlik güncel metrikler ve modül durumu. |

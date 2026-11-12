@@ -95,8 +95,8 @@ desktop.ini
 .claude/
 .superpowers/
 .vercel/
-Docs/*.pdf
-Docs/superpowers/
+docs/*.pdf
+docs/superpowers/
 
 # Browser test artifacts
 playwright-report/

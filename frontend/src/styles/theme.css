@@ -1,5 +1,5 @@
 /* Global tema katmanı: fontlar, marka renk token'ları ve temel sıfırlamalar.
-   Marka kuralları: documents/gdg_guideline_instructions.md
+   Marka kuralları: docs/gdg_guideline_instructions.md
    Font dosyaları: frontend/public/fonts/ altında Latin + Türkçe alt kümeli .woff2 (kaynak: design folders/fonts). */
 
 @font-face {

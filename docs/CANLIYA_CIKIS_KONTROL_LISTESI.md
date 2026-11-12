@@ -8,9 +8,9 @@
 
 ## 1. Yönetici Özeti ve Sürüm Durumu
 
-Bu belge, [`documents/SORUNLAR.md`](SORUNLAR.md) ve [`documents/IYILESTIRME_VE_TEST_PLANI.md`](IYILESTIRME_VE_TEST_PLANI.md) belgelerinde yer alan **Blok A–F arası 20 maddenin** (`cb8880b`) ve **Başvuru Durum İnceleme İş Akışı + Brevo E-posta Profil Yönlendirmesinin** (`b4fbf69`) `iyilestirme-ve-test` dalında nasıl çözüldüğünü, doğrulanan test sonuçlarını ve canlı ortama (Production) çıkmadan önce tamamlanması gereken **Docker/Nginx, Cloudflare/DNS, Brevo/Google OAuth ve statik varlık ön koşullarını** belgeler.
+Bu belge, [`docs/SORUNLAR.md`](SORUNLAR.md) ve [`docs/IYILESTIRME_VE_TEST_PLANI.md`](IYILESTIRME_VE_TEST_PLANI.md) belgelerinde yer alan **Blok A–F arası 20 maddenin** (`cb8880b`) ve **Başvuru Durum İnceleme İş Akışı + Brevo E-posta Profil Yönlendirmesinin** (`b4fbf69`) `iyilestirme-ve-test` dalında nasıl çözüldüğünü, doğrulanan test sonuçlarını ve canlı ortama (Production) çıkmadan önce tamamlanması gereken **Docker/Nginx, Cloudflare/DNS, Brevo/Google OAuth ve statik varlık ön koşullarını** belgeler.
 
-Tüm teknik eksiklikler ve düzeltme tarifleri ayrıntılı olarak [`Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`](../Docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgesinde toplanmıştır; `main` dalına kullanıcı son onayı olmadan merge yapılmaz.
+Tüm teknik eksiklikler ve düzeltme tarifleri ayrıntılı olarak [`docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md`](EKSIKLIKLER_VE_DUZELTME_REHBERI.md) belgesinde toplanmıştır; `main` dalına kullanıcı son onayı olmadan merge yapılmaz.
 
 ---
 

@@ -9,5 +9,5 @@ test-results
 playwright-report
 .cache
 *.log
-documents
+docs
 design folders

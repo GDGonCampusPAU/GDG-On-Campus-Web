@@ -101,7 +101,7 @@ Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTT
 - **Sorun Tanımı ve Etkisi:** Backend modülü ve paket adı (`gdg-pau-hackathon`) doğru "hackathon" yazımını kullanırken ön yüz dizininde "h" harfi eksiktir.
 - **Kök Neden:** Eski `web/` dizininin taşınması sırasındaki adlandırma.
 - **Adım Adım Çözüm:**
-  - *Seçenek A (Karar olarak belgelemek):* Mevcut script, CI ve E2E yollarını bozmamak için adı koruyup `documents/architecture.md` içinde açıkça belgeleyin.
+  - *Seçenek A (Karar olarak belgelemek):* Mevcut script, CI ve E2E yollarını bozmamak için adı koruyup `docs/architecture.md` içinde açıkça belgeleyin.
   - *Seçenek B (Yeniden adlandırmak):* `git mv frontend/hackaton frontend/hackathon` sonrasında root `package.json`, `Dockerfile`, `compose.yaml`, `nginx/nginx.conf`, `.github/workflows/check.yml`, `e2e/` ve `playwright.config.cjs` yollarını eşzamanlı güncelleyin.
 
 ---
@@ -402,7 +402,7 @@ Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTT
 ---
 
 #### DEF-28: Canlıya Çıkış Harici Ön Koşullarının Tamamlanmamış Olması (DNS / Brevo / Google / Yedek)
-- **Dosya / Kod Konumu:** Dış servis yönetimleri & sunucu `.env` / `backend/.env` yapılandırmaları (bkz. `documents/CANLIYA_CIKIS_KONTROL_LISTESI.md` Bölüm 3)
+- **Dosya / Kod Konumu:** Dış servis yönetimleri & sunucu `.env` / `backend/.env` yapılandırmaları (bkz. `docs/CANLIYA_CIKIS_KONTROL_LISTESI.md` Bölüm 3)
 - **Öncelik / Ciddiyet:** **P0 — Yüksek (High / Go-Live Operasyon Engeli)**
 - **Sorun Tanımı ve Etkisi:** Kod ve testler hazır olsa da harici canlı servisler bağlanmadan platform gerçek trafik alamaz:
   1. **Cloudflare DNS (`gdgocpamukkale.com`):** Alan adı henüz Cloudflare'e transfer edilmemiş veya sunucu A kayıtları (`@`, `panel`, `www`) + SSL **Full (strict)** etkinleştirilmemiştir.
@@ -411,7 +411,7 @@ Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTT
   4. **Üretim Ortam Sırları:** `backend/.env` içinde güçlü ve benzersiz (32+ karakter) `JWT_SECRET` + `PARTICIPANT_JWT_SECRET`, `CLIENT_URLS=https://gdgocpamukkale.com,https://panel.gdgocpamukkale.com`, 12+ karakter karmaşık `DEFAULT_ADMIN_PASSWORD`, `NODE_ENV=production` ayarlanıp `docker compose -f compose.prod.yaml exec backend npm run seed` çalıştırılmalıdır.
   5. **Yedekleme & MongoDB Kernel Doğrulaması:** Hedef Linux VPS üzerinde MongoDB 8 `rseq` kernel uyumu (`compose.prod.yaml:19`) test edilmeli; `mongodump` + `backend/uploads/` senkron yedekleme ve ayrı replica set'e `mongorestore` tatbikatı yapılmalıdır.
 - **Kök Neden:** Üretim sunucusu, DNS ve üçüncü taraf hesap yetkilerinin canlıya alma anında tamamlanmayı beklemesi.
-- **Adım Adım Çözüm:** Yukarıdaki 5 adımı `documents/CANLIYA_CIKIS_KONTROL_LISTESI.md` sırasıyla tamamlayın; doğrulamadan `main` dalını canlıya almayın.
+- **Adım Adım Çözüm:** Yukarıdaki 5 adımı `docs/CANLIYA_CIKIS_KONTROL_LISTESI.md` sırasıyla tamamlayın; doğrulamadan `main` dalını canlıya almayın.
 
 ---
 
@@ -572,9 +572,9 @@ Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTT
 ### KATEGORİ 8: Dokümantasyon Senkronizasyonu
 
 #### DEF-25: Ana Dokümanlar Güncellendi — İkincil Rehber ve Alt Proje `README.md` Senkronizasyonu
-- **Dosya / Kod Konumu:** `documents/architecture.md`, `documents/KATILIMCI_DOGRULAMA.md`, `documents/GUVENLIK_VE_DOSYALAR.md`, `backend/README.md`, `frontend/README.md`, `frontend/hackaton/README.md`
+- **Dosya / Kod Konumu:** `docs/architecture.md`, `docs/KATILIMCI_DOGRULAMA.md`, `docs/GUVENLIK_VE_DOSYALAR.md`, `backend/README.md`, `frontend/README.md`, `frontend/hackaton/README.md`
 - **Öncelik / Ciddiyet:** **P2 — Düşük (Low)**
-- **Sorun Tanımı ve Etkisi:** 11 Kasım 2026 denetimi sırasında platformun 6 ana dokümanı (`documents/API.md`, `DATABASE.md`, `KURULUM.md`, `MEVCUT_PROJE_DURUMU.md`, `CANLIYA_CIKIS_KONTROL_LISTESI.md`, `README.md`) ile bu kapsamlı rehber doğrudan kod satırlarına göre senkronize edilip düzeltilmiştir (**40 uç nokta**, `b4fbf69` durum iş akışı, Brevo/Google/Cloudflare kurulumu, 350 test, gerçek boyutlar). Ancak ikincil dokümanlarda (mimari, güvenlik ve alt uygulama README'leri) önceki sprintlere ait port/kapsam ifadeleri veya Windows `npm.cmd` notu eksikleri kalmış olabilir.
+- **Sorun Tanımı ve Etkisi:** 11 Kasım 2026 denetimi sırasında platformun 6 ana dokümanı (`docs/API.md`, `DATABASE.md`, `KURULUM.md`, `MEVCUT_PROJE_DURUMU.md`, `CANLIYA_CIKIS_KONTROL_LISTESI.md`, `README.md`) ile bu kapsamlı rehber doğrudan kod satırlarına göre senkronize edilip düzeltilmiştir (**40 uç nokta**, `b4fbf69` durum iş akışı, Brevo/Google/Cloudflare kurulumu, 350 test, gerçek boyutlar). Ancak ikincil dokümanlarda (mimari, güvenlik ve alt uygulama README'leri) önceki sprintlere ait port/kapsam ifadeleri veya Windows `npm.cmd` notu eksikleri kalmış olabilir.
 - **Kök Neden:** Denetimde birincil operasyonel ve referans dokümanlara öncelik verilmesi.
 - **Adım Adım Çözüm:** `DEF-02` (`docs/` klasör birleştirmesi) yapılırken alt `README.md` dosyaları ile `architecture.md`, `KATILIMCI_DOGRULAMA.md`, `GUVENLIK_VE_DOSYALAR.md` güncel endpoint/port/uygulama durumuna göre gözden geçirilip hizalanmalıdır.
 
