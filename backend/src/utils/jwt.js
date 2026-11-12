@@ -5,7 +5,8 @@ const getTeamConfig = () => {
   if (!secret || secret === 'your_jwt_secret_key_here' || secret.length < 32) {
     throw new Error('JWT_SECRET en az 32 karakterlik gerçek bir anahtar olmalıdır.');
   }
-  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+  // Panel tokens live in localStorage; keep the default exposure window short.
+  const expiresIn = process.env.JWT_EXPIRES_IN || '12h';
   if (!/^\d+(?:s|m|h|d|w)$/.test(expiresIn) || parseInt(expiresIn, 10) < 1) {
     throw new Error('JWT_EXPIRES_IN örneğin 30m veya 7d olmalıdır.');
   }

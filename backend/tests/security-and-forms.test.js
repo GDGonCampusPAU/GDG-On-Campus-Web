@@ -17,6 +17,8 @@ const Form = require('../src/models/Form');
 const Response = require('../src/models/FormResponse');
 const Content = require('../src/models/Content');
 const { generateToken } = require('../src/utils/jwt');
+const Participant = require('../src/modules/participantAuth/models/Participant');
+const { issueToken } = require('../src/modules/participantAuth/services/tokenService');
 let repl, token;
 before(async () => {
   repl = await MongoMemoryReplSet.create({ replSet: { count: 1 }, binary: { version: '7.0.24' } });
@@ -25,7 +27,7 @@ before(async () => {
 });
 after(async () => { await mongoose.disconnect(); if (repl) await repl.stop(); await fs.rm(process.env.UPLOAD_DIR, { recursive: true, force: true }); });
 beforeEach(async () => {
-  await Promise.all([User, Form, Response].map(model => model.deleteMany({})));
+  await Promise.all([User, Form, Response, Participant].map(model => model.deleteMany({})));
   const user = await User.create({ fullName: 'Admin', email: 'admin@pau.edu.tr', passwordHash: 'test', role: 'ADMIN', isEmailVerified: true });
   token = generateToken({ id: user._id, role: user.role });
   for (const name of await fs.readdir(path.join(process.env.UPLOAD_DIR, 'private'))) await fs.unlink(path.join(process.env.UPLOAD_DIR, 'private', name));
@@ -33,6 +35,11 @@ beforeEach(async () => {
 const makeForm = fields => Form.create({ title: 'Test', slug: 'test', status: 'PUBLISHED', fields,
   settings: { verificationRequired: false, allowMultipleSubmissions: true } });
 const submit = () => request(app).post('/api/v1/forms/public/test/submit');
+// File fields always require a verified participant.
+const participantAuth = async () => {
+  const participant = await Participant.create({ email: `p${Date.now()}${Math.random()}@example.com`, emailVerifiedAt: new Date() });
+  return `Bearer ${issueToken(participant, 'EMAIL_OTP').token}`;
+};
 test('CORS permits both frontends, supports preflight and rejects other origins', async () => {
   for (const origin of ['http://localhost:5173', 'http://localhost:5174']) {
     const result = await request(app).options('/api/v1/forms/public/test/submit').set('Origin', origin)
@@ -52,7 +59,7 @@ test('legacy published cover images stay public without exposing unrelated uploa
 });
 test('private file submission downloads only with staff auth and invalid files are removed', async () => {
   await makeForm([{ fieldId: 'cv', label: 'CV', type: 'file', required: true }]);
-  const uploaded = await submit().attach('cv', Buffer.from('%PDF-1.7\nTest PDF'), 'resume.pdf');
+  const uploaded = await submit().set('Authorization', await participantAuth()).attach('cv', Buffer.from('%PDF-1.7\nTest PDF'), 'resume.pdf');
   assert.equal(uploaded.status, 201, JSON.stringify(uploaded.body));
   const saved = await Response.findById(uploaded.body.responseId);
   const url = saved.uploadedFiles[0].url;
@@ -60,9 +67,9 @@ test('private file submission downloads only with staff auth and invalid files a
   assert.equal((await request(app).get(url).set('Authorization', `Bearer ${token}`)).status, 200);
   assert.equal((await request(app).get(`/uploads/${saved.uploadedFiles[0].filename}`)).status, 401);
   const count = (await fs.readdir(path.join(process.env.UPLOAD_DIR, 'private'))).length;
-  assert.equal((await submit().attach('cv', Buffer.from('executable'), 'fake.pdf')).status, 400);
-  assert.equal((await submit().attach('cv', Buffer.from('%PDF-1.7'), 'bad.pdf.exe')).status, 400);
-  assert.equal((await submit().attach('unknown', Buffer.from('%PDF-1.7'), 'cv.pdf')).status, 400);
+  assert.equal((await submit().set('Authorization', await participantAuth()).attach('cv', Buffer.from('executable'), 'fake.pdf')).status, 400);
+  assert.equal((await submit().set('Authorization', await participantAuth()).attach('cv', Buffer.from('%PDF-1.7'), 'bad.pdf.exe')).status, 400);
+  assert.equal((await submit().set('Authorization', await participantAuth()).attach('unknown', Buffer.from('%PDF-1.7'), 'cv.pdf')).status, 400);
   assert.equal((await fs.readdir(path.join(process.env.UPLOAD_DIR, 'private'))).length, count);
 });
 test('invalid answer types, options, phone, date and number boundaries do not write data', async () => {

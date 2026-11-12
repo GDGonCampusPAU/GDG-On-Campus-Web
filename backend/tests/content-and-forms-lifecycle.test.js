@@ -19,6 +19,8 @@ const Form = require('../src/models/Form');
 const FormResponse = require('../src/models/FormResponse');
 const EventPage = require('../src/models/EventPage');
 const { generateToken } = require('../src/utils/jwt');
+const Participant = require('../src/modules/participantAuth/models/Participant');
+const { issueToken } = require('../src/modules/participantAuth/services/tokenService');
 
 const validPng = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 const validPdf = Buffer.from('%PDF-1.7\n%Test Document\n');
@@ -169,26 +171,28 @@ test('Public form availability windows, ObjectId lookup, malformed payload disk 
   const byId = await request(app).get(`/api/v1/forms/public/${form._id}`);
   assert.equal(byId.status, 200);
   const version = byId.body.data.schemaVersion;
+  const participant = await Participant.create({ email: 'lifecycle@example.com', emailVerifiedAt: new Date() });
+  const participantAuth = `Bearer ${issueToken(participant, 'EMAIL_OTP').token}`;
 
   assert.equal((await request(app).get('/api/v1/forms/public/olmayan-slug')).status, 404);
   assert.equal((await request(app).post(`/api/v1/forms/public/${form.slug}/submit`).send(['array-body'])).status, 400);
 
-  const badJsonUpload = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`)
+  const badJsonUpload = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`).set('Authorization', participantAuth)
     .field('answers', '{broken-json').attach('cv', validPdf, 'cv.pdf');
   assert.equal(badJsonUpload.status, 400);
   assert.equal((await fs.readdir(path.join(process.env.UPLOAD_DIR, 'private'))).length, 0);
 
-  const staleVersionUpload = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`)
+  const staleVersionUpload = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`).set('Authorization', participantAuth)
     .field('_formVersion', '2020-01-01T00:00:00.000Z').field('track', 'Web').attach('cv', validPdf, 'cv.pdf');
   assert.equal(staleVersionUpload.status, 409);
   assert.equal((await fs.readdir(path.join(process.env.UPLOAD_DIR, 'private'))).length, 0);
 
-  const badRadio = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`)
+  const badRadio = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`).set('Authorization', participantAuth)
     .field('track', 'Mobile').attach('cv', validPdf, 'cv.pdf');
   assert.equal(badRadio.status, 400);
   assert.equal((await fs.readdir(path.join(process.env.UPLOAD_DIR, 'private'))).length, 0);
 
-  const ok = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`)
+  const ok = await request(app).post(`/api/v1/forms/public/${form.slug}/submit`).set('Authorization', participantAuth)
     .field('_formVersion', version).field('track', 'AI').attach('cv', validPdf, 'cv.pdf');
   assert.equal(ok.status, 201, JSON.stringify(ok.body));
 

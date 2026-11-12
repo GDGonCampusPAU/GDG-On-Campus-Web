@@ -51,8 +51,9 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
+    // A token without tokenVersion counts as version 0, so it is revoked by the first bump too.
     if (
-      (decoded.tokenVersion !== undefined && decoded.tokenVersion !== (user.tokenVersion || 0)) ||
+      (decoded.tokenVersion ?? 0) !== (user.tokenVersion || 0) ||
       (decoded.roleChangeVersion !== undefined && decoded.roleChangeVersion !== (user.roleChangeVersion || 0))
     ) {
       return res.status(401).json({

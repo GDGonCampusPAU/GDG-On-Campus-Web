@@ -72,11 +72,14 @@ app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', authLimiter);
 app.use('/api/v1/auth/send-otp', authLimiter);
 app.use('/api/v1/auth/verify-email', authLimiter);
+app.use('/api/v1/auth/forgot-password', authLimiter);
+app.use('/api/v1/auth/reset-password', authLimiter);
 app.use('/api/v1/hackathon/send-verification', authLimiter);
 
 // 6. Body Parsers
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Files travel as multipart (multer has its own limits); JSON/urlencoded bodies stay small.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use((req, res, next) => {
   if (req.body != null && (typeof req.body !== 'object' || Array.isArray(req.body))) return res.status(400).json({ message: 'İstek gövdesi JSON nesnesi olmalıdır.' });
   req.body ||= {};

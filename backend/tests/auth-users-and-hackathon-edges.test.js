@@ -70,7 +70,10 @@ test('send-otp validation, unverified login recovery via verify-email and /auth/
   assert.equal((await request(app).post('/api/v1/auth/send-otp').send({ email: 'ok@gmail.com', fullName: { bad: 1 } })).status, 400);
 
   const verified = await makeUser({ email: 'verified@pau.edu.tr', role: 'MEMBER', isEmailVerified: true });
-  assert.equal((await request(app).post('/api/v1/auth/send-otp').send({ email: verified.user.email })).status, 409);
+  // Verified accounts get the generic success answer (no enumeration) and no mail.
+  lastCode = undefined;
+  assert.equal((await request(app).post('/api/v1/auth/send-otp').send({ email: verified.user.email })).status, 200);
+  assert.equal(lastCode, undefined);
 
   await makeUser({ email: 'recover@posta.pau.edu.tr', role: 'PENDING', isEmailVerified: false });
   const unverifiedLogin = await request(app).post('/api/v1/auth/login')

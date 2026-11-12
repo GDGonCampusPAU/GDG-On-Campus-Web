@@ -148,7 +148,7 @@ test('[P1.5] GET /users returns full pagination envelope and /verify-email does 
 
   const code = await VerificationToken.generateOtp('ghost@gmail.com', 'REGISTER', 10);
   const verifyRes = await request(app).post('/api/v1/auth/verify-email').send({ email: 'ghost@gmail.com', code });
-  assert.equal(verifyRes.status, 404);
+  assert.equal(verifyRes.status, 400);
   assert.equal(await VerificationToken.countDocuments({ email: 'ghost@gmail.com', purpose: 'REGISTER' }), 1);
 });
 

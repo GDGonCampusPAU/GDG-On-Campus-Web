@@ -18,7 +18,7 @@ Google ID token'ı resmi `google-auth-library` ile imza, audience, issuer ve sü
 
 | Değişken | Varsayılan / işlev |
 | --- | --- |
-| `JWT_EXPIRES_IN` | `7d`; ekip token'ı |
+| `JWT_EXPIRES_IN` | `12h`; ekip token'ı (panel oturumu localStorage'da tutulduğu için kısa tutulur) |
 | `PARTICIPANT_JWT_EXPIRES_IN` | `1h`; katılımcı token'ı; ör. `30s`, `15m`, `2h`, `1d` |
 | `PARTICIPANT_JWT_SECRET` | Katılımcı imza anahtarı; boşsa gerçek `JWT_SECRET` kullanılır |
 | `PARTICIPANT_OTP_TTL_MINUTES` | `10`; OTP süresi |

@@ -36,6 +36,12 @@ const errorHandler = (err, req, res, next) => {
     }
   }
 
+  // Handle oversized JSON / urlencoded bodies
+  if (err.type === 'entity.too.large') {
+    statusCode = 413;
+    message = 'İstek gövdesi izin verilen boyutu aşıyor.';
+  }
+
   // Handle JSON parse errors
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     statusCode = 400;

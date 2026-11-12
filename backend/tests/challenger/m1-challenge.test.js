@@ -278,9 +278,10 @@ test('CHALLENGE 3.1: POST /api/v1/auth/verify-email does not consume OTP or burn
     .post('/api/v1/auth/verify-email')
     .send({ email: ghostEmail, code: otpCode });
 
-  assert.equal(res.status, 404, 'Must return 404 Not Found');
+  // Same answer as a wrong code, so the endpoint cannot be used to enumerate accounts.
+  assert.equal(res.status, 400, 'Must look like an invalid code');
   assert.equal(res.body.success, false);
-  assert.match(res.body.message, /Kullanıcı bulunamadı/);
+  assert.match(res.body.message, /Kod hatalı/);
 
   // Check token state after the 404 verification attempt
   const tokenAfter404 = await VerificationToken.findOne({ email: ghostEmail, purpose: 'REGISTER' });
@@ -312,12 +313,12 @@ test('CHALLENGE 3.1: POST /api/v1/auth/verify-email does not consume OTP or burn
   const consumedToken = await VerificationToken.findOne({ email: ghostEmail, purpose: 'REGISTER' });
   assert.equal(consumedToken, null, 'Token must be deleted upon successful consumption');
 
-  // Repeated verification when user is already verified: must return 200 idempotently
+  // Repeated verification for an already verified user must not reveal that state either
   const reVerifyRes = await request(app)
     .post('/api/v1/auth/verify-email')
     .send({ email: ghostEmail, code: otpCode });
-  assert.equal(reVerifyRes.status, 200);
-  assert.match(reVerifyRes.body.message, /zaten doğrulanmış/);
+  assert.equal(reVerifyRes.status, 400);
+  assert.match(reVerifyRes.body.message, /Kod hatalı/);
 });
 
 // ============================================================================

@@ -6,6 +6,14 @@ const { validateRegisterInput, validateLoginInput, isValidPauOrGmail } = require
 const { sendTeamOtp } = require('../services/teamOtpService');
 const { sendPasswordResetOtpEmail } = require('../services/emailService');
 
+// Account-existence must not be observable from public endpoints: registered and
+// unknown addresses receive byte-identical responses.
+const OTP_SENT_MESSAGE = '6 haneli doğrulama kodu e-posta adresinize gönderildi. Lütfen gelen kutunuzu (ve spam klasörünü) kontrol ediniz.';
+const REGISTER_CODE_MESSAGE = 'Kayıt işlemini tamamlamak için e-posta adresinize gönderilen 6 haneli doğrulama kodunu giriniz.';
+const INVALID_CODE_MESSAGE = 'Kod hatalı, süresi dolmuş veya deneme hakkı bitmiş.';
+const RESET_SENT_MESSAGE = 'Bu e-posta adresi ile kayıtlı bir hesap varsa şifre sıfırlama kodu gönderildi.';
+const invalidCode = res => res.status(400).json({ success: false, message: INVALID_CODE_MESSAGE });
+
 /**
  * @desc    Send 2FA / Verification code to email before or during registration
  * @route   POST /api/v1/auth/send-otp
@@ -26,24 +34,16 @@ const sendRegisterOtp = async (req, res, next) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check if an already verified user exists
+    // Verified accounts get the same answer but no mail, so the endpoint cannot enumerate them.
     const existingUser = await User.findOne({ email: normalizedEmail });
-    if (existingUser && existingUser.isEmailVerified) {
-      return res.status(409).json({
-        success: false,
-        message: 'Bu e-posta adresi ile zaten kayıtlı ve doğrulanmış bir hesap bulunmaktadır.'
+    if (!existingUser?.isEmailVerified) {
+      await sendTeamOtp({
+        email: normalizedEmail, purpose: 'REGISTER',
+        fullName: fullName ? fullName.trim() : 'Core Team Adayı'
       });
     }
 
-    // Generate 6-digit OTP code (10 min TTL)
-    await sendTeamOtp({
-      email: normalizedEmail, purpose: 'REGISTER',
-      fullName: fullName ? fullName.trim() : 'Core Team Adayı'
-      });
-
-    return res.status(200).json({
-      success: true,
-      message: '6 haneli doğrulama kodu e-posta adresinize gönderildi. Lütfen gelen kutunuzu (ve spam klasörünü) kontrol ediniz.'
-    });
+    return res.status(200).json({ success: true, message: OTP_SENT_MESSAGE });
   } catch (error) {
     next(error);
   }
@@ -71,35 +71,30 @@ const register = async (req, res, next) => {
 
     // Check if an already verified user exists
     const existingUser = await User.findOne({ email: normalizedEmail });
-    if (existingUser && existingUser.isEmailVerified) {
-      return res.status(409).json({
-        success: false,
-        message: 'Bu e-posta adresi ile kayıtlı bir hesap zaten bulunmaktadır.'
-      });
-    }
+    const alreadyRegistered = Boolean(existingUser?.isEmailVerified);
 
     // If code is not provided, send OTP and ask user to submit code
     if (!code) {
-      await sendTeamOtp({
-        email: normalizedEmail, purpose: 'REGISTER',
-        fullName: fullName.trim()
-      });
+      if (!alreadyRegistered) {
+        await sendTeamOtp({
+          email: normalizedEmail, purpose: 'REGISTER',
+          fullName: fullName.trim()
+        });
+      }
 
       return res.status(200).json({
         success: true,
         requiresVerification: true,
-        message: 'Kayıt işlemini tamamlamak için e-posta adresinize gönderilen 6 haneli doğrulama kodunu giriniz.'
+        message: REGISTER_CODE_MESSAGE
       });
     }
 
+    // A verified account can never be re-registered; answer like a wrong code.
+    if (alreadyRegistered) return invalidCode(res);
+
     // Verify OTP code
     const verification = await VerificationToken.verifyOtp(normalizedEmail, code, 'REGISTER');
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
+    if (!verification.success) return invalidCode(res);
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
@@ -159,25 +154,12 @@ const verifyEmail = async (req, res, next) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Missing and already-verified accounts look like a wrong code and never touch the OTP.
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Kullanıcı bulunamadı.' });
-    }
-
-    if (user.isEmailVerified) {
-      return res.status(200).json({
-        success: true,
-        message: 'E-posta adresiniz zaten doğrulanmış.'
-      });
-    }
+    if (!user || user.isEmailVerified) return invalidCode(res);
 
     const verification = await VerificationToken.verifyOtp(normalizedEmail, code, 'REGISTER');
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
+    if (!verification.success) return invalidCode(res);
 
     user.isEmailVerified = true;
     await user.save();
@@ -295,15 +277,18 @@ const forgotPassword = async (req, res, next) => {
       });
     }
 
+    const sent = () => res.status(200).json({ success: true, message: RESET_SENT_MESSAGE });
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı.'
-      });
-    }
+    if (!user) return sent();
 
-    const code = await VerificationToken.generateOtp(normalizedEmail, 'PASSWORD_RESET', 10);
+    let code;
+    try {
+      code = await VerificationToken.generateOtp(normalizedEmail, 'PASSWORD_RESET', 10);
+    } catch (error) {
+      // A cooldown hit would only happen for real accounts; hide it behind the generic answer.
+      if (error.status === 429) return sent();
+      throw error;
+    }
     try {
       await sendPasswordResetOtpEmail({
         email: normalizedEmail,
@@ -315,10 +300,7 @@ const forgotPassword = async (req, res, next) => {
       throw Object.assign(new Error('Şifre sıfırlama e-postası gönderilemedi.'), { status: 502 });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: 'Şifre sıfırlama kodu e-posta adresinize gönderildi.'
-    });
+    return sent();
   } catch (error) {
     next(error);
   }
@@ -350,20 +332,10 @@ const resetPassword = async (req, res, next) => {
 
     const normalizedEmail = email.toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail }).select('+tokenVersion');
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Kullanıcı bulunamadı.'
-      });
-    }
+    if (!user) return invalidCode(res);
 
     const verification = await VerificationToken.verifyOtp(normalizedEmail, code, 'PASSWORD_RESET');
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
+    if (!verification.success) return invalidCode(res);
 
     const salt = await bcrypt.genSalt(10);
     user.passwordHash = await bcrypt.hash(targetPassword, salt);

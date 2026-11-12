@@ -10,9 +10,12 @@ const formParticipantMiddleware = async (req, res, next) => {
     if (!form) throw failure(404, 'Form bulunamadı.');
     req.submissionForm = form;
     const required = form.settings.verificationRequired || form.settings.requireAuth || !form.settings.allowMultipleSubmissions;
+    // Anonymous uploads would let anyone fill the disk; file fields always need a verified participant.
+    const acceptsFiles = (form.fields || []).some(field => field.type === 'file');
     const header = req.headers.authorization;
     if (!header) {
       if (required) throw failure(401, 'Formu doldurmak için Google veya e-posta doğrulaması gereklidir.');
+      if (acceptsFiles) throw failure(401, 'Dosya yüklemek için Google veya e-posta doğrulaması gereklidir.');
       return next();
     }
     let payload;

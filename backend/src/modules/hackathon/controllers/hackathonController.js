@@ -11,14 +11,10 @@ const {
 } = require('../../../services/applicationStatusService');
 
 /**
- * Helper to resolve resume URL from file upload or body
+ * Resume URL is only ever derived from a validated upload. Client-supplied URLs are
+ * ignored: they would be shown to staff as a download link (phishing vector).
  */
-const resolveResumeUrl = (req) => {
-  if (req.file) {
-    return `/api/v1/files/${req.file.filename}`;
-  }
-  return req.body.resumeUrl || null;
-};
+const resolveResumeUrl = (req) => (req.file ? `/api/v1/files/${req.file.filename}` : null);
 
 /**
  * Helper to escape CSV cell value
