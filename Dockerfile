@@ -44,6 +44,13 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM node:24-bookworm-slim AS frontend-builder
 WORKDIR /app
 
+# Vite embeds VITE_* values at build time; runtime env cannot change them.
+# Empty VITE_API_URL = same-origin /api/v1 through Nginx.
+ARG VITE_API_URL=""
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+
 # Shared content models required during build
 COPY shared ./shared
 
@@ -84,9 +91,8 @@ RUN MONGOMS_DISABLE_POSTINSTALL=1 npm ci --omit=dev --no-audit --no-fund
 COPY backend/src ./src
 COPY shared /app/shared
 
-# Copy built frontend dist assets (available for static serving or shared volumes)
-COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
-COPY --from=frontend-builder /app/frontend/hackaton/dist /app/frontend/hackaton/dist
+# Static frontends are served by the reverse-proxy image only; the API image
+# does not depend on frontend-builder (and its build args).
 
 # Expose backend API port
 EXPOSE 5000
