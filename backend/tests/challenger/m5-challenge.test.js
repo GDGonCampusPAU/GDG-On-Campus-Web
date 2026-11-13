@@ -73,7 +73,8 @@ test('[CHALLENGE F18.2] check-layout.mjs properly constructs cross-platform grep
   const content = await fs.readFile(scriptPath, 'utf8');
 
   assert.match(content, /process\.platform === 'win32' \? 'npm\.cmd' : 'npm'/);
-  assert.match(content, /process\.platform === 'win32' \? '"responsive layout"' : 'responsive layout'/);
+  // With shell: true the space-separated grep must be quoted on every platform, or sh splits it and Playwright finds no tests.
+  assert.match(content, /const grepArg = '"responsive layout"'/);
   assert.match(content, /shell: true/);
 
   // Validate root path resolution

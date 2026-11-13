@@ -5,6 +5,7 @@ import base from '../data/base.js'
 import { choices, clearDraft, isEventShape, readDraft, typeLabels, writeDraft } from '../lib/content.js'
 import './Admin.css'
 import { loginEditor, getEventPage, publishEventPage } from '../lib/eventApi.js'
+import { setEvent } from '../data/event.js'
 
 const labels = {
   organizer: 'Organizatör',
@@ -33,7 +34,7 @@ const labels = {
   id: 'Alan adı (backend\'e giden anahtar)',
   kind: 'Alan türü',
   required: 'Zorunlu',
-  hint: 'İpucu',
+  hint: 'İpucu (link için: [metin](https://adres))',
   value: 'Değer (backend\'e giden)',
   title: 'Başlık',
   text: 'Metin',
@@ -294,6 +295,7 @@ function Editor({ session, onLock }) {
       const page = await publishEventPage(draft, revision, session.token)
       setRevision(page.revision); clearDraft(); setSaved(false)
       setServerEvent(draft)
+      setEvent(draft)
       setNote({ text: 'Yayınlandı. Etkinlik bilgileri ve başvuru alanları tüm ziyaretçiler için güncellendi.' })
     } catch (error) {
       writeDraft(base, draft)

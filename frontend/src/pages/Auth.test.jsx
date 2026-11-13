@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import Login from './Login.jsx'
@@ -105,6 +105,8 @@ test('ADMIN can approve a pending account, while self and unverified controls st
   expect(await screen.findByLabelText('Rol — Current Admin')).toBeDisabled()
   expect(screen.getByLabelText('Rol — Unverified User')).toBeDisabled()
   expect(screen.getByText('E-posta doğrulaması bekleniyor.')).toBeInTheDocument()
+  expect(screen.getByText('Yönetici', { selector: '.panel__badge' })).toBeInTheDocument()
+  expect(within(screen.getByLabelText('Rol — Pending User')).getByRole('option', { name: 'Organizatör' })).toHaveValue('ORGANIZER')
 
   await user.selectOptions(screen.getByLabelText('Rol — Pending User'), 'ORGANIZER')
   expect(api.updateUserRole).toHaveBeenCalledWith('pending', 'ORGANIZER', 'admin-token')

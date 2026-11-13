@@ -43,6 +43,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 # ------------------------------------------------------------------------------
 FROM node:24-bookworm-slim AS frontend-builder
 WORKDIR /app
+# Vite inlines VITE_* at build time, so the Google client ID must be a build arg, not runtime env.
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 
 # Shared content models required during build
 COPY shared ./shared
@@ -66,7 +69,7 @@ FROM nginx:alpine AS reverse-proxy
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html/panel
 COPY --from=frontend-builder /app/frontend/hackaton/dist /usr/share/nginx/html/hackaton
-EXPOSE 80 8080
+EXPOSE 80 443 8080
 CMD ["nginx", "-g", "daemon off;"]
 
 # ------------------------------------------------------------------------------

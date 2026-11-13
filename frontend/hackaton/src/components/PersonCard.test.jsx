@@ -6,6 +6,7 @@ describe('PersonCard', () => {
   it('fotoğraf varsa görseli gösterir, baş harfleri göstermez', () => {
     const { container } = render(<PersonCard person={{ name: 'Ayşe Yılmaz', title: 'Unvan', photo: '/ayse.jpg' }} />)
     expect(container.querySelector('img')).toHaveAttribute('src', '/ayse.jpg')
+    expect(screen.getByRole('img', { name: 'Ayşe Yılmaz, Unvan' })).toHaveAttribute('loading', 'lazy')
     expect(screen.queryByText('AY')).not.toBeInTheDocument()
   })
 

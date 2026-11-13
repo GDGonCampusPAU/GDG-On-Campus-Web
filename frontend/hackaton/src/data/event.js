@@ -8,6 +8,10 @@ export { typeLabels } from '../lib/content.js'
 
 export let event = base
 export let formSlug = 'hackathon-katilim'
+// Pages read `event` at render time (ES live binding), so reassigning it is enough for the next page they open.
+export function setEvent(next) {
+  event = next
+}
 export async function loadEvent() {
   const page = await getEventPage()
   if (!isEventShape(base, page.event)) throw new Error('Sunucudaki etkinlik verisi geçersiz.')

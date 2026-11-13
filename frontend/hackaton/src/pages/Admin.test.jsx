@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import App from '../App.jsx'
 import base from '../data/base.js'
+import { event as liveEvent } from '../data/event.js'
 import { DRAFT_KEY, writeDraft } from '../lib/content.js'
 import { getEventPage, publishEventPage } from '../lib/eventApi.js'
 
@@ -375,6 +376,7 @@ describe('Admin paneli', () => {
     await user.click(screen.getByRole('button', { name: 'Yayınla' }))
     expect(publishEventPage).toHaveBeenCalledWith(expect.objectContaining({ organizer: 'Yayın Org' }), 1, 'editor-token')
     expect(await screen.findByRole('status')).toHaveTextContent('Yayınlandı')
+    expect(liveEvent.organizer).toBe('Yayın Org')
     expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
 
     publishEventPage.mockRejectedValueOnce(Object.assign(new Error('Çakışma: başka biri güncelledi.'), { status: 409 }))

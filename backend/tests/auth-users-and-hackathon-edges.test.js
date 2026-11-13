@@ -87,6 +87,7 @@ test('send-otp validation, unverified login recovery via verify-email and /auth/
     .send({ email: 'recover@posta.pau.edu.tr', password: 'safe-password-1' });
   assert.equal(pendingLogin.status, 403);
   assert.equal(pendingLogin.body.requiresVerification, undefined);
+  assert.equal(pendingLogin.body.message, 'Hesabınız yönetici onayını bekliyor.');
 
   const meRes = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${verified.token}`);
   assert.equal(meRes.status, 200);

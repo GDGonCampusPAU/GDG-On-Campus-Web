@@ -102,3 +102,6 @@ Docs/superpowers/
 # Browser test artifacts
 playwright-report/
 test-results/
+
+# TLS private key for nginx (DEF-27); never commit
+nginx/certs/

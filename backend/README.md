@@ -2,6 +2,8 @@
 
 Node 24, Express ve MongoDB replica set/Atlas kullanır. Kök dizindeki `npm run setup` bütün uygulamaları kurar. Backend tek başına `npm ci`, `npm test`, `npm start` veya `npm run dev` ile çalışır; repo lint araçları kök kurulumdan gelir.
 
+Windows PowerShell'de `npm.ps1` engeline (`PSSecurityException`) takılmamak için komutları `npm.cmd` / `npx.cmd` ile çalıştırın (örn. `npm.cmd test`); ayrıntı: [KURULUM.md](../documents/KURULUM.md).
+
 İlk kurulumda `.env.example` dosyasını `.env` olarak kopyalayın; mevcut ayarları ezmeyin. `JWT_SECRET` en az 32 karakterlik özel bir anahtar olmalı. `PARTICIPANT_JWT_SECRET` için de ayrı güçlü anahtar önerilir. Anahtar üretmek için `openssl rand -hex 32` kullanılabilir. MongoDB standalone bağlantısı kabul edilmez. Kök dizindeki Compose, yeni yerel geliştirme veritabanı için replica set kurar; mevcut veritabanı/volume üzerinde çalıştırmak gerekmez.
 
 - API: `http://localhost:5000/api/v1`; `/health` süreç canlılığını, `/ready` DB bağlantısını bildirir.

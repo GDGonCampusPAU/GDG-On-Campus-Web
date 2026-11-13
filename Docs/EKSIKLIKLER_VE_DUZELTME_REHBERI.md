@@ -18,38 +18,40 @@ Platform; Express 5 + Mongoose 9 tabanlı REST API (`backend/` — toplam 40 HTT
 
 ## 2. Önceliklendirilmiş Eksiklik Matrisi (30 Madde: 11 P0 / 13 P1 / 6 P2)
 
-| No | Kategori | Eksiklik Tanımı | Konum | Seviye | Öncelik |
-|---|---|---|---|---|---|
-| **DEF-07** | Arayüz & Varlıklar | Hackathon Vitrininde Eksik `favicon.svg` ve Kırık `og-image.png` (HTTP 404) | `frontend/hackaton/index.html:7,13,17`, `public/` | High | **P0** |
-| **DEF-08** | Arayüz & Varlıklar | Optimize Edilmemiş Ham TTF Font Yükü (~4,31 MB Hackaton + ~6,48 MB Panel) | `frontend/hackaton/public/fonts/`, `frontend/public/fonts/` | High | **P0** |
-| **DEF-10** | Arayüz & İçerik | Etkinlik Vitrini Yer Tutucu Verileri & Kök Sosyal Medya Bağlantıları (`label`/`url`) | `shared/hackathon-event.json:7,34-53,104-154,444-457` | High | **P0** |
-| **DEF-11** | Hukuk & KVKK | Formda Tıklanabilir KVKK Aydınlatma Bağlantısı / Modalının Olmaması | `StepForm.jsx:154,177`, `Field.jsx:8-12`, `hackathon-event.json:432` | High | **P0** |
-| **DEF-14** | Mimari & Durum | Etkinlik Vitrininde Reaktif Olmayan Modül Değişkeni (`let event = base`) | `frontend/hackaton/src/data/event.js:9-16`, `main.jsx:11-41` | High | **P0** |
-| **DEF-17** | Ortam & Dağıtım | Ortam Değişkeni Şablonlarının Parçalı Olması (`.env.example` vs `.env.docker.example` vs `compose.prod.yaml`) | `.env.example`, `.env.docker.example`, `compose.prod.yaml` | High | **P0** |
-| **DEF-21** | Test & CI/CD | Challenger Güvenlik Testlerinin (26 Backend + 12 Panel = 38 Test) Varsayılan `npm test` Dışında Kalması | `backend/package.json:10`, `frontend/vitest.config.js:5` | High | **P0** |
-| **DEF-23** | Güvenlik & Paket | Bağımlılık Güvenlik Açıkları (`backend --omit=dev` 5 üretim açığı dahil toplam 18 audit uyarısı) | `backend/package.json`, `frontend/`, `hackaton/`, kök | High | **P0** |
-| **DEF-26** | Ortam & Dağıtım | Production `Dockerfile` & `compose.prod.yaml` İçinde `VITE_GOOGLE_CLIENT_ID` Build Argümanı Eksikliği | `Dockerfile:44-61`, `compose.prod.yaml:63-70` | High | **P0** |
-| **DEF-27** | Ortam & Dağıtım | `nginx/nginx.conf` İçinde `:443` TLS & Host Yönlendirmesi Eksikliği (Cloudflare `:8080` Engeli) | `nginx/nginx.conf:6-134`, `compose.prod.yaml:63-70` | High | **P0** |
-| **DEF-28** | Canlı Operasyon | Dış Ortam Ön Koşulları (Cloudflare DNS, Brevo SPF/DKIM/Key, Google OAuth, Üretim Sırları, Backup Tatbikatı) | Dış servisler & sunucu ortamı | High | **P0** |
-| **DEF-02** | Mimari & Dizin | Dokümantasyon Klasör Çift Başlılığı (`documents/` vs `Docs/`) | Kök dizin (`documents/`, `Docs/`) | Medium | **P1** |
-| **DEF-04** | Mimari & Paket | Kök Dizin Paket Yönetiminde `workspaces` Tanımının Bulunmaması (`e2e/server.cjs` kırılgan importları) | `package.json:1-27`, `e2e/server.cjs:12-15` | Medium | **P1** |
-| **DEF-05** | Mimari & Durum | Ön Yüzler Arasında React Sürüm Uyumsuzluğu (Panel React 19 vs Hackaton React 18) | `frontend/package.json:15` vs `hackaton/package.json:20` | Medium | **P1** |
-| **DEF-06** | Mimari & Durum | Core Team Panelinde İlkel Hash Tabanlı Yönlendirme (`window.location.hash`) | `frontend/src/App.jsx:11-37` | Medium | **P1** |
-| **DEF-09** | Arayüz & A11y | `PersonCard.jsx:19` Boş `alt=""` Özelliği ile `PersonCard`/`SponsorGrid` Tembel Yükleme Eksikliği | `PersonCard.jsx:19`, `SponsorGrid.jsx:5` | Medium | **P1** |
-| **DEF-15** | Kod Kalitesi | Atıl Şema Kalıntıları ve Legacy/Dinamik Çift Başvuru Akışı Kararı (`Team.js`, `HackathonApp.js` shim) | `Team.js`, `HackathonApp.js`, `User.js`, `VerificationToken.js` | Medium | **P1** |
-| **DEF-16** | Kod Kalitesi | Proje Genelinde Statik Tip Kontrolünün (`TypeScript` / `jsconfig checkJs`) Bulunmaması | Tüm `src/**/*.js`, `src/**/*.jsx` | Medium | **P1** |
-| **DEF-18** | Ortam & DX | Windows PowerShell `ExecutionPolicy` (`npm.ps1`) Kısıtı & Alt Proje Kullanım Notları | Alt `*/README.md` dosyaları | Medium | **P1** |
-| **DEF-19** | Ortam & Dağıtım | Aşırı Dar Node.js Motor Sürümü Kuralı (`>=24.15.0 <25`) | Tüm `package.json` dosyaları | Medium | **P1** |
-| **DEF-20** | Performans | Ön Yüz Paketlerinde Kod Bölümleme (`React.lazy` & `manualChunks`) Eksikliği (~248 KB & ~230 KB Bundle) | `frontend/vite.config.js`, `hackaton/vite.config.js`, `App.jsx` | Medium | **P1** |
-| **DEF-22** | Test & CI/CD | CI İş Akışının Tek Seri İş Olması, Playwright Cache Eksikliği & Apt Geçici DNS Hatası Kırılganlığı | `.github/workflows/check.yml:1-20` | Medium | **P1** |
-| **DEF-24** | Güvenlik | Canlıda (`NODE_ENV=production`) `CLIENT_URLS` Tanımsızsa `localhost` Fallback'ine Düşülmesi | `backend/src/app.js:33-40` | Medium | **P1** |
-| **DEF-29** | Ürün & UX Tamlığı | Panelde Şifre Sıfırlama / Faz 2 CMS UI Eksikliği & `/admin` Cila Eksikleri (409/`/auth/me`/Kota) | `Login.jsx`, `App.jsx`, `Admin.jsx`, `eventApi.js`, `Users.jsx` | Medium | **P1** |
-| **DEF-01** | Mimari & Dizin | Klasör İsminde Boşluk Karakteri ve Büyük Ham Tasarım Varlıkları (`design folders/` — ~26,2 MB) | `design folders/` (20 dosya) | Low | **P2** |
-| **DEF-03** | Mimari & Dizin | Dizin Yazım Uyumsuzluğu (`frontend/hackaton/` vs `backend/src/modules/hackathon/`) | `frontend/hackaton/` | Low | **P2** |
-| **DEF-12** | Güvenlik & SEO | Core Team Panelinde `robots` Meta Etiketi (ve `X-Robots-Tag`) Eksikliği | `frontend/index.html:1-13` | Low | **P2** |
-| **DEF-13** | Arayüz & Dil | Ön Yüz ve Hata Mesajlarında Türkçe / İngilizce Dil Tutarsızlıkları | `Users.jsx`, `roleMiddleware.js:24`, `authController.js:248` | Low | **P2** |
-| **DEF-25** | Dokümantasyon | İkincil Rehberlerin (`architecture.md`, `KATILIMCI_DOGRULAMA.md`, alt `README.md`) Senkronizasyonu | İkincil dokümanlar & alt README'ler | Low | **P2** |
-| **DEF-30** | Test & Git Hijyeni | E2E Negatif/Geri Alma & Reset Kapsamı Eksikliği, Açık `PR #7` ve `main` Dalı Senkronu | `e2e/flows.spec.cjs`, GitHub `PR #7`, `main` (`d218156`) | Low | **P2** |
+| No | Kategori | Eksiklik Tanımı | Konum | Seviye | Öncelik | Durum |
+|---|---|---|---|---|---|---|
+| **DEF-07** | Arayüz & Varlıklar | Hackathon Vitrininde Eksik `favicon.svg` ve Kırık `og-image.png` (HTTP 404) | `frontend/hackaton/index.html:7,13,17`, `public/` | High | **P0** | ✅¹ |
+| **DEF-08** | Arayüz & Varlıklar | Optimize Edilmemiş Ham TTF Font Yükü (~4,31 MB Hackaton + ~6,48 MB Panel) | `frontend/hackaton/public/fonts/`, `frontend/public/fonts/` | High | **P0** | ✅ |
+| **DEF-10** | Arayüz & İçerik | Etkinlik Vitrini Yer Tutucu Verileri & Kök Sosyal Medya Bağlantıları (`label`/`url`) | `shared/hackathon-event.json:7,34-53,104-154,444-457` | High | **P0** | ⬜ |
+| **DEF-11** | Hukuk & KVKK | Formda Tıklanabilir KVKK Aydınlatma Bağlantısı / Modalının Olmaması | `StepForm.jsx:154,177`, `Field.jsx:8-12`, `hackathon-event.json:432` | High | **P0** | ✅¹ |
+| **DEF-14** | Mimari & Durum | Etkinlik Vitrininde Reaktif Olmayan Modül Değişkeni (`let event = base`) | `frontend/hackaton/src/data/event.js:9-16`, `main.jsx:11-41` | High | **P0** | ✅ |
+| **DEF-17** | Ortam & Dağıtım | Ortam Değişkeni Şablonlarının Parçalı Olması (`.env.example` vs `.env.docker.example` vs `compose.prod.yaml`) | `.env.example`, `.env.docker.example`, `compose.prod.yaml` | High | **P0** | ✅ |
+| **DEF-21** | Test & CI/CD | Challenger Güvenlik Testlerinin (26 Backend + 12 Panel = 38 Test) Varsayılan `npm test` Dışında Kalması | `backend/package.json:10`, `frontend/vitest.config.js:5` | High | **P0** | ✅ |
+| **DEF-23** | Güvenlik & Paket | Bağımlılık Güvenlik Açıkları (`backend --omit=dev` 5 üretim açığı dahil toplam 18 audit uyarısı) | `backend/package.json`, `frontend/`, `hackaton/`, kök | High | **P0** | ✅ |
+| **DEF-26** | Ortam & Dağıtım | Production `Dockerfile` & `compose.prod.yaml` İçinde `VITE_GOOGLE_CLIENT_ID` Build Argümanı Eksikliği | `Dockerfile:44-61`, `compose.prod.yaml:63-70` | High | **P0** | ✅ |
+| **DEF-27** | Ortam & Dağıtım | `nginx/nginx.conf` İçinde `:443` TLS & Host Yönlendirmesi Eksikliği (Cloudflare `:8080` Engeli) | `nginx/nginx.conf:6-134`, `compose.prod.yaml:63-70` | High | **P0** | ✅¹ |
+| **DEF-28** | Canlı Operasyon | Dış Ortam Ön Koşulları (Cloudflare DNS, Brevo SPF/DKIM/Key, Google OAuth, Üretim Sırları, Backup Tatbikatı) | Dış servisler & sunucu ortamı | High | **P0** | ⬜ |
+| **DEF-02** | Mimari & Dizin | Dokümantasyon Klasör Çift Başlılığı (`documents/` vs `Docs/`) | Kök dizin (`documents/`, `Docs/`) | Medium | **P1** | ⬜ |
+| **DEF-04** | Mimari & Paket | Kök Dizin Paket Yönetiminde `workspaces` Tanımının Bulunmaması (`e2e/server.cjs` kırılgan importları) | `package.json:1-27`, `e2e/server.cjs:12-15` | Medium | **P1** | ⬜ |
+| **DEF-05** | Mimari & Durum | Ön Yüzler Arasında React Sürüm Uyumsuzluğu (Panel React 19 vs Hackaton React 18) | `frontend/package.json:15` vs `hackaton/package.json:20` | Medium | **P1** | ⬜ |
+| **DEF-06** | Mimari & Durum | Core Team Panelinde İlkel Hash Tabanlı Yönlendirme (`window.location.hash`) | `frontend/src/App.jsx:11-37` | Medium | **P1** | ⬜ |
+| **DEF-09** | Arayüz & A11y | `PersonCard.jsx:19` Boş `alt=""` Özelliği ile `PersonCard`/`SponsorGrid` Tembel Yükleme Eksikliği | `PersonCard.jsx:19`, `SponsorGrid.jsx:5` | Medium | **P1** | ✅ |
+| **DEF-15** | Kod Kalitesi | Atıl Şema Kalıntıları ve Legacy/Dinamik Çift Başvuru Akışı Kararı (`Team.js`, `HackathonApp.js` shim) | `Team.js`, `HackathonApp.js`, `User.js`, `VerificationToken.js` | Medium | **P1** | ⬜ |
+| **DEF-16** | Kod Kalitesi | Proje Genelinde Statik Tip Kontrolünün (`TypeScript` / `jsconfig checkJs`) Bulunmaması | Tüm `src/**/*.js`, `src/**/*.jsx` | Medium | **P1** | ⬜ |
+| **DEF-18** | Ortam & DX | Windows PowerShell `ExecutionPolicy` (`npm.ps1`) Kısıtı & Alt Proje Kullanım Notları | Alt `*/README.md` dosyaları | Medium | **P1** | ✅ |
+| **DEF-19** | Ortam & Dağıtım | Aşırı Dar Node.js Motor Sürümü Kuralı (`>=24.15.0 <25`) | Tüm `package.json` dosyaları | Medium | **P1** | ✅ |
+| **DEF-20** | Performans | Ön Yüz Paketlerinde Kod Bölümleme (`React.lazy` & `manualChunks`) Eksikliği (~248 KB & ~230 KB Bundle) | `frontend/vite.config.js`, `hackaton/vite.config.js`, `App.jsx` | Medium | **P1** | ⬜ |
+| **DEF-22** | Test & CI/CD | CI İş Akışının Tek Seri İş Olması, Playwright Cache Eksikliği & Apt Geçici DNS Hatası Kırılganlığı | `.github/workflows/check.yml:1-20` | Medium | **P1** | ⬜ |
+| **DEF-24** | Güvenlik | Canlıda (`NODE_ENV=production`) `CLIENT_URLS` Tanımsızsa `localhost` Fallback'ine Düşülmesi | `backend/src/app.js:33-40` | Medium | **P1** | ✅ |
+| **DEF-29** | Ürün & UX Tamlığı | Panelde Şifre Sıfırlama / Faz 2 CMS UI Eksikliği & `/admin` Cila Eksikleri (409/`/auth/me`/Kota) | `Login.jsx`, `App.jsx`, `Admin.jsx`, `eventApi.js`, `Users.jsx` | Medium | **P1** | ⬜ |
+| **DEF-01** | Mimari & Dizin | Klasör İsminde Boşluk Karakteri ve Büyük Ham Tasarım Varlıkları (`design folders/` — ~26,2 MB) | `design folders/` (20 dosya) | Low | **P2** | ⬜ |
+| **DEF-03** | Mimari & Dizin | Dizin Yazım Uyumsuzluğu (`frontend/hackaton/` vs `backend/src/modules/hackathon/`) | `frontend/hackaton/` | Low | **P2** | ⬜ |
+| **DEF-12** | Güvenlik & SEO | Core Team Panelinde `robots` Meta Etiketi (ve `X-Robots-Tag`) Eksikliği | `frontend/index.html:1-13` | Low | **P2** | ✅ |
+| **DEF-13** | Arayüz & Dil | Ön Yüz ve Hata Mesajlarında Türkçe / İngilizce Dil Tutarsızlıkları | `Users.jsx`, `roleMiddleware.js:24`, `authController.js:248` | Low | **P2** | ✅ |
+| **DEF-25** | Dokümantasyon | İkincil Rehberlerin (`architecture.md`, `KATILIMCI_DOGRULAMA.md`, alt `README.md`) Senkronizasyonu | İkincil dokümanlar & alt README'ler | Low | **P2** | ✅ |
+| **DEF-30** | Test & Git Hijyeni | E2E Negatif/Geri Alma & Reset Kapsamı Eksikliği, Açık `PR #7` ve `main` Dalı Senkronu | `e2e/flows.spec.cjs`, GitHub `PR #7`, `main` (`d218156`) | Low | **P2** | ⬜ |
+
+**Durum:** ✅ yapıldı ve doğrulandı · ✅¹ kod tarafı yapıldı, ekipten bekleyen var (DEF-07: gerçek içerik girilince `og-image.png` yeniden üretilmeli; DEF-11: KVKK metninin adresi; DEF-27: Cloudflare Origin Certificate) · ⬜ açık. Ayrıntı için Bölüm 6.
 
 ---
 
@@ -608,3 +610,29 @@ npm.cmd audit --prefix frontend/hackaton
 ## 5. Sonuç
 
 GDG On Campus Pamukkale Üniversitesi Web Platformu; fonksiyonel backend mantığı, MongoDB ACID transaction bütünlüğü, HMAC-OTP ve Google ID token güvenliği, `b4fbf69` başvuru değerlendirme + Brevo e-posta profilleri ve 350 testlik iki katmanlı güvence paketiyle güçlü bir çekirdeğe sahiptir. Canlı alan adı (`gdgocpamukkale.com` + `panel.gdgocpamukkale.com`) açılışı öncesinde özellikle yukarıdaki **11 adet P0 eksikliğin** (bağlantılı sırayla: `DEF-26`, `DEF-27`, `DEF-28` altyapı/harici servisler + `DEF-07`, `DEF-08`, `DEF-10`, `DEF-11`, `DEF-14` vitrin & hukuk/performans + `DEF-17`, `DEF-21`, `DEF-23` env/test/audit yamaları) kapatılması önerilir.
+
+---
+
+## 6. Uygulama Durumu (13 Kasım 2026, `dev` çalışma ağacı, P0 + ucuz P1/P2)
+
+| No | Durum | Yapılan / Kalan |
+|---|---|---|
+| DEF-21 | Kapandı | Challenger testleri `npm test` içinde (backend 73, panel 39 test). |
+| DEF-26 | Kapandı | `Dockerfile` `frontend-builder` + `compose.prod.yaml` `VITE_GOOGLE_CLIENT_ID` build arg'ı; değer bundle'da doğrulandı. |
+| DEF-27 | Kod kapandı | `nginx.conf` `:443` + HTTP/2, SNI ile `gdgocpamukkale.com`/`www` ve `panel.` ayrımı, Cloudflare gerçek IP. Kalan: Origin Certificate `nginx/certs/` içine (DEF-28). |
+| DEF-28 | Açık (ekip) | Cloudflare DNS + sertifika, Brevo SPF/DKIM, Google OAuth, üretim sırları, yedek tatbikatı. |
+| DEF-07 | Kod kapandı | Marka noktalı `favicon.svg`; `npm run og-image --prefix frontend/hackaton` ile üretilen `og-image.png` (nginx'te 1 saat önbellek); mutlak `og:*` etiketleri. Görsel şu an yer tutucu ad/tarihi taşıyor: DEF-10 içeriği girilince yeniden üretilmeli. |
+| DEF-08 | Kapandı | 9 TTF (10,8 MB) yerine Latin+Türkçe alt kümeli woff2 (171 KB), preload eklendi. |
+| DEF-10 | Açık (ekip) | Gerçek konum, ödül, jüri, sponsor ve sosyal hesap adresleri. |
+| DEF-11 | Kod kapandı | İpuçlarında `[metin](https://...)` linki çalışıyor (yalnız https ve site içi yollar). Kalan: KVKK aydınlatma metninin adresi `kvkkConsent` ipucuna yazılmalı. |
+| DEF-14 | Kapandı | Yayından sonra `setEvent()` canlı veriyi günceller. ES modül bağlamaları canlı olduğundan Context'e taşımaya gerek kalmadı. |
+| DEF-17 | Kapandı | `.env.docker.example` geliştirme/üretim bölümlü; prod panel portu `WEB_PANEL_PORT`; prod `CLIENT_URLS` artık yalnız `backend/.env`'den okunur (compose varsayılanı onu eziyordu). |
+| DEF-23 | Kapandı | `npm audit fix` (force yok): backend üretim açığı 5 → 0, high açık kalmadı. Kalan 10 moderate uyarı yalnız dev araçlarında (`eslint`/`nodemon` → `minimatch`) ve major sürüm gerektiriyor. |
+| DEF-24 (P1) | Kapandı | DEF-17 değişikliğinin emniyeti olarak: üretimde `CLIENT_URLS` yoksa backend başlamaz. |
+| DEF-09 (P1) | Kapandı | Jüri/mentor fotoğrafında `alt` = ad ve unvan; fotoğraf ve sponsor logolarında `loading="lazy"` + `decoding="async"`. |
+| DEF-18 (P1) | Kapandı | `backend/`, `frontend/`, `frontend/hackaton/` README'lerinde `npm.cmd` / `npx.cmd` notu. |
+| DEF-19 (P1) | Kapandı | `engines` 8 dosyada `>=24` (Node 24 CI'da, Node 26 yerelde tüm testlerle doğrulandı; Node 22 denenmedi). |
+| DEF-12 (P2) | Kapandı | Panel `index.html` `noindex, nofollow` meta etiketi + Nginx panel bloğunda `X-Robots-Tag`; vitrin sitesi indekslenebilir kalır. |
+| DEF-13 (P2) | Kapandı | Panel rol seçicileri ve üst rozet Türkçe (`frontend/src/lib/roles.js`); iki backend onay mesajı tek Türkçe metinde birleşti. |
+| DEF-25 (P2) | Kapandı | `architecture.md` (üretim topolojisi), `GUVENLIK_VE_DOSYALAR.md`, alt README'ler ve font/favicon durumunu eski gösteren durum belgeleri güncellendi. `KATILIMCI_DOGRULAMA.md` zaten geçmiş kayıt olarak işaretli, dokunulmadı. |
+| (yeni) | Kapandı | `npm run check:layout` macOS/Linux'ta test bulamıyordu (tırnaksız `--grep` argümanı). Düzeltildi; hatalı biçimi sabitleyen challenger testi (`m5-challenge.test.js` F18.2) de düzeltildi. |

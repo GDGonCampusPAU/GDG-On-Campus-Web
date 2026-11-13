@@ -245,7 +245,7 @@ const login = async (req, res, next) => {
     if (user.role === 'PENDING') {
       return res.status(403).json({
         success: false,
-        message: 'Account awaiting admin approval (Hesabınız yönetici onayını beklemektedir).'
+        message: 'Hesabınız yönetici onayını bekliyor.'
       });
     }
 

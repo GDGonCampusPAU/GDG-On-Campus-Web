@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import PanelLayout from '../components/layout/PanelLayout.jsx'
 import { getUsers, updateUserRole } from '../lib/api.js'
+import { roleLabels } from '../lib/roles.js'
 
 export default function Users({ session, onLogout, onUnauthorized }) {
   const [page, setPage] = useState(1)
@@ -57,10 +58,7 @@ export default function Users({ session, onLogout, onUnauthorized }) {
             }}
           >
             <option value="ALL">Tümü</option>
-            <option value="PENDING">PENDING</option>
-            <option value="MEMBER">MEMBER</option>
-            <option value="ORGANIZER">ORGANIZER</option>
-            <option value="ADMIN">ADMIN</option>
+            {Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <p className="toolbar__count" aria-live="polite">
@@ -91,8 +89,8 @@ export default function Users({ session, onLogout, onUnauthorized }) {
                       disabled={busy || user._id === session.user.id || !user.isEmailVerified}
                       onChange={event => changeRole(user._id, event.target.value)}
                     >
-                      {['PENDING', 'MEMBER', 'ORGANIZER', 'ADMIN'].map(r => (
-                        <option key={r} value={r}>{r}</option>
+                      {Object.entries(roleLabels).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
                   </label>
