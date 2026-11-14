@@ -45,10 +45,14 @@ services:
       PORT: "5000"
       MONGO_URI: mongodb://mongo:27017/gdg_pau?replicaSet=rs0&directConnection=true
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+      # Maintenance flag is shared with nginx, which serves the page (no standalone server here).
+      MAINTENANCE_DIR: /app/.maintenance
+      MAINTENANCE_STANDALONE: "false"
     ports:
       - "127.0.0.1:${API_PORT:-5000}:5000"
     volumes:
       - ${UPLOADS_PATH:-./backend/uploads}:/app/backend/uploads
+      - ./.maintenance:/app/.maintenance
     depends_on:
       mongo:
         condition: service_healthy
@@ -75,6 +79,8 @@ services:
     volumes:
       # origin.pem + origin.key from Cloudflare (SSL/TLS > Origin Server); nginx will not start without them.
       - ./nginx/certs:/etc/nginx/certs:ro
+      # Maintenance flag written by the backend (admin panel > Bakım modu).
+      - ./.maintenance:/etc/nginx/maintenance:ro
     depends_on:
       backend:
         condition: service_healthy

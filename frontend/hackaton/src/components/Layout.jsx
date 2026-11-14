@@ -13,8 +13,8 @@ export default function Layout() {
   const { pathname } = useLocation()
   // '/kayit/' de aynı rotaya eşleşir; sondaki eğik çizgiyi atıp tek biçime indir.
   const path = pathname.replace(/\/+$/, '') || '/'
-  // "Kayıt Ol" çağrısı kayıt sayfasında ve zaten başvurmuş kişinin sayfasında gereksiz.
-  const hasCta = !['/', '/kayit', '/basvurum'].includes(path)
+  // Sabit "Kayıt Ol" çubuğu yalnızca içerik sayfalarında; ana sayfa, kayıt, başvurum ve 404'te gereksiz.
+  const hasCta = ['/program', '/ekip'].includes(path)
   const mainRef = useRef(null)
   const lastPath = useRef(pathname)
 

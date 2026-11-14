@@ -186,3 +186,16 @@ export async function setTeamCaptain(teamId, participantId, token) {
 export async function disbandTeam(teamId, token) {
   return (await request(`${await teamsPath()}/${encodeURIComponent(teamId)}`, { method: 'DELETE', token })).data
 }
+
+// --- Bakım modu (yalnızca ADMIN) -------------------------------------------------
+// { active, since, by: { id, name } | null, server: 'running' | 'stopped' | 'external' }
+
+/** @param {string} token */
+export async function getMaintenance(token) {
+  return (await request('/maintenance', { token })).data
+}
+
+/** @param {boolean} active @param {string} token */
+export async function setMaintenance(active, token) {
+  return (await request('/maintenance', { method: 'PUT', body: { active }, token })).data
+}

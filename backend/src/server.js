@@ -32,6 +32,8 @@ const startServer = async () => {
       console.log(` Listening on port: ${PORT}`);
       console.log(` Base API URL: http://localhost:${PORT}/api/v1`);
       console.log('====================================================');
+      // Maintenance was left on (e.g. after a reboot): bring the standalone page back.
+      if (require('./services/maintenanceService').ensureServer()) console.log(' [Bakım] Bakım modu açık; bağımsız bakım sunucusu başlatıldı.');
     });
 
     // Graceful Shutdown on termination signals

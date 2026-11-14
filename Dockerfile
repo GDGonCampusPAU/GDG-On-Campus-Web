@@ -34,7 +34,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 FROM base AS hackaton
 RUN npm ci --workspace gdg-pau-hackathon --no-audit --no-fund
 WORKDIR /app/frontend/hackaton
-COPY frontend/hackaton/index.html frontend/hackaton/vite.config.js ./
+COPY frontend/hackaton/index.html frontend/hackaton/vite.config.js frontend/hackaton/maintenance-plugin.js ./
 COPY frontend/hackaton/src ./src
 COPY frontend/hackaton/public ./public
 COPY shared /app/shared

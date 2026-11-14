@@ -32,6 +32,7 @@ export default function PanelLayout({ user, onLogout, title, children, actions }
               <NavLink to="/applications">Başvurular</NavLink>
               <NavLink to="/teams">Takımlar</NavLink>
               {user.role === 'ADMIN' && <NavLink to="/users">Ekip ve onaylar</NavLink>}
+              {user.role === 'ADMIN' && <NavLink to="/maintenance">Bakım</NavLink>}
             </nav>
           )}
           <div className="panel__user">
