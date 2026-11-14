@@ -37,6 +37,22 @@ describe('StepForm', () => {
     expect(screen.getByLabelText('Sınıf')).toHaveValue('2')
   })
 
+  it('onay ekranı cevapları adımlara göre gruplar ve Düzenle ile o adıma döner', async () => {
+    const { user } = setup()
+    await fillUntilConfirm(user)
+    for (const step of fixtureSteps) {
+      expect(screen.getByRole('heading', { level: 3, name: step.title })).toBeInTheDocument()
+    }
+    // Soru ve cevap aynı satırda (dt/dd) eşleşir.
+    const name = screen.getByText('Ayşe Yılmaz')
+    expect(name.tagName).toBe('DD')
+    expect(name.previousElementSibling).toHaveTextContent('Ad soyad')
+
+    await user.click(screen.getByRole('button', { name: `${fixtureSteps[1].title} adımını düzenle` }))
+    expect(screen.getByRole('heading', { level: 2, name: fixtureSteps[1].title })).toHaveFocus()
+    expect(screen.getByLabelText('Takım adı')).toHaveValue('Kod Kurtları')
+  })
+
   it('tüm adımlar tamamlanınca gönderir ve onSuccess çağırır', async () => {
     const { user, onSubmit, onSuccess } = setup()
     await fillUntilConfirm(user)

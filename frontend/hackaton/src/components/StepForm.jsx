@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Button from './Button.jsx'
 import Field, { Hint } from './Field.jsx'
-import { initialValues, validateStep, normalize, fieldsOf } from '../lib/registration.js'
+import { initialValues, validateStep, normalize } from '../lib/registration.js'
 import './StepForm.css'
 
 const CONFIRM = { title: 'Onay', fields: [] }
@@ -121,14 +121,31 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
       </h2>
 
       {step === CONFIRM ? (
-        <dl className="step-form__summary">
-          {fieldsOf(configured).map((f) => (
-            <Fragment key={f.id}>
-              <dt>{f.label}</dt>
-              <dd>{shownValue(f, summary[f.id]) || '—'}</dd>
-            </Fragment>
+        <div className="step-form__summary">
+          {configured.map((s, i) => (
+            <section key={s.id ?? i} className="step-form__summary-group" aria-labelledby={`summary-${i}`}>
+              <div className="step-form__summary-head">
+                <h3 id={`summary-${i}`}>{s.title}</h3>
+                <button
+                  type="button"
+                  className="step-form__edit"
+                  aria-label={`${s.title} adımını düzenle`}
+                  onClick={() => setStepIndex(i)}
+                >
+                  Düzenle
+                </button>
+              </div>
+              <dl>
+                {s.fields.map((f) => (
+                  <div key={f.id} className="step-form__summary-row">
+                    <dt>{f.label}</dt>
+                    <dd>{shownValue(f, summary[f.id]) || '—'}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           ))}
-        </dl>
+        </div>
       ) : (
         step.fields.map((f) => {
           const required = f.required === 'yes'

@@ -134,21 +134,81 @@
 
 .step-form__summary {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 8px 16px;
+  gap: 16px;
   margin-bottom: 24px;
-  padding: 20px;
+}
+
+.step-form__summary-group {
+  padding: 20px 24px;
   border-radius: var(--radius-md);
   background: var(--off-white);
 }
 
-.step-form__summary dt {
+.step-form__summary-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.step-form__summary-head h3 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.step-form__edit {
+  flex: none;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--black);
+  font: inherit;
+  font-size: 0.875rem;
   font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.step-form__edit:hover {
+  text-decoration-thickness: 2px;
+}
+
+.step-form__edit:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Soru üstte (küçük, soluk), cevap altında tam genişlikte: uzun sorular cevabı sıkıştırmaz. */
+.step-form__summary-row {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-top: 1px solid color-mix(in srgb, var(--black) 12%, transparent);
+}
+
+.step-form__summary-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.step-form__summary-row:last-child {
+  padding-bottom: 0;
+}
+
+.step-form__summary dt {
+  color: color-mix(in srgb, var(--black) 65%, transparent);
+  font-size: 0.875rem;
 }
 
 .step-form__summary dd {
   min-width: 0;
-  overflow-wrap: anywhere;
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: break-word;
+  white-space: pre-line;
 }
 
 .step-form__submit-error {
