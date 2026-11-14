@@ -375,6 +375,7 @@ describe('Admin paneli', () => {
     await user.click(screen.getByRole('button', { name: 'Yayınla' }))
     expect(publishEventPage).toHaveBeenCalledWith(expect.objectContaining({ organizer: 'Yayın Org' }), 1, 'editor-token')
     expect(await screen.findByRole('status')).toHaveTextContent('Yayınlandı')
+    // Canlı sitenin yeni içeriği göstermesi (refreshEvent) context/EventContext.test.jsx içinde test edilir.
     expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull()
 
     publishEventPage.mockRejectedValueOnce(Object.assign(new Error('Çakışma: başka biri güncelledi.'), { status: 409 }))

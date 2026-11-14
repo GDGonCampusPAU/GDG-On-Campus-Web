@@ -46,6 +46,9 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 # ------------------------------------------------------------------------------
 FROM node:24-bookworm-slim AS frontend-builder
 WORKDIR /app
+# Vite inlines VITE_* at build time, so the Google client ID must be a build arg, not runtime env.
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 
 # Vite embeds VITE_* values at build time; runtime env cannot change them.
 # Empty VITE_API_URL = same-origin /api/v1 through Nginx.
@@ -73,9 +76,6 @@ RUN npm run build --workspace gdg-pau-panel --workspace gdg-pau-hackathon
 # ------------------------------------------------------------------------------
 FROM nginx:alpine AS reverse-proxy
 COPY nginx/nginx.conf /etc/nginx/conf.d/default.conf
-# HTTPS virtual hosts: enabled at start-up only if /etc/nginx/certs has origin.pem/.key
-COPY nginx/https.conf nginx/https-common.conf nginx/https-headers.conf /etc/nginx/
-COPY --chmod=755 nginx/enable-https.sh /docker-entrypoint.d/40-enable-https.sh
 COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html/panel
 COPY --from=frontend-builder /app/frontend/hackaton/dist /usr/share/nginx/html/hackaton
 EXPOSE 80 443 8080

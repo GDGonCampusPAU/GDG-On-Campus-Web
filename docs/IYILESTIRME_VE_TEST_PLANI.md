@@ -132,4 +132,4 @@ Yol haritasındaki **P0 → P2** maddeleri için **TDD / Kabul Testi** olarak ya
 - Challenger ek stres testleri (`node --test --test-concurrency=1 backend/tests/challenger/*.test.js` → **26/26**, `npm.cmd exec --prefix frontend -- vitest run tests/challenger/m4-challenge.test.jsx` → **12/12**) → **38/38 GEÇTİ**
 - `npm.cmd run test:e2e` → **4/4 GEÇTİ** | `npm.cmd run check:layout --prefix frontend/hackaton` → **1/1 GEÇTİ**
 - **Toplam Test Sayısı:** 295 + 12 + 38 + 4 + 1 = **Tam 350 Test (%100 Başarılı)**.
-- Canlıya çıkış (`main` merge) öncesi yalnızca dış kabul kontrolleri (Google OAuth origin, Brevo DNS/key, `.woff2`/logo/gerçek içerik, DB+uploads yedek/restore tatbikatı) kalmıştır.
+- Canlıya çıkış (`main` merge) öncesi yalnızca dış kabul kontrolleri (Google OAuth origin, Brevo DNS/key, Cloudflare Origin Certificate, gerçek içerik, DB+uploads yedek/restore tatbikatı) kalmıştır.

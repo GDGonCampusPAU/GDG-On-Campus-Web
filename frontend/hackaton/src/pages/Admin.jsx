@@ -34,7 +34,7 @@ const labels = {
   id: 'Alan adı (backend\'e giden anahtar)',
   kind: 'Alan türü',
   required: 'Zorunlu',
-  hint: 'İpucu',
+  hint: 'İpucu (link için: [metin](https://adres))',
   value: 'Değer (backend\'e giden)',
   title: 'Başlık',
   text: 'Metin',

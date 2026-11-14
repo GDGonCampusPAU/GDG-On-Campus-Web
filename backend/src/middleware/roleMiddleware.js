@@ -3,7 +3,7 @@
  *
  * Ensures:
  * 1. User is authenticated (req.user is present).
- * 2. If req.user.role === 'PENDING', responds with 403 Forbidden ("Account awaiting admin approval").
+ * 2. If req.user.role === 'PENDING', responds with 403 Forbidden ("Hesabınız yönetici onayını bekliyor.").
  * 3. If specific roles are supplied, verifies req.user.role is included.
  *
  * @param  {...string} allowedRoles Optional list of roles, e.g. 'ORGANIZER', 'ADMIN'
@@ -21,7 +21,7 @@ const requireRoles = (...allowedRoles) => {
     if (req.user.role === 'PENDING') {
       return res.status(403).json({
         success: false,
-        message: 'Account awaiting admin approval (Hesabınız yönetici onayını bekliyor).'
+        message: 'Hesabınız yönetici onayını bekliyor.'
       });
     }
 

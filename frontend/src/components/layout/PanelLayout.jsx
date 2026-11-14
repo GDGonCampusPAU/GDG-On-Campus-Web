@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { roleLabels } from '../../lib/roles.js'
 
 /**
  * Giriş yapmış Core Team üyeleri için sayfa iskeleti: üst çubuk + içerik alanı.
@@ -19,7 +20,7 @@ export default function PanelLayout({ user, onLogout, title, children, actions }
           <p className="panel__brand">GDG On Campus PAU</p>
           <div className="panel__user">
             <span className="panel__user-name">{user.fullName}</span>
-            <span className="panel__badge">{user.role}</span>
+            <span className="panel__badge">{roleLabels[user.role] ?? user.role}</span>
             <button type="button" className="link-button" onClick={onLogout}>
               Çıkış Yap
             </button>

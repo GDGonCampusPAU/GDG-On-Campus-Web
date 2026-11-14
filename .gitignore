@@ -102,5 +102,5 @@ docs/superpowers/
 playwright-report/
 test-results/
 
-# TLS certificates / private keys for nginx
+# TLS private key for nginx (DEF-27); never commit
 nginx/certs/

@@ -30,6 +30,7 @@ app.use(
 );
 
 // Frontend'in çalıştığı adrese izin veriyoruz
+if (process.env.NODE_ENV === 'production' && !process.env.CLIENT_URLS && !process.env.CLIENT_URL) throw new Error('Üretimde CLIENT_URLS tanımlanmalıdır (backend/.env).');
 const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:5174')
   .split(',').map(value => value.trim()).filter(Boolean);
 app.use(cors({

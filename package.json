@@ -7,7 +7,7 @@
     "frontend/hackaton"
   ],
   "engines": {
-    "node": ">=24.15.0 <25"
+    "node": ">=24"
   },
   "scripts": {
     "setup": "npm ci",

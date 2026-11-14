@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, test } from 'vitest'
-import Field from './Field.jsx'
+import Field, { Hint } from './Field.jsx'
 import StickyCta from './StickyCta.jsx'
 
 describe('Field and StickyCta components', () => {
@@ -27,3 +27,13 @@ describe('Field and StickyCta components', () => {
   })
 })
 
+
+describe('Hint links', () => {
+  test('turns https and same-site Markdown links into anchors and leaves other schemes as text', () => {
+    render(<Hint id="kvkk" text={'Lütfen [KVKK Aydınlatma Metni](https://example.org/kvkk) ve [SSS](/sss) okuyun. [kötü](javascript:alert(1)) [dış](//evil.test) [ters](/\\evil.test)'} />)
+    expect(screen.getByRole('link', { name: 'KVKK Aydınlatma Metni' })).toHaveAttribute('href', 'https://example.org/kvkk')
+    expect(screen.getByRole('link', { name: 'SSS' })).toHaveAttribute('href', '/sss')
+    expect(screen.getAllByRole('link')).toHaveLength(2)
+    expect(document.getElementById('kvkk-hint')).toHaveTextContent('Lütfen KVKK Aydınlatma Metni ve SSS okuyun. [kötü](javascript:alert(1)) [dış](//evil.test) [ters](/\\evil.test)')
+  })
+})

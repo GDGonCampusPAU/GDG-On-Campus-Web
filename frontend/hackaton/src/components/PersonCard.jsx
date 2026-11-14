@@ -16,12 +16,7 @@ export default function PersonCard({ person, tone = 'blue' }) {
     <article className={`person tone--${tone}`}>
       <div className="person__avatar">
         {person.photo ? (
-          <img
-            src={person.photo}
-            alt={person.title ? `${person.name} — ${person.title}` : person.name}
-            loading="lazy"
-            decoding="async"
-          />
+          <img src={person.photo} alt={person.title ? `${person.name}, ${person.title}` : person.name} loading="lazy" decoding="async" />
         ) : (
           <span aria-hidden="true">{initials(person.name)}</span>
         )}

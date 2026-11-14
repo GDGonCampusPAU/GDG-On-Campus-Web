@@ -2,6 +2,8 @@
 
 Node 24 + React/Vite. `frontend/` yönetim paneli, `frontend/hackaton/` ayrı etkinlik uygulamasıdır. Kök dizindeki `npm run setup` bütün bağımlılıkları kurar; `npm run dev` API ve iki ön yüzü birlikte başlatır.
 
+Windows PowerShell'de `npm.ps1` engeline (`PSSecurityException`) takılmamak için komutları `npm.cmd` / `npx.cmd` ile çalıştırın (örn. `npm.cmd test`); ayrıntı: [KURULUM.md](../docs/KURULUM.md).
+
 Bu dizinde `npm run dev` paneli http://localhost:5174 adresinde açar. `.env.example` içindeki `VITE_API_URL` API kök adresidir; `/api/v1` eklemeyin. Üretimde ayrı API origin'i kullanılıyorsa build ortamında tanımlanmalı; aynı origin kullanımında sunucu `/api/v1` isteklerini API'ye yönlendirmeli.
 
 - Ekip kaydı e-posta OTP ve ADMIN onayı ister. Kayıt ve katılımcı hesabı birbirinden ayrıdır.

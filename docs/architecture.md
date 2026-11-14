@@ -30,4 +30,6 @@ flowchart LR
 
 `frontend/hackaton` fiziksel olarak frontend altında bulunan ayrı Vite uygulamasıdır. Bu taşıma otomatik bir `/hackaton` URL alt yolu oluşturmaz. Geliştirmede iki ayrı origin kullanılır; production aynı origin veya ayrı origin ile açıkça yapılandırılabilir.
 
-Kök komutları ve CI üç paketi birlikte kontrol eder. Manuel HTML/HTTP araçları geliştirici içindir; ürün akışları gerçek ön yüzlerde bulunur. Ek ayrıntılar [backend README](../backend/README.md) ve [mevcut durum](MEVCUT_PROJE_DURUMU.md) belgesindedir.
+Production'da `compose.prod.yaml` tek Nginx konteyneri kullanır: `:443` üzerinde `gdgocpamukkale.com` vitrin sitesini, `panel.gdgocpamukkale.com` paneli sunar; `/api/`, `/uploads/`, `/health`, `/ready` istekleri aynı origin'den `backend:5000`'e gider. Cloudflare önde durur, Nginx `CF-Connecting-IP` ile gerçek ziyaretçi IP'sini alır.
+
+Kök komutları ve CI üç paketi birlikte kontrol eder; challenger güvenlik testleri de `npm test` içindedir. Manuel HTML/HTTP araçları geliştirici içindir; ürün akışları gerçek ön yüzlerde bulunur. Ek ayrıntılar [backend README](../backend/README.md) ve [mevcut durum](MEVCUT_PROJE_DURUMU.md) belgesindedir.

@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import Button from './Button.jsx'
-import Field from './Field.jsx'
-import HintText from './HintText.jsx'
+import Field, { Hint } from './Field.jsx'
 import { initialValues, validateStep, normalize, fieldsOf } from '../lib/registration.js'
 import './StepForm.css'
 
@@ -152,7 +151,7 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
                     {o.label}
                   </label>
                 ))}
-                {f.hint && <p className="field__hint" id={`${f.id}-hint`}><HintText text={f.hint} /></p>}
+                {f.hint && <Hint id={f.id} text={f.hint} />}
                 <p className="field__error" id={`${f.id}-error`} aria-live="polite">
                   {errors[f.id]}
                 </p>
@@ -175,7 +174,7 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
                     {o.label}
                   </label>
                 ))}
-                {f.hint && <p className="field__hint" id={`${f.id}-hint`}><HintText text={f.hint} /></p>}
+                {f.hint && <Hint id={f.id} text={f.hint} />}
                 <p className="field__error" id={`${f.id}-error`} aria-live="polite">
                   {errors[f.id]}
                 </p>

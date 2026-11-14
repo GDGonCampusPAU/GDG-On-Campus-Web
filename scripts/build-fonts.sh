@@ -5,8 +5,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC="design folders/fonts"
-# Latin-1, Latin Extended-A (Türkçe dahil), genel noktalama, €, ₺, ™, oklar, −, ≈
-UNICODES="U+0000-00FF,U+0100-017F,U+2000-206F,U+20AC,U+20BA,U+2122,U+2190-2193,U+2212,U+2248"
+# Latin-1 + Türkçe harfler + tipografik noktalama + € (dev dalındaki fontlarla aynı aralık)
+UNICODES="U+0020-007E,U+00A0-00FF,U+011E-011F,U+0130-0131,U+015E-015F,U+2013-2014,U+2018-201A,U+201C-201D,U+2026,U+20AC"
 build() { # build <hedef dizin> <font adı>...
   local out="$1"; shift
   for name in "$@"; do

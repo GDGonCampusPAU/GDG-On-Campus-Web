@@ -44,7 +44,6 @@ services:
       NODE_ENV: production
       PORT: "5000"
       MONGO_URI: mongodb://mongo:27017/gdg_pau?replicaSet=rs0&directConnection=true
-      CLIENT_URLS: ${CLIENT_URLS:-http://localhost,https://localhost,http://localhost:80,http://localhost:8080}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
     ports:
       - "127.0.0.1:${API_PORT:-5000}:5000"
@@ -71,10 +70,10 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-      - "${PANEL_PORT:-8080}:8080"
+      - "${WEB_PANEL_PORT:-8080}:8080"
+      - "443:443"
     volumes:
-      # origin.pem + origin.key here enable the HTTPS hosts (see nginx/https.conf).
+      # origin.pem + origin.key from Cloudflare (SSL/TLS > Origin Server); nginx will not start without them.
       - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       backend:
