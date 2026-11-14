@@ -104,3 +104,6 @@ test-results/
 
 # TLS private key for nginx (DEF-27); never commit
 nginx/certs/
+
+# Maintenance mode flag + standalone server pid (admin panel > Bakım modu)
+.maintenance/

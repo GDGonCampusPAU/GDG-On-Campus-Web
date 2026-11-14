@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Tadilattayız | GDG On Campus PAU</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='9' r='7' fill='%234285f4'/%3E%3Ccircle cx='23' cy='9' r='7' fill='%23ea4335'/%3E%3Ccircle cx='9' cy='23' r='7' fill='%23f9ab00'/%3E%3Ccircle cx='23' cy='23' r='7' fill='%2334a853'/%3E%3C/svg%3E" />
+  <!--
+    Self-contained on purpose: this page is served by the standalone maintenance server,
+    by the Vite dev server and by nginx, while the app itself may be down.
+    Only the site fonts are loaded from /fonts; every server above provides them.
+
+    The laptop is the home page's laptop (src/components/LaptopHero.css) frozen in its open
+    state: --p 1, so tilt -5deg, lid +17deg, screen on. The keyboard image is KEYBOARD_URL from
+    src/lib/keyboard.js; a test keeps the copy below identical to it.
+  -->
+  <style>
+    @font-face { font-family: 'Google Sans'; src: local('Google Sans'), url('/fonts/GoogleSans-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Google Sans'; src: local('Google Sans Bold'), url('/fonts/GoogleSans-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+    @font-face { font-family: 'Google Sans Mono'; src: local('Google Sans Mono'), url('/fonts/GoogleSansMono-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Google Sans Mono'; src: local('Google Sans Mono Bold'), url('/fonts/GoogleSansMono-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+    :root {
+      --blue: #4285f4; --green: #34a853; --yellow: #f9ab00; --red: #ea4335;
+      --blue-half: #57caff; --yellow-pastel: #ffe7a5;
+      --off-white: #f0f0f0; --black: #1e1e1e; --white: #ffffff; --screen: #14161a;
+      --font-sans: 'Google Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'Google Sans Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 24px 16px 40px; overflow-x: hidden;
+      background: var(--off-white); color: var(--black); font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased; text-align: center;
+    }
+    .brand { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-weight: 700; font-size: 18px; }
+    .dots { display: inline-flex; gap: 4px; }
+    .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+    .dots i:nth-child(1) { background: var(--blue); } .dots i:nth-child(2) { background: var(--red); }
+    .dots i:nth-child(3) { background: var(--yellow); } .dots i:nth-child(4) { background: var(--green); }
+    .text { display: flex; flex-direction: column; align-items: center; }
+    .pill {
+      display: inline-block; margin: 0 0 12px; padding: 4px 14px; border: 2px solid var(--black); border-radius: 999px;
+      background: var(--yellow-pastel); font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    }
+    h1 { margin: 0 0 10px; font-size: clamp(36px, 7vw, 56px); line-height: 1.05; letter-spacing: -0.02em; }
+    p.lead { margin: 0 auto; max-width: 460px; font-size: 18px; line-height: 1.55; }
+    .note { margin: 16px 0 0; font-family: var(--font-mono); font-size: 13px; color: #555; }
+
+    /* ---------- Laptop (LaptopHero.css, open state) ---------- */
+    .laptop {
+      --depth: 70cqw; --yc: 22cqw; --r: 1.4cqw;
+      --bz-side: 1.1cqw; --bz-top: 1.1cqw; --bz-bottom: 2.3cqw;
+      --alu: #8a8d93; --glass: #050506;
+      container-type: inline-size;
+      width: min(100%, 860px, calc((100svh - 330px) * 1.28));
+      min-width: min(100%, 300px);
+      padding-inline: 4%;
+      margin-bottom: 2vw;
+    }
+    .laptop__view { position: relative; width: 100%; aspect-ratio: 100 / 80; perspective: 240cqw; transform: translateY(4cqw); }
+    .laptop__scene { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transform: rotateX(-5deg); }
+    .laptop__shadow {
+      position: absolute; left: 3%; right: 3%; top: calc(50% + 29cqw); height: 12cqw;
+      background: radial-gradient(closest-side, rgb(0 0 0 / 0.5), transparent);
+    }
+    .laptop__base {
+      position: absolute; left: 0; top: calc(50% - var(--depth) / 2); width: 100%; height: var(--depth);
+      border-radius: 0.4cqw 0.4cqw var(--r) var(--r);
+      background:
+        linear-gradient(rgb(0 0 0 / 0.5), transparent 3.2cqw),
+        linear-gradient(100deg, transparent 25%, rgb(255 255 255 / 0.1) 42%, transparent 58%),
+        repeating-linear-gradient(90deg, rgb(255 255 255 / 0.025) 0 1px, rgb(0 0 0 / 0.025) 1px 2px),
+        linear-gradient(#6c6f75, var(--alu) 60%, #7b7e84);
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+      transform: translateY(var(--yc)) rotateX(90deg);
+    }
+    .laptop__keys {
+      position: absolute; top: 5cqw; left: 8cqw; right: 8cqw; aspect-ratio: 15 / 5.75; border-radius: 0.6cqw;
+      background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2015%205.75%22%20preserveAspectRatio%3D%22none%22%20fill%3D%22%232a2d32%22%3E%3Crect%20x%3D%220.06%22%20y%3D%220.06%22%20width%3D%221.38%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%221.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%222.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%223.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%224.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%225.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%226.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%227.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%228.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%229.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2210.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2211.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2212.56%22%20y%3D%220.06%22%20width%3D%220.88%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2213.56%22%20y%3D%220.06%22%20width%3D%221.38%22%20height%3D%220.63%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%220.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%221.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%222.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%223.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%224.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%225.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%226.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%227.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%228.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%229.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2210.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2211.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2212.06%22%20y%3D%220.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2213.06%22%20y%3D%220.81%22%20width%3D%221.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%220.06%22%20y%3D%221.81%22%20width%3D%221.38%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%221.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%222.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%223.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%224.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%225.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%226.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%227.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%228.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%229.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2210.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2211.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2212.56%22%20y%3D%221.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2213.56%22%20y%3D%221.81%22%20width%3D%221.38%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%220.06%22%20y%3D%222.81%22%20width%3D%221.63%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%221.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%222.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%223.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%224.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%225.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%226.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%227.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%228.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%229.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2210.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2211.81%22%20y%3D%222.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2212.81%22%20y%3D%222.81%22%20width%3D%222.13%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%220.06%22%20y%3D%223.81%22%20width%3D%222.13%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%222.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%223.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%224.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%225.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%226.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%227.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%228.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%229.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2210.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2211.31%22%20y%3D%223.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2212.31%22%20y%3D%223.81%22%20width%3D%222.63%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%220.06%22%20y%3D%224.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%221.06%22%20y%3D%224.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%222.06%22%20y%3D%224.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%223.06%22%20y%3D%224.81%22%20width%3D%221.13%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%224.31%22%20y%3D%224.81%22%20width%3D%225.38%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%229.81%22%20y%3D%224.81%22%20width%3D%221.13%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2211.06%22%20y%3D%224.81%22%20width%3D%220.88%22%20height%3D%220.88%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2212.06%22%20y%3D%225.31%22%20width%3D%220.88%22%20height%3D%220.38%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2213.06%22%20y%3D%224.81%22%20width%3D%220.88%22%20height%3D%220.38%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2213.06%22%20y%3D%225.31%22%20width%3D%220.88%22%20height%3D%220.38%22%20rx%3D%220.14%22%2F%3E%3Crect%20x%3D%2214.06%22%20y%3D%225.31%22%20width%3D%220.88%22%20height%3D%220.38%22%20rx%3D%220.14%22%2F%3E%3C%2Fsvg%3E") 0 0 / 100% 100% no-repeat, #08090a;
+      box-shadow: 0 0 0 0.6cqw #08090a, 0 0 0 0.85cqw #17181b;
+    }
+    .laptop__keys::before, .laptop__keys::after {
+      content: ''; position: absolute; top: 0; bottom: 0; width: 3.6cqw;
+      background: radial-gradient(circle, #121315 0 0.16cqw, transparent 0.2cqw) 0 0 / 0.7cqw 0.7cqw;
+    }
+    .laptop__keys::before { right: calc(100% + 2.6cqw); }
+    .laptop__keys::after { left: calc(100% + 2.6cqw); }
+    .laptop__base::after {
+      content: ''; position: absolute; left: 50%; bottom: 5cqw; width: 40cqw; height: 24cqw;
+      border: 1px solid rgb(0 0 0 / 0.25); border-radius: 1.2cqw;
+      background: linear-gradient(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.05));
+      box-shadow: inset 0 0.2cqw 0.8cqw rgb(0 0 0 / 0.18), 0 1px 0 rgb(255 255 255 / 0.2);
+      transform: translateX(-50%);
+    }
+    .laptop__lip {
+      position: absolute; left: 0; top: calc(50% + var(--yc)); width: 100%; height: 2.4cqw;
+      border-radius: 0 0 var(--r) var(--r); border-top: 1px solid #1a1b1d;
+      background: linear-gradient(#a3a6ac, #6f7278);
+      transform: translateZ(calc(var(--depth) / 2));
+    }
+    .laptop__lip::before {
+      content: ''; position: absolute; left: 50%; top: 0; width: 14cqw; height: 0.5cqw;
+      border-radius: 0 0 50% 50% / 0 0 100% 100%;
+      background: linear-gradient(rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.04)); transform: translateX(-50%);
+    }
+    .laptop__lid {
+      position: absolute; left: 0; top: calc(50% + var(--yc) - var(--depth)); width: 100%; height: var(--depth);
+      transform-origin: 50% 100%; transform-style: preserve-3d;
+      transform: translateZ(calc(var(--depth) / -2)) translateY(-0.3cqw) rotateX(17deg);
+    }
+    .laptop__lid::after {
+      content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 0.8cqw;
+      background: linear-gradient(90deg, var(--alu), #a9acb2 50%, var(--alu));
+      transform-origin: 50% 0; transform: rotateX(-90deg);
+    }
+    .laptop__screen {
+      position: absolute; inset: 0; border-radius: var(--r) var(--r) 0.4cqw 0.4cqw; backface-visibility: hidden;
+      padding: var(--bz-top) var(--bz-side) var(--bz-bottom);
+      background: var(--glass); box-shadow: inset 0 0 0 0.4cqw var(--alu);
+    }
+    .laptop__screen::before {
+      content: ''; position: absolute; top: 0; left: calc(50% - 5.5cqw); z-index: 2; width: 11cqw; height: 2cqw;
+      border-radius: 0 0 1cqw 1cqw;
+      background: radial-gradient(circle at 50% 55%, #1c2a45 0 0.3cqw, transparent 0.4cqw), var(--glass);
+    }
+    .laptop__display {
+      position: relative; height: 100%; overflow: hidden; border-radius: 0.8cqw; backface-visibility: hidden;
+      background: var(--screen); box-shadow: inset 0 0 8cqw rgb(66 133 244 / 0.2);
+      cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+      transition: background-color 0.6s, box-shadow 0.6s;
+    }
+    /* In the 3D scene the flat scene box sits in front of the tilted lid and would take every click. */
+    .laptop__view { pointer-events: none; }
+    .laptop__view .laptop__display { pointer-events: auto; }
+    .laptop__display:focus-visible { outline: 3px solid var(--blue-half); outline-offset: 2px; }
+    /* Clicks must land on the display itself: offsetX/Y is then measured on its surface, through the 3D tilt. */
+    .laptop__display > * { pointer-events: none; }
+
+    /* The picture (LCD) and the glass are separate layers: the picture can flicker and die, the cracks stay. */
+    .screen-content { position: absolute; inset: 0; }
+    .laptop__display.is-glitch .screen-content {
+      filter: brightness(1.7) contrast(1.4) hue-rotate(25deg);
+      transform: translateX(var(--shift, 0px));
+    }
+    .laptop__display.is-off { box-shadow: none; }
+    .laptop__display.is-off .screen-content { opacity: 0; }
+    .laptop__display.is-dead { background: #000; box-shadow: none; }
+    .laptop__display.is-dead .screen-content { opacity: 0; transition: opacity 0.5s; }
+    .laptop__display.is-dead .crack { opacity: 0.6; transition: opacity 0.8s; }
+    .stains { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .laptop.is-hit { animation: knock 0.18s ease-out; }
+    @keyframes knock { 25% { transform: translate(-3px, 2px); } 60% { transform: translate(2px, -1px); } }
+    .impact { animation: impact 0.5s ease-out forwards; }
+    @keyframes impact { from { opacity: 1; } to { opacity: 0.35; } }
+
+    /* ---------- What the broken screen shows ---------- */
+    .screen-robot {
+      position: absolute; left: 50%; top: 46%; width: 62%; height: auto; color: #e8eaed;
+      transform: translate(-50%, -50%);
+    }
+    .screen-line {
+      position: absolute; left: 3.5cqw; bottom: 2.4cqw; margin: 0;
+      font-family: var(--font-mono); font-size: max(10px, 1.7cqw); color: #9aa0a6; text-align: left; white-space: nowrap;
+    }
+    .screen-line b { color: var(--yellow); font-weight: 700; }
+    .caret {
+      display: inline-block; width: 0.55em; height: 1em; margin-left: 0.2em; vertical-align: text-bottom;
+      background: var(--blue-half); animation: caret 1s steps(2, start) infinite;
+    }
+    .crack { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .gear { transform-box: fill-box; transform-origin: center; animation: spin 6s linear infinite; }
+    .gear--back { animation-direction: reverse; animation-duration: 4.5s; }
+    .head { transform-box: fill-box; transform-origin: 50% 100%; animation: wobble 3.2s ease-in-out infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes wobble { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+    @keyframes caret { to { visibility: hidden; } }
+    .hint { margin: 14px 0 0; font-family: var(--font-mono); font-size: 13px; font-weight: 700; min-height: 1.5em; }
+    @media (prefers-reduced-motion: reduce) { .gear, .head, .caret, .laptop.is-hit, .impact { animation: none; } }
+  </style>
+</head>
+<body>
+  <p class="brand"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span>GDG On Campus PAU</p>
+
+  <div class="laptop">
+    <div class="laptop__view">
+      <i class="laptop__shadow"></i>
+      <div class="laptop__scene">
+        <div class="laptop__base"><i class="laptop__keys"></i></div>
+        <div class="laptop__lip"></div>
+        <div class="laptop__lid">
+          <div class="laptop__screen">
+            <div class="laptop__display" role="button" tabindex="0" aria-label="Çatlak ekrana vur">
+              <div class="screen-content">
+              <svg class="screen-robot" viewBox="0 0 400 330" role="img" aria-labelledby="robot-title">
+                <title id="robot-title">Çatlak bir laptop ekranında, elinde İngiliz anahtarı ve tornavidayla kendini tamir etmeye çalışan bir robot</title>
+                <defs>
+                  <g id="cog">
+                    <circle r="13" fill="none" stroke="currentColor" stroke-width="7" stroke-dasharray="4.2 4"/>
+                    <circle r="10" fill="#1b1e23" stroke="currentColor" stroke-width="2.5"/>
+                    <circle r="3" fill="currentColor"/>
+                  </g>
+                </defs>
+                <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="200" cy="312" rx="160" ry="9" fill="#ffffff" fill-opacity=".07" stroke="none"/>
+
+                  <!-- legs -->
+                  <path d="M168 248 C160 270 150 280 146 290" stroke-width="22"/>
+                  <path d="M168 248 C160 270 150 280 146 290" stroke="#1b1e23" stroke-width="16"/>
+                  <path d="M232 248 C240 270 250 280 254 290" stroke-width="22"/>
+                  <path d="M232 248 C240 270 250 280 254 290" stroke="#1b1e23" stroke-width="16"/>
+                  <rect x="110" y="282" width="62" height="28" rx="8" fill="#1b1e23"/>
+                  <rect x="228" y="282" width="62" height="28" rx="8" fill="#1b1e23"/>
+                  <path d="M118 302 h46 M236 302 h46" stroke-width="2"/>
+
+                  <!-- left arm with wrench -->
+                  <path d="M138 170 C110 178 96 196 92 222" stroke-width="20"/>
+                  <path d="M138 170 C110 178 96 196 92 222" stroke="#1b1e23" stroke-width="14"/>
+                  <g transform="rotate(-35 80 232)">
+                    <rect x="62" y="226" width="58" height="12" rx="6" fill="#1b1e23"/>
+                    <path d="M62 232 m-14 0 a14 14 0 1 0 6 -11.5 l8 7 l-2 9 l-9 2 z" fill="#1b1e23"/>
+                  </g>
+                  <circle cx="92" cy="226" r="11" fill="#1b1e23"/>
+
+                  <!-- right arm raising a screwdriver -->
+                  <path d="M262 170 C292 162 312 140 318 112" stroke-width="20"/>
+                  <path d="M262 170 C292 162 312 140 318 112" stroke="#1b1e23" stroke-width="14"/>
+                  <g transform="rotate(35 322 100)">
+                    <rect x="310" y="62" width="24" height="44" rx="10" fill="#f9ab00"/>
+                    <path d="M316 70 v28 M322 70 v28 M328 70 v28" stroke="#1e1e1e" stroke-width="1.5"/>
+                    <path d="M322 62 V22" stroke-width="5"/>
+                    <path d="M318 22 L322 12 L326 22 Z" fill="currentColor"/>
+                  </g>
+                  <circle cx="318" cy="110" r="11" fill="#1b1e23"/>
+
+                  <!-- body with an open hatch full of gears -->
+                  <rect x="134" y="140" width="132" height="112" rx="10" fill="#1b1e23"/>
+                  <rect x="158" y="156" width="84" height="62" rx="4" fill="#111316"/>
+                  <path d="M158 156 l84 62 M174 156 l68 50 M158 170 l66 48 M190 156 l52 38 M158 186 l44 32" stroke-width="1" opacity=".25"/>
+                  <!-- the animation sets `transform`, so the position lives on a wrapper -->
+                  <g transform="translate(186 186)"><use href="#cog" class="gear"/></g>
+                  <g transform="translate(218 198) scale(.8)"><use href="#cog" class="gear gear--back"/></g>
+                  <circle cx="168" cy="236" r="4" fill="#4285f4" stroke="none"/>
+                  <circle cx="182" cy="236" r="4" fill="#ea4335" stroke="none"/>
+                  <circle cx="196" cy="236" r="4" fill="#f9ab00" stroke="none"/>
+                  <circle cx="210" cy="236" r="4" fill="#34a853" stroke="none"/>
+                  <rect x="246" y="226" width="12" height="18" rx="3" stroke-width="2"/>
+                  <rect x="188" y="130" width="24" height="12" fill="#1b1e23"/>
+
+                  <!-- head: worried face, slightly tilted -->
+                  <g class="head">
+                    <rect x="124" y="64" width="18" height="36" rx="4" fill="#1b1e23"/>
+                    <rect x="258" y="64" width="18" height="36" rx="4" fill="#1b1e23"/>
+                    <rect x="140" y="40" width="120" height="92" rx="10" fill="#1b1e23"/>
+                    <circle cx="178" cy="84" r="10" fill="#1b1e23"/>
+                    <circle cx="181" cy="87" r="3.5" fill="currentColor"/>
+                    <circle cx="223" cy="86" r="8" fill="#1b1e23"/>
+                    <circle cx="221" cy="88" r="3" fill="currentColor"/>
+                    <path d="M164 66 l24 6 M212 70 l24 -8"/>
+                    <path d="M172 112 q6 -7 12 0 t12 0 t12 0 t12 0"/>
+                    <path d="M150 30 c-6 -8 6 -12 2 -4 c-3 6 -10 -2 -4 -8 M252 28 c4 -10 14 -2 6 2 c-6 3 -6 -8 2 -10" stroke-width="2.5"/>
+                  </g>
+                </g>
+
+                <!-- parts on the floor -->
+                <g stroke="currentColor" stroke-width="2.5" stroke-linejoin="round">
+                  <g transform="translate(338 298) scale(.7)"><use href="#cog"/></g>
+                  <path d="M62 296 l5 -8.7 h10 l5 8.7 l-5 8.7 h-10 z" fill="#1b1e23"/>
+                  <circle cx="72" cy="296" r="4" fill="#1b1e23"/>
+                  <rect x="302" y="292" width="12" height="10" rx="2" fill="#1b1e23" transform="rotate(15 308 297)"/>
+                  <rect x="42" y="282" width="8" height="8" rx="1" fill="#1b1e23" transform="rotate(30 46 286)"/>
+                  <ellipse cx="364" cy="306" rx="9" ry="5" fill="#1b1e23"/>
+                </g>
+              </svg>
+
+              <p class="screen-line" aria-hidden="true">$ sistem durumu: <b>tadilatta</b><span class="caret"></span></p>
+
+              <!-- LCD damage under the glass: ink bleed and dead pixel lines (part of the picture, so they die with it). -->
+              <svg class="stains" viewBox="0 0 978 666" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <radialGradient id="bleed">
+                    <stop offset="0" stop-color="#000" stop-opacity=".95"/>
+                    <stop offset=".55" stop-color="#000" stop-opacity=".6"/>
+                    <stop offset="1" stop-color="#000" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+                <g id="stains"></g>
+              </svg>
+              </div>
+
+              <!-- The glass. Cracks are drawn by the script below: one small crack at first, more where the screen is hit. -->
+              <svg class="crack" viewBox="0 0 978 666" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <radialGradient id="impact">
+                    <stop offset="0" stop-color="#fff" stop-opacity=".7"/>
+                    <stop offset=".4" stop-color="#fff" stop-opacity=".15"/>
+                    <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+                <g id="cracks" fill="none" stroke-linecap="round" stroke-linejoin="round"></g>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="text">
+    <span class="pill">Bakım modu</span>
+    <h1>Tadilattayız</h1>
+    <p class="lead">Sitede bakım çalışması yapıyoruz. Robotumuz ekranı ve vidaları tamir ediyor; kısa süre içinde geri döneceğiz.</p>
+    <p class="hint" id="hint" aria-live="polite">Ekrana dokunma; zaten çatlak.</p>
+    <p class="note">Bu sayfa site açıldığında kendiliğinden yenilenir.</p>
+  </main>
+  <script>
+    // ---------- The cracked screen ----------
+    // Every hit adds cracks shaped by where it lands: a few main cracks leave the impact point,
+    // preferring directions with room to run (so a hit near an edge fans inward), wander, branch,
+    // and stop where they meet an earlier crack, as cracks in glass do. More hits make the picture
+    // flicker more often; after MAX_HITS the panel dies and stays black (the cracked glass remains).
+    (function () {
+      var W = 978, H = 666 // the display's own aspect ratio (97.8cqw x 66.6cqw)
+      var MAX_HITS = 12, MAX_TOTAL = 40
+      var NS = 'http://www.w3.org/2000/svg'
+      var display = document.querySelector('.laptop__display')
+      var laptop = document.querySelector('.laptop')
+      var cracks = document.getElementById('cracks')
+      var stains = document.getElementById('stains')
+      var hint = document.getElementById('hint')
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      var segments = [] // every crack segment so far: [x1, y1, x2, y2]
+      var hits = 0, total = 0, dead = false, timer = 0
+
+      // Small seeded generator so the starting crack is the same on every visit.
+      function seeded(seed) {
+        return function () {
+          seed = (seed + 0x6d2b79f5) | 0
+          var t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+        }
+      }
+
+      function el(name, attrs, parent) {
+        var node = document.createElementNS(NS, name)
+        for (var key in attrs) node.setAttribute(key, attrs[key])
+        parent.appendChild(node)
+        return node
+      }
+
+      // Distance from (x, y) to the screen border along angle a.
+      function room(x, y, a) {
+        var dx = Math.cos(a), dy = Math.sin(a), t = Infinity
+        if (dx > 1e-6) t = Math.min(t, (W - x) / dx)
+        if (dx < -1e-6) t = Math.min(t, -x / dx)
+        if (dy > 1e-6) t = Math.min(t, (H - y) / dy)
+        if (dy < -1e-6) t = Math.min(t, -y / dy)
+        return t
+      }
+
+      // Where segment a->b first crosses an earlier crack, as a fraction of a->b (1 = it does not).
+      function firstCrossing(ax, ay, bx, by) {
+        var best = 1, rx = bx - ax, ry = by - ay
+        for (var i = 0; i < segments.length; i++) {
+          var s = segments[i], sx = s[2] - s[0], sy = s[3] - s[1]
+          var den = rx * sy - ry * sx
+          if (Math.abs(den) < 1e-9) continue
+          var t = ((s[0] - ax) * sy - (s[1] - ay) * sx) / den
+          var u = ((s[0] - ax) * ry - (s[1] - ay) * rx) / den
+          if (t > 1e-3 && t < best && u >= 0 && u <= 1) best = t
+        }
+        return best
+      }
+
+      // One crack line: a jagged walk that may spawn branches (returned, drawn after it).
+      function walk(x, y, angle, length, width, depth, random, lines) {
+        var points = [[x, y]], travelled = 0, heading = angle, branches = []
+        while (travelled < length) {
+          var step = 12 + random() * 24
+          heading += (random() - 0.5) * 0.75 + (angle - heading) * 0.3
+          var nx = x + Math.cos(heading) * step, ny = y + Math.sin(heading) * step, stop = false
+          if (nx < 0 || nx > W || ny < 0 || ny > H) {
+            var edge = room(x, y, heading)
+            nx = x + Math.cos(heading) * edge
+            ny = y + Math.sin(heading) * edge
+            stop = true
+          }
+          var t = firstCrossing(x, y, nx, ny)
+          if (t < 1) { nx = x + (nx - x) * t; ny = y + (ny - y) * t; stop = true }
+          segments.push([x, y, nx, ny])
+          points.push([nx, ny])
+          travelled += step
+          x = nx; y = ny
+          if (stop) break
+          if (depth < 2 && travelled > 30 && random() < 0.14) {
+            var turn = (0.45 + random() * 0.6) * (random() < 0.5 ? -1 : 1)
+            branches.push([x, y, heading + turn, (length - travelled) * (0.25 + random() * 0.35), width * 0.62, depth + 1])
+          }
+        }
+        lines.push({ points: points, width: width })
+        for (var i = 0; i < branches.length; i++) {
+          var b = branches[i]
+          walk(b[0], b[1], b[2], b[3], b[4], b[5], random, lines)
+        }
+      }
+
+      function crackAt(x, y, power, random) {
+        // A few main cracks in uneven directions; more room in a direction = more likely to go there.
+        var count = 2 + Math.floor(random() * (0.6 + power * 2.4))
+        var diagonal = Math.hypot(W, H), angles = []
+        for (var tries = 0; angles.length < count && tries < 200; tries++) {
+          var a = random() * Math.PI * 2
+          if (random() > Math.pow(room(x, y, a) / diagonal, 0.7) * 1.6) continue
+          var crowded = angles.some(function (b) {
+            var d = Math.abs(a - b) % (Math.PI * 2)
+            return Math.min(d, Math.PI * 2 - d) < 0.55
+          })
+          if (!crowded) angles.push(a)
+        }
+        var lines = []
+        angles.forEach(function (a, i) {
+          var length = Math.min(room(x, y, a), (140 + random() * 520) * (0.35 + power))
+          walk(x, y, a, length, i === 0 ? 2.6 : 2 + random() * 0.6, 0, random, lines)
+        })
+        // A few short chips right at the impact (not rings).
+        var chips = 2 + Math.floor(random() * 3)
+        for (var c = 0; c < chips; c++) {
+          var ca = random() * Math.PI * 2, cl = 5 + random() * 12
+          lines.push({ points: [[x, y], [x + Math.cos(ca) * cl, y + Math.sin(ca) * cl]], width: 1.2 })
+        }
+        draw(x, y, lines, power)
+      }
+
+      function draw(x, y, lines, power) {
+        var group = el('g', {}, cracks)
+        el('circle', { cx: x, cy: y, r: 10 + power * 12, fill: 'url(#impact)', class: 'impact' }, group)
+        lines.forEach(function (line) {
+          var d = 'M' + line.points.map(function (p) { return p[0].toFixed(1) + ' ' + p[1].toFixed(1) }).join(' L')
+          var shadow = el('path', { d: d, stroke: '#000', 'stroke-opacity': '.7', 'stroke-width': (line.width * 1.9).toFixed(2), transform: 'translate(1.2 1.4)' }, group)
+          var light = el('path', { d: d, stroke: '#fff', 'stroke-opacity': '.82', 'stroke-width': line.width.toFixed(2) }, group)
+          if (reduce) return
+          // The crack runs out from the impact point.
+          var length = light.getTotalLength()
+          ;[shadow, light].forEach(function (path) {
+            path.style.strokeDasharray = length
+            path.style.strokeDashoffset = length
+            path.getBoundingClientRect()
+            path.style.transition = 'stroke-dashoffset ' + Math.min(0.45, 0.08 + length / 1800).toFixed(2) + 's ease-out'
+            path.style.strokeDashoffset = 0
+          })
+        })
+      }
+
+      // LCD damage that grows with the hits.
+      function damagePicture(x, y) {
+        if (hits >= 3) el('circle', { cx: x, cy: y, r: 22 + hits * 7 + Math.random() * 20, fill: 'url(#bleed)' }, stains)
+        if (hits % 3 === 2) {
+          var colors = ['#ff4fd8', '#3dff8a', '#57caff', '#ffd427']
+          el('rect', { x: x.toFixed(1), y: 0, width: 2 + Math.random() * 2, height: H, fill: colors[((hits / 3) | 0) % 4], opacity: '.55' }, stains)
+        }
+      }
+
+      function glitch() {
+        var damage = hits / MAX_HITS
+        var off = Math.random() < 0.15 + damage * 0.75
+        display.style.setProperty('--shift', ((Math.random() - 0.5) * 14 * (0.3 + damage)).toFixed(1) + 'px')
+        display.classList.add(off ? 'is-off' : 'is-glitch')
+        setTimeout(function () { display.classList.remove('is-off', 'is-glitch') }, 50 + Math.random() * (80 + damage * 650))
+      }
+
+      // The more damage, the more often the picture drops out.
+      function schedule() {
+        clearTimeout(timer)
+        if (dead || reduce || hits === 0) return
+        var damage = hits / MAX_HITS
+        var wait = (6000 * Math.pow(1 - damage, 1.8) + 160) * (0.5 + Math.random())
+        timer = setTimeout(function () { glitch(); schedule() }, wait)
+      }
+
+      function die() {
+        dead = true
+        clearTimeout(timer)
+        var flips = 0
+        ;(function stutter() {
+          display.classList.toggle('is-off')
+          if (++flips < (reduce ? 1 : 9)) setTimeout(stutter, 60 + flips * 30)
+          else { display.classList.remove('is-off', 'is-glitch'); display.classList.add('is-dead') }
+        })()
+      }
+
+      var MESSAGES = { 1: 'Dokunma dedik…', 4: 'Görüntü gidip gelmeye başladı.', 8: 'Robot endişeli. Ekran da.', 11: 'Bir darbe daha ve ekran gidiyor…' }
+
+      function hitAt(x, y) {
+        if (total >= MAX_TOTAL) return
+        total++
+        crackAt(x, y, 0.75 + Math.random() * 0.35, Math.random)
+        if (!reduce) {
+          laptop.classList.remove('is-hit')
+          void laptop.offsetWidth
+          laptop.classList.add('is-hit')
+        }
+        if (dead) return
+        hits++
+        damagePicture(x, y)
+        if (hits >= MAX_HITS) {
+          hint.textContent = 'Ekran tamamen gitti. Robot yeni bir ekran arıyor; site de birazdan döner.'
+          die()
+          return
+        }
+        if (MESSAGES[hits]) hint.textContent = MESSAGES[hits]
+        if (!reduce) glitch()
+        schedule()
+      }
+
+      display.addEventListener('pointerdown', function (event) {
+        if (event.pointerType === 'mouse' && event.button !== 0) return
+        // offsetX/Y are measured on the display's own surface, through the laptop's 3D tilt.
+        hitAt(event.offsetX / display.clientWidth * W, event.offsetY / display.clientHeight * H)
+      })
+      display.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        hitAt(80 + Math.random() * (W - 160), 60 + Math.random() * (H - 120))
+      })
+
+      // Start with one small crack where the robot's screwdriver touches the glass.
+      crackAt(692, 200, 0.2, seeded(7))
+    })()
+
+    // While maintenance is on every server answers 503; reload once the real site is back.
+    setInterval(function () {
+      fetch('/', { method: 'HEAD', cache: 'no-store' })
+        .then(function (response) {
+          if (!response.ok) return
+          if (location.pathname === '/maintenance.html') location.replace('/')
+          else location.reload()
+        })
+        .catch(function () { /* nothing is listening right now; keep waiting */ })
+    }, 15000)
+  </script>
+</body>
+</html>

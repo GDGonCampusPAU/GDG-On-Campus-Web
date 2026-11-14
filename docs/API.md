@@ -138,6 +138,8 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 38 | GET | `/hackathon/applications` | Ekip | `page,limit,search,status` |
 | 39 | PATCH | `/hackathon/applications/:id/status` | Ekip | `{status, note, notify}`; hackathon başvuru durum inceleme ve bildirim e-postası |
 | 40 | GET | `/hackathon/applications/export` | Ekip | `format,search,status`; CSV veya JSON export |
+| 41 | GET | `/maintenance` | ADMIN | Bakım modu durumu: `active,since,by{id,name},server` (`running`/`stopped`/`external`) |
+| 42 | PUT | `/maintenance` | ADMIN | `{active:boolean}`; bakım modunu açar/kapatır, güncel durumu döner |
 
 Toplam **40 HTTP uç noktası** (`37` adet `/api/v1` rotası, `2` adet kök `/health` & `/ready` rotası ve `1` adet `/uploads/:filename` fallback rotası; ek olarak `/uploads/public/<dosya-adı>` statik dosya erişimi vardır). Hackathon kapalıysa hackathon rotaları yerine `404` döner. `/health` canlılık, `/ready` ise MongoDB veritabanı hazır mı kontrolüdür.
 
@@ -688,6 +690,24 @@ curl -X PATCH "$API_BASE/hackathon/applications/$APPLICATION_ID/status" \
 
 - Takım liderine (`leaderEmail`) otomatik bildirim gönderir.
 - Yanıt modelinde `emailSent`, durum mesajı ve güncellenmiş başvuru verisi döner.
+
+## Bakım Modu ("Tadilattayız" sayfası)
+
+Panelde **Bakım** sekmesinden (yalnızca ADMIN) açılıp kapatılır. Açıkken katılımcı sitesindeki bütün sayfalar 503 ile `frontend/hackaton/public/maintenance.html` sayfasını gösterir; panel ve API çalışmaya devam eder.
+
+Durumun tek kaynağı diskteki bayrak dosyasıdır (`.maintenance/active.json`, veritabanı değil). Böylece backend veya MongoDB kapalıyken de sayfa açık kalır:
+
+| Ortam | Sayfayı kim gösterir |
+|---|---|
+| Yerel `npm run dev` | Backend, bakım açılınca `maintenance/server.mjs` sürecini kendi süreç ağacının dışında başlatır. Bu süreç backend, panel ve site kapatılsa da 5173'te sayfayı gösterir, bayrak silinince kendiliğinden kapanır. Vite açıkken portu Vite kullanır (`maintenance-plugin.js` aynı sayfayı gösterir, açık sekmeleri yeniler); Vite kapanınca bağımsız sunucu portu devralır, Vite açılınca portu geri ister. Backend açılışta bayrak varsa bağımsız sunucuyu yeniden başlatır. |
+| `compose.yaml` | Bayrak `./.maintenance` ile backend ve site container'ı arasında paylaşılır; sayfayı sitenin Vite eklentisi gösterir. |
+| `compose.prod.yaml` | Bayrak nginx'e salt okunur bağlanır; nginx `location /` isteklerine 503 ve bakım sayfası döner (backend kapalı olsa da). |
+
+| Değişken | Varsayılan | Açıklama |
+|---|---|---|
+| `MAINTENANCE_DIR` | `<repo>/.maintenance` | Bayrak ve pid dosyasının klasörü |
+| `MAINTENANCE_STANDALONE` | (açık) | `false` ise backend bağımsız sunucuyu başlatmaz (Docker / üretim) |
+| `MAINTENANCE_PORT` / `MAINTENANCE_HOST` | `5173` / `localhost` | Bağımsız sunucunun dinlediği adres |
 
 ## E-posta Gönderici Profilleri Yapılandırması (Brevo)
 

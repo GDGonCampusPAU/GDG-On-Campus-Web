@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import maintenance from './maintenance-plugin.js'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), maintenance()],
   server: { port: 5173, strictPort: true },
   test: {
     environment: 'jsdom',
