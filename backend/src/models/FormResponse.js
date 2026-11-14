@@ -101,6 +101,10 @@ const formResponseSchema = new mongoose.Schema(
     team: { type: mongoose.Schema.Types.ObjectId, ref: 'HackathonTeam', default: null },
     teamName: { type: String, trim: true, default: '' },
     teamRole: { type: String, enum: ['CAPTAIN', 'MEMBER', null], default: null },
+    // MEMBER: PENDING until the captain accepts. CAPTAIN is always APPROVED.
+    teamStatus: { type: String, enum: ['APPROVED', 'PENDING', null], default: null },
+    // Set when the participant edits their answers; the application then waits for the admin again.
+    editedAt: { type: Date, default: null },
     statusNote: {
       type: String,
       trim: true,

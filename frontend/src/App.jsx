@@ -4,6 +4,7 @@ import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import Applications from './pages/Applications.jsx'
 import Users from './pages/Users.jsx'
+import Teams from './pages/Teams.jsx'
 import PanelLayout from './components/layout/PanelLayout.jsx'
 import { clearSession, loadSession } from './lib/session.js'
 import { homePath, isStaff } from './lib/routing.js'
@@ -62,6 +63,7 @@ export default function App() {
       <Route path="/login" element={session ? <Navigate to={returnTo} replace /> : <Login onSuccess={handleLogin} notice={notice} />} />
       <Route path="/register" element={session ? <Navigate to={home} replace /> : <Register />} />
       <Route path="/applications" element={guard(<Applications session={session} onLogout={handleLogout} onUnauthorized={handleUnauthorized} />, ['ORGANIZER', 'ADMIN'])} />
+      <Route path="/teams" element={guard(<Teams session={session} onLogout={handleLogout} onUnauthorized={handleUnauthorized} />, ['ORGANIZER', 'ADMIN'])} />
       <Route path="/users" element={guard(<Users session={session} onLogout={handleLogout} onUnauthorized={handleUnauthorized} />, ['ADMIN'])} />
       <Route path="*" element={guard(<Navigate to={home} replace />)} />
     </Routes>

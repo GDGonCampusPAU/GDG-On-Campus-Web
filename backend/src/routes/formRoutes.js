@@ -3,6 +3,7 @@ const router = express.Router();
 const formParticipantMiddleware = require('../modules/participantAuth/middleware/formParticipantMiddleware');
 const formController = require('../controllers/formController');
 const myApplication = require('../controllers/myApplicationController');
+const teamAdmin = require('../controllers/teamAdminController');
 const authMiddleware = require('../middleware/authMiddleware');
 const { requireRoles } = require('../middleware/roleMiddleware');
 const { uploadFormFiles } = require('../middleware/uploadMiddleware');
@@ -48,6 +49,12 @@ router.delete('/:id', formController.deleteForm);
 router.get('/:id/responses', formController.getFormResponses);
 router.patch('/:id/responses/:responseId/status', formController.updateFormResponseStatus);
 router.get('/:id/responses/export', formController.exportFormResponses);
+
+// Registration teams (staff): list, remove member, change captain, disband.
+router.get('/:id/teams', teamAdmin.listTeams);
+router.post('/:id/teams/:teamId/members/:participantId/remove', teamAdmin.removeMember);
+router.post('/:id/teams/:teamId/captain', teamAdmin.setCaptain);
+router.delete('/:id/teams/:teamId', teamAdmin.disband);
 
 module.exports = router;
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import PanelLayout from '../components/layout/PanelLayout.jsx'
 import {
   downloadHackathonApplicationsCsv,
@@ -15,6 +16,32 @@ const STATUS_LABELS = {
   REJECTED: 'Reddedildi',
 }
 
+const TEAM_FILTERS = {
+  ALL: 'Tümü',
+  team: 'Takımda',
+  captain: 'Kaptanlar',
+  pending: 'Kaptan onayı bekleyen',
+  solo: 'Bireysel',
+}
+
+/** Başvurunun takım durumu: ad (Takımlar sayfasına bağlantı), rol ve kod. */
+function TeamChip({ record }) {
+  if (!record.answers) return null
+  if (!record.team) return <span className="team-chip"><span className="panel__badge">Bireysel</span></span>
+  const role = record.teamRole === 'CAPTAIN' ? 'Kaptan' : record.teamStatus === 'PENDING' ? 'Kaptan onayı bekliyor' : 'Üye'
+  return (
+    <span className="team-chip">
+      <Link className="team-chip__name" to={`/teams${record.teamCode ? `?kod=${encodeURIComponent(record.teamCode)}` : ''}`}>
+        {record.teamName}
+      </Link>
+      <span className={`panel__badge${record.teamStatus === 'PENDING' ? ' panel__badge--pending' : ''}`}>{role}</span>
+      {record.teamCode && <span className="team-chip__code">{record.teamCode}</span>}
+    </span>
+  )
+}
+
+const shownAnswer = (value) => (Array.isArray(value) ? value.join(', ') : String(value ?? '')) || '—'
+
 function formatDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -28,8 +55,9 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
   const [page, setPage] = useState(1)
   const [source, setSource] = useState('forms')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [teamFilter, setTeamFilter] = useState('ALL')
   const [revision, setRevision] = useState(0)
-  const [state, setState] = useState({ key: '', status: 'loading', items: [], pagination: null, formId: null, error: '' })
+  const [state, setState] = useState({ key: '', status: 'loading', items: [], pagination: null, summary: null, formId: null, error: '' })
   const [exporting, setExporting] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionNotice, setActionNotice] = useState('')
@@ -46,11 +74,11 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     return () => clearTimeout(timer)
   }, [search])
 
-  const requestKey = `${token}:${source}:${statusFilter}:${page}:${query}:${revision}`
+  const requestKey = `${token}:${source}:${statusFilter}:${teamFilter}:${page}:${query}:${revision}`
   useEffect(() => {
     let cancelled = false
 
-    getHackathonApplications({ page, limit: PAGE_SIZE, search: query, source, status: statusFilter }, token)
+    getHackathonApplications({ page, limit: PAGE_SIZE, search: query, source, status: statusFilter, team: teamFilter }, token)
       .then((data) => {
         if (cancelled) return
         setState({
@@ -58,6 +86,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
           status: 'ready',
           items: data.data ?? [],
           pagination: data.pagination ?? null,
+          summary: data.summary ?? null,
           formId: data.form?.id ?? null,
           error: '',
         })
@@ -68,19 +97,19 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
           onUnauthorized?.()
           return
         }
-        setState({ key: requestKey, status: 'error', items: [], pagination: null, formId: null, error: error.message })
+        setState({ key: requestKey, status: 'error', items: [], pagination: null, summary: null, formId: null, error: error.message })
       })
 
     return () => {
       cancelled = true
     }
-  }, [page, query, token, source, statusFilter, onUnauthorized, requestKey])
+  }, [page, query, token, source, statusFilter, teamFilter, onUnauthorized, requestKey])
 
   const handleExport = async () => {
     setExporting(true)
     setActionError('')
     try {
-      const blob = await downloadHackathonApplicationsCsv(token, { source, search: query, status: statusFilter })
+      const blob = await downloadHackathonApplicationsCsv(token, { source, search: query, status: statusFilter, team: teamFilter })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -176,9 +205,10 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     }
   }
 
-  const { items, pagination, error } = state
+  const { items, pagination, summary, error } = state
   const status = state.key === requestKey ? state.status : 'loading'
   const total = pagination?.totalItems ?? 0
+  const filtered = query || statusFilter !== 'ALL' || teamFilter !== 'ALL'
 
   return (
     <PanelLayout
@@ -191,6 +221,22 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
         </button>
       }
     >
+      {summary && (
+        <ul className="stats" aria-label="Başvuru özeti">
+          {[
+            ['total', 'Toplam', summary.total],
+            ['pending', 'Beklemede', summary.PENDING],
+            ['approved', 'Onaylı', summary.APPROVED],
+            ['rejected', 'Reddedilen', summary.REJECTED],
+          ].map(([key, label, value]) => (
+            <li key={key} className={`stats__item stats__item--${key}`}>
+              <span className="stats__value">{value}</span>
+              <span className="stats__label">{label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="toolbar">
         <label className="field">
           <span className="field__label">Başvuru kaynağı</span>
@@ -213,6 +259,19 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
             <option value="REJECTED">Reddedildi</option>
           </select>
         </label>
+        {source === 'forms' && (
+          <label className="field">
+            <span className="field__label">Takım durumu</span>
+            <select
+              aria-label="Takım durumu"
+              className="field__input"
+              value={teamFilter}
+              onChange={(event) => { setTeamFilter(event.target.value); setPage(1) }}
+            >
+              {Object.entries(TEAM_FILTERS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+        )}
         <div className="field toolbar__search">
           <label className="field__label" htmlFor="applications-search">
             Ara
@@ -221,13 +280,13 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
             id="applications-search"
             className="field__input"
             type="search"
-            placeholder="Takım adı, kişi veya e-posta"
+            placeholder="Kişi, e-posta veya takım adı"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
         <p className="toolbar__count" aria-live="polite">
-          {status === 'ready' ? `${total} başvuru` : ' '}
+          {status === 'ready' ? `${total} başvuru` : ' '}
         </p>
       </div>
 
@@ -257,7 +316,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
 
       {status === 'ready' && items.length === 0 && (
         <p className="panel__state">
-          {query || statusFilter !== 'ALL' ? 'Filtrenle eşleşen başvuru bulunamadı.' : 'Henüz hackathon başvurusu yok.'}
+          {filtered ? 'Filtrenle eşleşen başvuru bulunamadı.' : 'Henüz hackathon başvurusu yok.'}
         </p>
       )}
 
@@ -265,16 +324,18 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
         <ul className="app-grid">
           {items.map((record) => {
             const answers = Object.fromEntries((record.answers || []).map(answer => [answer.fieldId, answer.value]))
-            const app = record.answers ? {
+            const isSite = Boolean(record.answers)
+            // Site başvurusunda başlık kişinin adı; eski takım başvurusunda takım adı + lider.
+            const app = isSite ? {
               ...record,
-              teamName: answers.teamName || answers.fullName || record.verifiedEmail,
-              leaderName: answers.fullName,
+              title: answers.fullName || record.verifiedEmail,
               leaderEmail: record.verifiedEmail,
               leaderPhone: answers.phone || answers.tel,
               appliedAt: record.submittedAt,
               projectIdea: answers.motivation || answers.projectIdea,
             } : {
               ...record,
+              title: record.teamName,
               leaderName: record.leaderName || record.fullName,
               leaderPhone: record.leaderPhone || record.phone,
               projectIdea: record.projectIdea || record.motivation,
@@ -291,54 +352,45 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
             const notifyChecked = notifyById[record._id] ?? true
             const cardBusy = busyId === record._id
 
-            const hasPhone = Boolean(
-              app.leaderPhone &&
-              String(app.leaderPhone).trim() !== '' &&
-              String(app.leaderPhone).trim() !== 'undefined' &&
-              String(app.leaderPhone).trim() !== 'null'
-            )
-
-            const hasIdea = Boolean(
-              app.projectIdea &&
-              String(app.projectIdea).trim() !== '' &&
-              String(app.projectIdea).trim() !== 'undefined' &&
-              String(app.projectIdea).trim() !== 'null'
-            )
+            const present = (value) => Boolean(value && !['', 'undefined', 'null'].includes(String(value).trim()))
+            const hasPhone = present(app.leaderPhone)
+            const hasIdea = present(app.projectIdea)
+            const edited = Boolean(record.editedAt) && currentStatus === 'PENDING'
 
             return (
             <li key={app._id} className="app-card">
               <div className="app-card__head">
-                <h2 className="app-card__team">{app.teamName}</h2>
+                <div>
+                  <h2 className="app-card__team">{app.title}</h2>
+                  {!isSite && app.leaderName && <p className="app-card__leader">{app.leaderName}</p>}
+                  <p className="app-card__contact">
+                    {app.leaderEmail && <a href={`mailto:${app.leaderEmail}`}>{app.leaderEmail}</a>}
+                    {hasPhone && <a href={`tel:${app.leaderPhone}`}>{app.leaderPhone}</a>}
+                  </p>
+                </div>
+                <TeamChip record={record} />
                 <div className="app-card__badges">
                   <span className={`panel__badge ${statusClass}`}>
                     {STATUS_LABELS[currentStatus] || currentStatus}
                   </span>
+                  {edited && (
+                    <span className="panel__badge panel__badge--edited" title={`Güncelleme: ${formatDate(record.editedAt)}`}>
+                      Bilgilerini güncelledi
+                    </span>
+                  )}
                   {app.memberCount && <span className="panel__badge">{app.memberCount} kişi</span>}
                 </div>
+                <time className="app-card__date" dateTime={app.appliedAt}>
+                  {formatDate(app.appliedAt)}
+                </time>
               </div>
-              <p className="app-card__leader">{app.leaderName}</p>
-              <p className="app-card__contact">
-                {app.leaderEmail && <a href={`mailto:${app.leaderEmail}`}>{app.leaderEmail}</a>}
-                {hasPhone && <a href={`tel:${app.leaderPhone}`}>{app.leaderPhone}</a>}
-              </p>
-              {record.answers && <details><summary>Başvuru yanıtları</summary><dl>{record.answers.map(answer => <div key={answer.fieldId}><dt>{answer.label}</dt><dd>{Array.isArray(answer.value) ? answer.value.join(', ') : String(answer.value ?? '')}</dd></div>)}</dl></details>}
-              {hasIdea && (
-                <details className="app-card__idea">
-                  <summary>Proje fikri</summary>
-                  <p>{app.projectIdea}</p>
-                </details>
-              )}
-              {record.lastNotifiedAt && (
-                <p className="app-card__meta">
-                  Son e-posta bildirimi: {STATUS_LABELS[record.lastNotifiedStatus] || record.lastNotifiedStatus} ({formatDate(record.lastNotifiedAt)})
-                </p>
-              )}
+
               <div className="app-card__review">
                 <input
                   className="field__input"
                   type="text"
                   maxLength={1000}
-                  aria-label={`Değerlendirme notu — ${app.teamName}`}
+                  aria-label={`Değerlendirme notu — ${app.title}`}
                   placeholder="Katılımcıya iletilecek not (opsiyonel)"
                   value={draftNote}
                   disabled={cardBusy}
@@ -356,7 +408,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                 <div className="app-card__actions">
                   <button
                     type="button"
-                    className="btn btn--approve"
+                    className="btn btn--sm btn--approve"
                     disabled={cardBusy || currentStatus === 'APPROVED'}
                     onClick={() => handleStatusChange(record, 'APPROVED')}
                   >
@@ -364,7 +416,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                   </button>
                   <button
                     type="button"
-                    className="btn btn--reject"
+                    className="btn btn--sm btn--reject"
                     disabled={cardBusy || currentStatus === 'REJECTED'}
                     onClick={() => handleStatusChange(record, 'REJECTED')}
                   >
@@ -373,7 +425,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                   {currentStatus !== 'PENDING' && (
                     <button
                       type="button"
-                      className="btn btn--outline"
+                      className="btn btn--sm btn--outline"
                       disabled={cardBusy}
                       onClick={() => handleStatusChange(record, 'PENDING', { forceNotify: false })}
                     >
@@ -382,17 +434,38 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                   )}
                 </div>
               </div>
+
+              {(isSite || hasIdea || record.lastNotifiedAt) && (
+                <details className="app-card__details">
+                  <summary>{isSite ? 'Başvuru yanıtları' : 'Ayrıntılar'}</summary>
+                  {isSite && (
+                    <dl className="app-card__answers">
+                      {record.answers.map(answer => (
+                        <div key={answer.fieldId}>
+                          <dt>{answer.label}</dt>
+                          <dd>{shownAnswer(answer.value)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                  {hasIdea && (
+                    <div className="app-card__idea">
+                      <p><strong>{isSite ? 'Motivasyon' : 'Proje fikri'}</strong></p>
+                      <p>{app.projectIdea}</p>
+                    </div>
+                  )}
+                  {record.lastNotifiedAt && (
+                    <p className="app-card__meta">
+                      Son e-posta bildirimi: {STATUS_LABELS[record.lastNotifiedStatus] || record.lastNotifiedStatus} ({formatDate(record.lastNotifiedAt)})
+                    </p>
+                  )}
+                </details>
+              )}
+
               <div className="app-card__foot">
-                <time className="app-card__date" dateTime={app.appliedAt}>
-                  {formatDate(app.appliedAt)}
-                </time>
                 {app.resumeUrl && (
                   /^https?:\/\//i.test(app.resumeUrl) ? (
-                    <a
-                      href={app.resumeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a href={app.resumeUrl} target="_blank" rel="noopener noreferrer">
                       Özgeçmiş indir
                     </a>
                   ) : (
@@ -401,12 +474,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                 )}
                 {(record.uploadedFiles || []).map(file => (
                   /^https?:\/\//i.test(file.url) ? (
-                    <a
-                      key={file.filename}
-                      href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <a key={file.filename} href={file.url} target="_blank" rel="noopener noreferrer">
                       {file.originalName} indir
                     </a>
                   ) : (

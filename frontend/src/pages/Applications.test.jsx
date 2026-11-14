@@ -96,7 +96,7 @@ test('debounced search resets pagination to page 1 and passes query to CSV expor
   )
 
   await user.click(screen.getByRole('button', { name: 'CSV indir' }))
-  expect(api.downloadHackathonApplicationsCsv).toHaveBeenCalledWith('staff', { source: 'forms', search: 'Participant', status: 'ALL' })
+  expect(api.downloadHackathonApplicationsCsv).toHaveBeenCalledWith('staff', { source: 'forms', search: 'Participant', status: 'ALL', team: 'ALL' })
   expect(createUrl).toHaveBeenCalled()
   expect(revokeUrl).toHaveBeenCalledWith('blob:mock-csv')
 })

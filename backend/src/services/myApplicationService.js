@@ -44,7 +44,7 @@ const findMembership = async (form, participantId, session = null) => {
 const syncResponse = async ({ form, responseId, team = null, role = null, status = null, session }) => {
   if (!responseId) return;
   const fieldId = teamFieldIdOf(form);
-  const $set = { team: team?._id ?? null, teamName: team?.name ?? '', teamRole: team ? role : null };
+  const $set = { team: team?._id ?? null, teamName: team?.name ?? '', teamRole: team ? role : null, teamStatus: team ? status : null };
   if (fieldId) $set['answers.$[team].value'] = teamStatusSummary(team, role, status);
   await FormResponse.updateOne({ _id: responseId }, { $set }, { session, ...(fieldId ? { arrayFilters: [{ 'team.fieldId': fieldId }] } : {}) });
 };
@@ -116,7 +116,7 @@ const updateApplication = async (form, participant, raw) => {
     });
     if (errors.length) throw failure(400, errors.join(' '));
     Object.assign(response, { answers, schemaVersion: form.updatedAt, status: 'PENDING', statusNote: '',
-      reviewedBy: null, reviewedAt: null, lastNotifiedStatus: null });
+      reviewedBy: null, reviewedAt: null, lastNotifiedStatus: null, editedAt: new Date() });
     await response.save({ session });
   });
   return getApplication(form, participant);
@@ -225,17 +225,27 @@ const transferCaptaincy = async (form, participant, memberId, code) => {
   if (typeof code !== 'string' || !/^\d{6}$/.test(code)) throw failure(400, 'Doğrulama kodu 6 haneli olmalıdır.');
   await otpService.verifyOtp(participant.email, code);
   return teamAction(form, participant, async ({ session, membership: current }) => {
-    const team = requireCaptain(current);
-    const member = memberEntry(team, memberId, 'APPROVED');
-    const oldCaptain = { participant: team.captain.participant, email: team.captain.email, response: team.captain.response };
-    team.captain = { participant: member.participant, email: member.email, response: member.response };
-    team.members = team.members
-      .filter(m => String(m.participant) !== String(memberId))
-      .concat({ ...oldCaptain, status: 'APPROVED', requestedAt: new Date(), decidedAt: new Date() });
-    await team.save({ session });
-    await syncResponse({ form, responseId: member.response, team, role: 'CAPTAIN', status: 'APPROVED', session });
-    await syncResponse({ form, responseId: oldCaptain.response, team, role: 'MEMBER', status: 'APPROVED', session });
+    await makeCaptain({ form, team: requireCaptain(current), memberId, session });
   });
+};
+
+/** The approved member becomes captain; the previous captain stays as an approved member. */
+const makeCaptain = async ({ form, team, memberId, session }) => {
+  const member = memberEntry(team, memberId, 'APPROVED');
+  const oldCaptain = { participant: team.captain.participant, email: team.captain.email, response: team.captain.response };
+  team.captain = { participant: member.participant, email: member.email, response: member.response };
+  team.members = team.members
+    .filter(m => String(m.participant) !== String(memberId))
+    .concat({ ...oldCaptain, status: 'APPROVED', requestedAt: new Date(), decidedAt: new Date() });
+  await team.save({ session });
+  await syncResponse({ form, responseId: member.response, team, role: 'CAPTAIN', status: 'APPROVED', session });
+  await syncResponse({ form, responseId: oldCaptain.response, team, role: 'MEMBER', status: 'APPROVED', session });
+};
+
+/** Deletes the team; captain, members and pending requesters all become individual participants. */
+const dissolveTeam = async ({ form, team, session }) => {
+  for (const entry of [team.captain, ...team.members]) await syncResponse({ form, responseId: entry.response, session });
+  await HackathonTeam.deleteOne({ _id: team._id }, { session });
 };
 
 /** Step 1 of disbanding: e-mail a confirmation code to the captain. */
@@ -252,13 +262,13 @@ const disbandTeam = async (form, participant, code) => {
   if (typeof code !== 'string' || !/^\d{6}$/.test(code)) throw failure(400, 'Doğrulama kodu 6 haneli olmalıdır.');
   await otpService.verifyOtp(participant.email, code);
   return teamAction(form, participant, async ({ session, membership }) => {
-    const team = requireCaptain(membership);
-    for (const entry of [team.captain, ...team.members]) await syncResponse({ form, responseId: entry.response, session });
-    await HackathonTeam.deleteOne({ _id: team._id }, { session });
+    await dissolveTeam({ form, team: requireCaptain(membership), session });
   });
 };
 
 module.exports = {
+  // Shared with the staff team tools (teamAdminService).
+  internals: { inTransaction, findMembership, syncResponse, displayName, dropMember, memberEntry, makeCaptain, dissolveTeam },
   getApplication, updateApplication, joinTeam, createTeam, withdrawRequest, leaveTeam,
   sendTransferCode, transferCaptaincy,
   approveRequest: (form, participant, memberId) => decideRequest(form, participant, memberId, true),

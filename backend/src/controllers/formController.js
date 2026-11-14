@@ -3,6 +3,19 @@ const { answerError } = require('../utils/formValidation');
 const { escapeCsvCell, literalSearch } = require('../utils/query');
 const { saveSubmission } = require('../services/formSubmissionService');
 const { lookupTeam } = require('../services/teamService');
+const HackathonTeam = require('../models/HackathonTeam');
+const teamAdmin = require('../services/teamAdminService');
+
+// Team filter for staff lists: solo | team (approved in a team) | captain | pending (waiting for a captain).
+const TEAM_FILTERS = {
+  solo: { team: null },
+  team: { team: { $ne: null }, teamStatus: { $ne: 'PENDING' } },
+  captain: { teamRole: 'CAPTAIN' },
+  pending: { teamStatus: 'PENDING' }
+};
+const teamFilterOf = (value) => (typeof value === 'string' && TEAM_FILTERS[value]) || null;
+const teamRoleLabel = (response) => !response.team ? 'Bireysel'
+  : response.teamRole === 'CAPTAIN' ? 'Kaptan' : response.teamStatus === 'PENDING' ? 'Kaptan onayı bekliyor' : 'Üye';
 const {
   APPLICATION_STATUSES,
   buildStatusFilter,
@@ -405,7 +418,8 @@ const getFormResponses = async (req, res, next) => {
     const searchClause = (typeof req.query.search === 'string' && req.query.search.trim())
       ? { $or: [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }] }
       : null;
-    const filter = combineFilters({ form: form._id }, buildStatusFilter(rawStatus), searchClause);
+    if (req.query.team && !teamFilterOf(req.query.team)) return res.status(400).json({ success: false, message: 'Geçersiz takım filtresi (solo, team, captain, pending).' });
+    const filter = combineFilters({ form: form._id }, buildStatusFilter(rawStatus), searchClause, teamFilterOf(req.query.team));
 
     const [responses, totalItems] = await Promise.all([
       FormResponse.find(filter)
@@ -416,9 +430,17 @@ const getFormResponses = async (req, res, next) => {
       FormResponse.countDocuments(filter)
     ]);
 
+    const teamIds = [...new Set(responses.map(response => response.team).filter(Boolean).map(String))];
+    const [teams, statusCounts] = await Promise.all([
+      HackathonTeam.find({ _id: { $in: teamIds } }).select('code').lean(),
+      FormResponse.aggregate([{ $match: { form: form._id } }, { $group: { _id: { $ifNull: ['$status', 'PENDING'] }, count: { $sum: 1 } } }])
+    ]);
+    const codes = new Map(teams.map(team => [String(team._id), team.code]));
+    const counts = Object.fromEntries(statusCounts.map(item => [item._id, item.count]));
     const normalizedResponses = responses.map((response) => ({
       ...response,
-      status: response.status || 'PENDING'
+      status: response.status || 'PENDING',
+      teamCode: response.team ? codes.get(String(response.team)) || null : null
     }));
 
     const totalPages = Math.ceil(totalItems / limit) || 1;
@@ -432,6 +454,8 @@ const getFormResponses = async (req, res, next) => {
         fields: form.fields
       },
       data: normalizedResponses,
+      // Whole-form counts (filters ignored) for the summary boxes.
+      summary: { total: Object.values(counts).reduce((a, b) => a + b, 0), PENDING: counts.PENDING || 0, APPROVED: counts.APPROVED || 0, REJECTED: counts.REJECTED || 0 },
       pagination: {
         totalItems,
         totalPages,
@@ -494,13 +518,19 @@ const updateFormResponseStatus = async (req, res, next) => {
         ? 'reddedildi'
         : 'beklemeye alındı';
 
+    // A rejected applicant leaves their team (captaincy passes on or the team dissolves).
+    const teamOutcome = application.status === 'REJECTED' ? await teamAdmin.handleRejection(form, response) : null;
+    const teamNote = { left: ' Takımından çıkarıldı.', 'captain-replaced': ' Takımından çıkarıldı; kaptanlık başka bir üyeye geçti.', disbanded: ' Takımının başka onaylı üyesi olmadığı için takım dağıtıldı.' }[teamOutcome] || '';
+    const fresh = teamOutcome ? await FormResponse.findById(response._id).lean() : application;
+
     return res.status(200).json({
       success: true,
       emailSent,
-      message: emailSent
+      teamOutcome,
+      message: (emailSent
         ? `Başvuru ${statusLabel} ve katılımcıya bilgilendirme e-postası gönderildi.`
-        : `Başvuru durumu güncellendi (${statusLabel}).`,
-      data: application
+        : `Başvuru durumu güncellendi (${statusLabel}).`) + teamNote,
+      data: fresh
     });
   } catch (error) {
     next(error);
@@ -524,7 +554,8 @@ const exportFormResponses = async (req, res, next) => {
     const searchClause = (typeof req.query.search === 'string' && req.query.search.trim())
       ? { $or: [{ verifiedEmail: literalSearch(req.query.search) }, { 'answers.value': literalSearch(req.query.search) }] }
       : null;
-    const filter = combineFilters({ form: form._id }, buildStatusFilter(rawStatus), searchClause);
+    if (req.query.team && !teamFilterOf(req.query.team)) return res.status(400).json({ success: false, message: 'Geçersiz takım filtresi (solo, team, captain, pending).' });
+    const filter = combineFilters({ form: form._id }, buildStatusFilter(rawStatus), searchClause, teamFilterOf(req.query.team));
     const format = req.query.format || 'csv';
     if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
     res.setHeader('Content-Disposition', `attachment; filename="${form.slug}-responses.${format}"`);
@@ -541,13 +572,16 @@ const exportFormResponses = async (req, res, next) => {
     if (!columns.size) for (const field of form.fields || []) columns.set(columnKey(field), field);
     const fields = [...columns.values()];
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    await write(res, '\uFEFF' + ['Yanıt ID', 'Tarih', 'Başvuru Durumu', 'Değerlendirme Notu', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi', ...fields.map(field => field.label || field.fieldId), 'Eklenen Dosyalar'].map(escapeCsvCell).join(',') + '\r\n');
+    const teamCodes = new Map((await HackathonTeam.find({ form: form._id }).select('code').lean()).map(team => [String(team._id), team.code]));
+    await write(res, '\uFEFF' + ['Yanıt ID', 'Tarih', 'Başvuru Durumu', 'Değerlendirme Notu', 'IP Adresi', 'Doğrulanmış E-posta', 'Doğrulama Yöntemi', 'Takım Adı', 'Takım Kodu', 'Takımdaki Rol', ...fields.map(field => field.label || field.fieldId), 'Eklenen Dosyalar'].map(escapeCsvCell).join(',') + '\r\n');
     const cursor = FormResponse.find(filter).sort({ submittedAt: -1 }).lean().cursor();
     try {
       for await (const response of cursor) {
         const answers = new Map((response.answers || []).map(answer => /** @type {[string, unknown]} */ ([columnKey(answer), answer.value])));
         const row = [response._id, new Date(response.submittedAt).toISOString(), response.status || 'PENDING', response.statusNote || '', response.respondent?.ip || '',
-          response.verifiedEmail || '', response.verificationMethod || '', ...fields.map(field => answers.get(columnKey(field)) ?? ''),
+          response.verifiedEmail || '', response.verificationMethod || '',
+          response.teamName || '', response.team ? teamCodes.get(String(response.team)) || '' : '', teamRoleLabel(response),
+          ...fields.map(field => answers.get(columnKey(field)) ?? ''),
           (response.uploadedFiles || []).map(file => file.url).join(' | ')];
         await write(res, row.map(escapeCsvCell).join(',') + '\r\n');
       }

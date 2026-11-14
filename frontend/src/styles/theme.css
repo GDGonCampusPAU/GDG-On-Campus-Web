@@ -65,19 +65,22 @@
   --gdg-off-white: #f0f0f0;
   --gdg-black-02: #1e1e1e;
 
-  /* Anlamsal yüzey token'ları (koyu tema) */
-  --page-bg: var(--gdg-black-02);
-  --surface: #262626;
-  --surface-sunken: #181818;
-  --line: #3c3c3c;
-  --text-strong: var(--gdg-off-white);
-  --text-muted: #b4b4b4;
-  --accent: var(--gdg-blue);
+  /* Anlamsal yüzey token'ları — etkinlik sitesiyle aynı açık dil */
+  --page-bg: var(--gdg-off-white);
+  --surface: #ffffff;
+  --surface-sunken: #ffffff;
+  --surface-muted: var(--gdg-off-white);
+  --line: var(--gdg-black-02);
+  --line-soft: color-mix(in srgb, var(--gdg-black-02) 14%, transparent);
+  --text-strong: var(--gdg-black-02);
+  --text-muted: color-mix(in srgb, var(--gdg-black-02) 70%, transparent);
+  --accent: var(--gdg-yellow);
   --on-accent: var(--gdg-black-02);
-  --focus-ring: var(--gdg-blue-halftone);
-  --danger-text: var(--gdg-red-halftone);
+  --focus-ring: var(--gdg-blue);
+  /* Durumlar: renk pastel zeminde, metin siyah kalır (renk tek başına anlam taşımaz). */
+  --danger-text: var(--gdg-black-02);
   --danger-line: var(--gdg-red);
-  --success-text: var(--gdg-green-halftone);
+  --success-text: var(--gdg-black-02);
   --success-line: var(--gdg-green);
 
   /* Tipografi */
@@ -91,11 +94,13 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
-  --radius-sm: 10px;
-  --radius-card: 28px 28px 28px 6px;
-  --radius-card-sm: 20px 20px 20px 6px;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-pill: 999px;
+  --radius-card: 16px;
+  --radius-card-sm: 16px;
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,

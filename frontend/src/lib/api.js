@@ -90,11 +90,17 @@ export function updateUserRole(id, role, token) {
 
 // --- Hackathon başvuruları (ORGANIZER / ADMIN) -------------------------------
 
-export async function getHackathonApplications({ page = 1, limit = 10, search = '', source = 'forms', status = 'ALL' }, token) {
+/**
+ * @param {{ page?: number, limit?: number, search?: string, source?: string, status?: string, team?: string }} options
+ * `team`: ALL | solo | team | captain | pending (yalnız etkinlik sitesi başvuruları)
+ * @param {string} token
+ */
+export async function getHackathonApplications({ page = 1, limit = 10, search = '', source = 'forms', status = 'ALL', team = 'ALL' }, token) {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) })
   if (search.trim()) params.set('search', search.trim())
   if (status && status !== 'ALL') params.set('status', status)
   if (source === 'legacy') return request(`/hackathon/applications?${params}`, { token })
+  if (team && team !== 'ALL') params.set('team', team)
   const pageData = await request('/event-page/hackathon')
   return request(`/forms/${pageData.data.formId}/responses?${params}`, { token })
 }
@@ -113,7 +119,11 @@ export async function updateApplicationStatus({ id, formId, source = 'forms', st
 }
 
 // CSV dosyasını Authorization başlığı gerektiği için fetch ile indirip Blob olarak döndürür.
-export async function downloadHackathonApplicationsCsv(token, { source = 'forms', search = '', status = 'ALL' } = {}) {
+/**
+ * @param {string} token
+ * @param {{ source?: string, search?: string, status?: string, team?: string }} [options]
+ */
+export async function downloadHackathonApplicationsCsv(token, { source = 'forms', search = '', status = 'ALL', team = 'ALL' } = {}) {
   let path = `/hackathon/applications/export?format=csv${search ? `&search=${encodeURIComponent(search)}` : ''}`
   if (source !== 'legacy') {
     const page = await request('/event-page/hackathon')
@@ -122,6 +132,7 @@ export async function downloadHackathonApplicationsCsv(token, { source = 'forms'
   if (status && status !== 'ALL') {
     path = `${path}&status=${encodeURIComponent(status)}`
   }
+  if (source !== 'legacy' && team && team !== 'ALL') path = `${path}&team=${encodeURIComponent(team)}`
   const response = await send(path, { token })
   if (!response.ok) {
     const data = await response.json().catch(() => ({}))
@@ -150,4 +161,28 @@ export async function downloadPrivateFile(url, token) {
   const response = await fetch(target.href, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) })
   if (!response.ok) throw new ApiError('Dosya indirilemedi.', response.status)
   return response.blob()
+}
+
+// --- Kayıt takımları (ORGANIZER / ADMIN) --------------------------------------
+// Her işlem güncel takım listesini döndürür: [{ id, name, code, size, maxSize, members, requests, allApproved }]
+
+const teamsPath = async () => `/forms/${encodeURIComponent((await request('/event-page/hackathon')).data.formId)}/teams`
+
+/** @param {string} token */
+export async function getTeams(token) {
+  return (await request(await teamsPath(), { token })).data
+}
+
+/** Onaylı üyeyi çıkarır veya bekleyen katılma isteğini siler. */
+export async function removeTeamMember(teamId, participantId, token) {
+  const path = `${await teamsPath()}/${encodeURIComponent(teamId)}/members/${encodeURIComponent(participantId)}/remove`
+  return (await request(path, { method: 'POST', token })).data
+}
+
+export async function setTeamCaptain(teamId, participantId, token) {
+  return (await request(`${await teamsPath()}/${encodeURIComponent(teamId)}/captain`, { method: 'POST', body: { participantId }, token })).data
+}
+
+export async function disbandTeam(teamId, token) {
+  return (await request(`${await teamsPath()}/${encodeURIComponent(teamId)}`, { method: 'DELETE', token })).data
 }

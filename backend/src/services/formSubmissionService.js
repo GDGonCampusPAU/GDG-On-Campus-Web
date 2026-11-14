@@ -46,7 +46,7 @@ const saveSubmission = async (formId, responseData, participant, teamAnswer = nu
         teamResult = await applyTeamChoice({ session, form, participant, value: teamAnswer.value });
         data.answers = data.answers.map(answer => answer.fieldId === teamAnswer.fieldId
           ? { ...answer, value: teamSummary(teamAnswer.value, teamResult) } : answer);
-        if (teamResult) Object.assign(data, { team: teamResult.team._id, teamName: teamResult.team.name, teamRole: teamResult.role });
+        if (teamResult) Object.assign(data, { team: teamResult.team._id, teamName: teamResult.team.name, teamRole: teamResult.role, teamStatus: teamResult.status });
       }
       const created = await FormResponse.create([{ ...data,
         ...(!form.settings.allowMultipleSubmissions ? { singleSubmissionKey: String(participant._id) } : {})

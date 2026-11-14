@@ -22,7 +22,9 @@ Ekip ve hackathon OTP akışları `node:crypto` `randomInt` ve HMAC-SHA256 hash'
 
 **Takım alanı (`team`):** Cevap `{mode:'solo'}`, `{mode:'create', name}` (2-40 karakter, etkinlikte büyük/küçük harf duyarsız benzersiz) veya `{mode:'join', code}` (6 harf/rakam, büyük/küçük harf fark etmez) olur. Takım kurma/katılma başvuruyla aynı transaction'da yapılır; başvuru reddedilirse takım veya üyelik oluşmaz. Takım en fazla 4 kişidir (kaptan + onaylı + bekleyen). Katılan üye `PENDING` olarak kaptan onayını bekler. Hatalar 400 ile Türkçe döner: bulunamayan kod, dolu takım, alınmış ad.
 
-**Başvurum (26c-26i):** Bütün takım işlemleri transaction içindedir ve takım kaydı, başvurudaki `team/teamName/teamRole` ile personelin gördüğü takım cevabını birlikte günceller. Reddedilen, geri çeken, ayrılan veya çıkarılan kişi takım listesinden silinir ve başka bir takıma katılabilir. Takım arkadaşları birbirlerinin yalnız adını ve yönetici kararını görür; e-posta adresleri dönmez. Bekleyen istek sahibi yalnız takım adını görür. Dosya ve takım cevapları düzenleme ile değişmez.
+**Başvurum (26c-26i):** Bütün takım işlemleri transaction içindedir ve takım kaydı, başvurudaki `team/teamName/teamRole` ile personelin gördüğü takım cevabını birlikte günceller. Reddedilen, geri çeken, ayrılan veya çıkarılan kişi takım listesinden silinir ve başka bir takıma katılabilir. Takım arkadaşları birbirlerinin yalnız adını ve yönetici kararını görür; e-posta adresleri dönmez.
+
+**Yönetici reddi:** `PATCH /forms/:id/responses/:responseId/status` ile `REJECTED` verilen kişi takımından otomatik çıkarılır (bekleyen isteği de silinir). Reddedilen kaptansa kaptanlık en eski onaylı üyeye geçer; başka onaylı üye yoksa takım dağıtılır. Yanıt `teamOutcome: left | captain-replaced | disbanded | null` içerir. Başvuru listesi (`GET /forms/:id/responses`) `team=solo|team|captain|pending` filtresini, `summary` sayılarını ve her kayıtta `teamCode`, `teamStatus`, `editedAt` alanlarını döndürür; CSV'de Takım Adı / Takım Kodu / Takımdaki Rol sütunları vardır. Bekleyen istek sahibi yalnız takım adını görür. Dosya ve takım cevapları düzenleme ile değişmez.
 
 `GET /forms/:id/responses`, `GET /forms/:id/responses/export`, `GET /hackathon/applications` ve `GET /hackathon/applications/export` uç noktaları `status` ve `search` ile regex/literal filtreleme yapabilir. JSON/CSV export akış (streaming) halinde üretilir. Form alanları, seçenekler ve durum/tarih aralıkları sunucuda doğrulanır. Özel eski `/uploads/:filename` linkleri yetkilendirme ister; public kapak görselleri `/uploads/public/` altındadır. Sunucu istek/hata yanıtlarında `X-Request-ID` sağlar.
 
@@ -115,6 +117,9 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 26e | POST | `/forms/public/:slugOrId/my-application/team/join` | Takımsız katılımcı | `{code}`; kaptan onayına düşen istek |
 | 26e2 | POST | `/forms/public/:slugOrId/my-application/team/create` | Takımsız katılımcı | `{name}`; sayfadan takım kurar, kişi kaptan olur |
 | 26e3 | POST | `…/my-application/team/transfer/code` · `…/team/transfer` | Kaptan | E-postaya kod gönderir · `{participantId, code}` ile kaptanlığı onaylı bir üyeye devreder; eski kaptan onaylı üye olarak kalır |
+| 26j | GET | `/forms/:id/teams` | Ekip (ORGANIZER/ADMIN) | Tüm takımlar: kod, kişi sayısı, üyeler ve istekler (ad, e-posta, yönetici kararı, `edited`), `allApproved` |
+| 26k | POST | `/forms/:id/teams/:teamId/members/:participantId/remove` | Ekip | Üyeyi çıkarır veya bekleyen isteği siler; kaptan çıkarılamaz (409) |
+| 26l | POST · DELETE | `/forms/:id/teams/:teamId/captain` `{participantId}` · `/forms/:id/teams/:teamId` | Ekip | Kaptanı onaylı bir üyeyle değiştirir · takımı dağıtır (herkes bireysel olur) |
 | 26f | POST | `…/my-application/team/withdraw` · `…/team/leave` | İstek sahibi · Üye | İsteği geri çek · takımdan ayrıl (kaptan ayrılamaz, 409) |
 | 26g | POST | `…/my-application/team/requests/:participantId/approve` · `…/reject` | Kaptan | Katılma isteğini kabul / ret |
 | 26h | POST | `…/my-application/team/members/:participantId/remove` | Kaptan | Üyeyi takımdan çıkar |

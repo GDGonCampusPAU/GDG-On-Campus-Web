@@ -10,10 +10,10 @@
   padding: var(--space-5) var(--space-4);
   /* Dört köşede dört GDG renginden yumuşak ışıma */
   background:
-    radial-gradient(circle at 10% 16%, color-mix(in srgb, var(--gdg-blue) 24%, transparent), transparent 42%),
-    radial-gradient(circle at 90% 12%, color-mix(in srgb, var(--gdg-red) 18%, transparent), transparent 40%),
-    radial-gradient(circle at 88% 90%, color-mix(in srgb, var(--gdg-yellow) 16%, transparent), transparent 42%),
-    radial-gradient(circle at 8% 92%, color-mix(in srgb, var(--gdg-green) 18%, transparent), transparent 42%),
+    radial-gradient(circle at 10% 16%, var(--gdg-blue-pastel), transparent 42%),
+    radial-gradient(circle at 90% 12%, var(--gdg-red-pastel), transparent 40%),
+    radial-gradient(circle at 88% 90%, var(--gdg-yellow-pastel), transparent 42%),
+    radial-gradient(circle at 8% 92%, var(--gdg-green-pastel), transparent 42%),
     var(--page-bg);
 }
 
@@ -39,7 +39,7 @@
   position: absolute;
   inset: 0;
   background-image: radial-gradient(
-    color-mix(in srgb, var(--gdg-off-white) 16%, transparent) 1px,
+    color-mix(in srgb, var(--gdg-black-02) 14%, transparent) 1px,
     transparent 1.5px
   );
   background-size: 28px 28px;
@@ -53,35 +53,35 @@
   font-weight: 500;
   font-size: clamp(2.25rem, 7vw, 4.5rem);
   line-height: 1;
-  opacity: 0.4;
+  opacity: 0.55;
   white-space: nowrap;
 }
 
 .auth-bg__glyph--braces {
   top: 9%;
   left: 7%;
-  color: var(--gdg-blue-halftone);
+  color: var(--gdg-blue);
   transform: rotate(-8deg);
 }
 
 .auth-bg__glyph--tag {
   top: 14%;
   right: 8%;
-  color: var(--gdg-red-halftone);
+  color: var(--gdg-red);
   transform: rotate(6deg);
 }
 
 .auth-bg__glyph--heart {
   bottom: 11%;
   right: 9%;
-  color: var(--gdg-yellow-halftone);
+  color: var(--gdg-yellow);
   transform: rotate(-5deg);
 }
 
 .auth-bg__glyph--arrow {
   bottom: 12%;
   left: 8%;
-  color: var(--gdg-green-halftone);
+  color: var(--gdg-green);
   transform: rotate(7deg);
 }
 
@@ -92,7 +92,7 @@
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--gdg-blue-halftone);
+  color: var(--text-strong);
 }
 
 .auth-logo {
@@ -106,7 +106,7 @@
   position: relative;
   overflow: hidden;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-card);
 }
 
@@ -178,7 +178,7 @@
   font: inherit;
   color: var(--text-strong);
   background: var(--surface-sunken);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   transition: border-color 120ms ease;
 }
@@ -212,7 +212,9 @@
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--gdg-blue-halftone);
+  color: var(--text-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   background: transparent;
   border: 0;
   border-radius: 8px;
@@ -220,7 +222,7 @@
 }
 
 .field__toggle:hover:not(:disabled) {
-  background: rgba(87, 202, 255, 0.12);
+  background: var(--surface-muted);
 }
 
 .field__toggle:focus-visible {
@@ -249,25 +251,26 @@
   margin: 0;
   padding: var(--space-3) var(--space-4);
   font-size: 0.9375rem;
-  border: 1px solid var(--line);
-  border-left-width: 4px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
+  color: var(--text-strong);
+  border: 0;
+  border-left: 4px solid var(--line);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-muted);
 }
 
 .form-message--error {
-  color: var(--danger-text);
-  border-color: var(--danger-line);
+  border-left-color: var(--gdg-red);
+  background: var(--gdg-red-pastel);
 }
 
 .form-message--success {
-  color: var(--success-text);
-  border-color: var(--success-line);
+  border-left-color: var(--gdg-green);
+  background: var(--gdg-green-pastel);
 }
 
 .form-message--info {
-  color: var(--text-strong);
-  border-color: var(--gdg-blue);
+  border-left-color: var(--gdg-blue);
+  background: var(--gdg-blue-pastel);
 }
 
 .form-message strong {
@@ -289,7 +292,9 @@
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: var(--gdg-blue-halftone);
+  color: var(--text-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   background: transparent;
   border: 0;
   border-radius: 8px;
@@ -317,22 +322,28 @@
   gap: var(--space-2);
 }
 
-/* Buton */
+/* Buton: etkinlik sitesindeki hap düğme (siyah çerçeve, sarı birincil) */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   min-height: 48px;
   padding: 0 var(--space-5);
   font: inherit;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--on-accent);
   background: var(--accent);
-  border: 0;
-  border-radius: var(--radius-sm);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-pill);
+  text-decoration: none;
   cursor: pointer;
-  transition: filter 120ms ease;
+  transition: border-radius 0.2s ease, transform 0.2s ease;
 }
 
 .btn:hover:not(:disabled) {
-  filter: brightness(1.1);
+  border-radius: var(--radius-sm);
+  transform: translateY(-2px);
 }
 
 .btn:focus-visible {
@@ -354,7 +365,9 @@
 }
 
 .auth-footer a {
-  color: var(--gdg-blue-halftone);
+  color: var(--text-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   font-weight: 700;
   text-decoration: none;
 }
