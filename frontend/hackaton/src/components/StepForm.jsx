@@ -7,6 +7,8 @@ import './StepForm.css'
 
 const CONFIRM = { title: 'Onay', fields: [] }
 
+const DEFAULT_SUBMIT = { idle: 'Gönder', busy: 'Gönderiliyor…' }
+
 const shownValue = (f, v) => {
   const label = (x) => f.options?.find((o) => o.value === x)?.label ?? x
   if (f.kind === 'team') {
@@ -27,8 +29,9 @@ const shownValue = (f, v) => {
  * @param {Record<string, any>} [props.initialData]
  * @param {string[]} [props.lockedFields]
  * @param {(code: string) => Promise<any>} [props.lookupTeam] `team` alanında kod önizlemesi için.
+ * @param {{ idle: string, busy: string }} [props.submitLabels] Son adımdaki düğme metni (ör. düzenlemede "Kaydet").
  */
-export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [], lookupTeam }) {
+export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [], lookupTeam, submitLabels = DEFAULT_SUBMIT }) {
   const steps = [...configured, CONFIRM]
   const [stepIndex, setStepIndex] = useState(0)
   const [values, setValues] = useState(() => ({ ...initialValues(configured), ...initialData }))
@@ -271,7 +274,7 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
           </Button>
         )}
         <Button type="submit" disabled={submitting}>
-          {!isLast ? 'İleri' : submitError ? 'Tekrar dene' : submitting ? 'Gönderiliyor…' : 'Gönder'}
+          {!isLast ? 'İleri' : submitError ? 'Tekrar dene' : submitting ? submitLabels.busy : submitLabels.idle}
         </Button>
       </div>
     </form>

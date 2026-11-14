@@ -64,13 +64,20 @@ const applyTeamChoice = async ({ session, form, participant, value }) => {
   return { team, role: 'MEMBER', status: 'PENDING' };
 };
 
-/** Human-readable answer stored on the response (staff list, CSV export, e-mails). */
-const teamSummary = (value, result) => {
-  if (!result) return 'Bireysel katılım';
-  return result.role === 'CAPTAIN'
-    ? `Takım kurdu: ${result.team.name} (kod ${result.team.code})`
-    : `Takıma katılma isteği: ${result.team.name} (kod ${result.team.code}, kaptan onayı bekleniyor)`;
+/**
+ * Human-readable team answer stored on the response (staff list, CSV export, e-mails).
+ * @param {any} team @param {'CAPTAIN' | 'MEMBER' | null} role @param {string | null} status
+ */
+const teamStatusSummary = (team, role, status) => {
+  if (!team) return 'Bireysel katılım';
+  if (role === 'CAPTAIN') return `Takım kurdu: ${team.name} (kod ${team.code})`;
+  return status === 'APPROVED'
+    ? `Takım üyesi: ${team.name} (kod ${team.code})`
+    : `Takıma katılma isteği: ${team.name} (kod ${team.code}, kaptan onayı bekleniyor)`;
 };
+
+/** Answer summary right after submission. */
+const teamSummary = (value, result) => (result ? teamStatusSummary(result.team, result.role, result.status) : teamStatusSummary(null, null, null));
 
 /** Public view for a participant entering a code; never exposes member e-mails. */
 const lookupTeam = async ({ form, code }) => {
@@ -82,4 +89,4 @@ const lookupTeam = async ({ form, code }) => {
   return { name: team.name, size, maxSize: MAX_TEAM_SIZE, full: size >= MAX_TEAM_SIZE };
 };
 
-module.exports = { MAX_TEAM_SIZE, CODE_ALPHABET, normalizeCode, generateCode, teamAnswerError, applyTeamChoice, teamSummary, lookupTeam };
+module.exports = { MAX_TEAM_SIZE, CODE_ALPHABET, normalizeCode, generateCode, teamAnswerError, applyTeamChoice, teamSummary, teamStatusSummary, lookupTeam };

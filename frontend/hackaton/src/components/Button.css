@@ -38,3 +38,21 @@
   background: transparent;
   color: var(--black);
 }
+
+/* Liste satırlarındaki işlemler (kabul et, reddet, çıkar): aynı biçim, daha küçük. */
+.btn--sm {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.875rem;
+}
+
+/* Geri alınamaz işlemler (takımı dağıt, takımdan çıkar): kırmızı çerçeve, metin de söyler. */
+.btn--danger {
+  border-color: var(--red);
+  background: var(--white);
+  color: var(--black);
+}
+
+.btn--danger:hover {
+  background: var(--red-pastel);
+}

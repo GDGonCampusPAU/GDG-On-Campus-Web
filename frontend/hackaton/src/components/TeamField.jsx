@@ -114,7 +114,7 @@ export default function TeamField({ field, value, onChange, error, lookupTeam })
 }
 
 /** Kod tamamlanınca takımı önizler; asıl kontrol başvuru gönderilirken sunucuda yapılır. */
-function TeamLookup({ id, code, lookupTeam }) {
+export function TeamLookup({ id, code, lookupTeam }) {
   const [result, setResult] = useState(/** @type {{ code: string, state: 'found' | 'missing' | 'error', team?: any } | null} */ (null))
   const ready = Boolean(lookupTeam) && TEAM_CODE_RE.test(code)
 

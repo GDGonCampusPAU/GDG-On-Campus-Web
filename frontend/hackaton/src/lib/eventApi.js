@@ -30,6 +30,31 @@ export const getMySubmission = (slug, token) =>
  */
 export const lookupTeam = (slug, code, token) =>
   api(`/forms/public/${encodeURIComponent(slug)}/teams/${encodeURIComponent(code)}`, { token }).then(result => result.data)
+/**
+ * "Başvurum" sayfasının işlemleri. Her çağrı güncel başvuru görünümünü döndürür:
+ * { status, statusNote, submittedAt, email, answers, team }
+ * @param {string} slug @param {string} token
+ */
+export function applicationApi(slug, token) {
+  const base = `/forms/public/${encodeURIComponent(slug)}/my-application`
+  const call = (path = '', options = {}) => api(`${base}${path}`, { token, ...options }).then(result => result.data)
+  const post = (path, body) => call(path, { method: 'POST', ...(body ? { body } : {}) })
+  return {
+    get: () => call(),
+    update: (answers) => call('', { method: 'PUT', body: { answers } }),
+    join: (code) => post('/team/join', { code }),
+    create: (name) => post('/team/create', { name }),
+    sendTransferCode: () => post('/team/transfer/code'),
+    transfer: (participantId, code) => post('/team/transfer', { participantId, code }),
+    withdraw: () => post('/team/withdraw'),
+    leave: () => post('/team/leave'),
+    approve: (id) => post(`/team/requests/${encodeURIComponent(id)}/approve`),
+    reject: (id) => post(`/team/requests/${encodeURIComponent(id)}/reject`),
+    remove: (id) => post(`/team/members/${encodeURIComponent(id)}/remove`),
+    sendDisbandCode: () => post('/team/disband/code'),
+    disband: (code) => post('/team/disband', { code }),
+  }
+}
 export const getEventPage = () => api('/event-page/hackathon').then(result => result.data)
 export const publishEventPage = (event, revision, token) => api('/event-page/hackathon', { method: 'PUT', body: { event, revision }, token }).then(result => result.data)
 export async function loginEditor(email, password) {

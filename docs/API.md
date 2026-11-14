@@ -22,6 +22,8 @@ Ekip ve hackathon OTP akışları `node:crypto` `randomInt` ve HMAC-SHA256 hash'
 
 **Takım alanı (`team`):** Cevap `{mode:'solo'}`, `{mode:'create', name}` (2-40 karakter, etkinlikte büyük/küçük harf duyarsız benzersiz) veya `{mode:'join', code}` (6 harf/rakam, büyük/küçük harf fark etmez) olur. Takım kurma/katılma başvuruyla aynı transaction'da yapılır; başvuru reddedilirse takım veya üyelik oluşmaz. Takım en fazla 4 kişidir (kaptan + onaylı + bekleyen). Katılan üye `PENDING` olarak kaptan onayını bekler. Hatalar 400 ile Türkçe döner: bulunamayan kod, dolu takım, alınmış ad.
 
+**Başvurum (26c-26i):** Bütün takım işlemleri transaction içindedir ve takım kaydı, başvurudaki `team/teamName/teamRole` ile personelin gördüğü takım cevabını birlikte günceller. Reddedilen, geri çeken, ayrılan veya çıkarılan kişi takım listesinden silinir ve başka bir takıma katılabilir. Takım arkadaşları birbirlerinin yalnız adını ve yönetici kararını görür; e-posta adresleri dönmez. Bekleyen istek sahibi yalnız takım adını görür. Dosya ve takım cevapları düzenleme ile değişmez.
+
 `GET /forms/:id/responses`, `GET /forms/:id/responses/export`, `GET /hackathon/applications` ve `GET /hackathon/applications/export` uç noktaları `status` ve `search` ile regex/literal filtreleme yapabilir. JSON/CSV export akış (streaming) halinde üretilir. Form alanları, seçenekler ve durum/tarih aralıkları sunucuda doğrulanır. Özel eski `/uploads/:filename` linkleri yetkilendirme ister; public kapak görselleri `/uploads/public/` altındadır. Sunucu istek/hata yanıtlarında `X-Request-ID` sağlar.
 
 ---
@@ -108,6 +110,15 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 26 | POST | `/forms/public/:slugOrId/submit` | Form ayarına göre Katılımcı | Alan kimlikleriyle yanıt / dosyalar; varsayılan doğrulama zorunlu. `team` alanı varsa yanıt `team: {name, role, status, code?}` içerir (kod yalnız kaptana) |
 | 26a | GET | `/forms/public/:slugOrId/my-submission` | Katılımcı | `{submitted, status?, submittedAt?}`; cevaplar dönmez. Kayıt sayfası daha önce başvuranı `/basvurum`'a yönlendirir |
 | 26b | GET | `/forms/public/:slugOrId/teams/:code` | Katılımcı | Takım kodu önizlemesi `{name, size, maxSize, full}`; üye e-postaları dönmez, yoksa 404 |
+| 26c | GET | `/forms/public/:slugOrId/my-application` | Katılımcı (başvurmuş) | Başvurum: `{status, statusNote, submittedAt, email, answers, team}`; takım cevabı `answers` içinde yok |
+| 26d | PUT | `/forms/public/:slugOrId/my-application` | Katılımcı (başvurmuş) | `{answers}`; takım ve dosya hariç günceller, e-posta kilitli; durum `PENDING`'e döner (yeniden yönetici onayı) |
+| 26e | POST | `/forms/public/:slugOrId/my-application/team/join` | Takımsız katılımcı | `{code}`; kaptan onayına düşen istek |
+| 26e2 | POST | `/forms/public/:slugOrId/my-application/team/create` | Takımsız katılımcı | `{name}`; sayfadan takım kurar, kişi kaptan olur |
+| 26e3 | POST | `…/my-application/team/transfer/code` · `…/team/transfer` | Kaptan | E-postaya kod gönderir · `{participantId, code}` ile kaptanlığı onaylı bir üyeye devreder; eski kaptan onaylı üye olarak kalır |
+| 26f | POST | `…/my-application/team/withdraw` · `…/team/leave` | İstek sahibi · Üye | İsteği geri çek · takımdan ayrıl (kaptan ayrılamaz, 409) |
+| 26g | POST | `…/my-application/team/requests/:participantId/approve` · `…/reject` | Kaptan | Katılma isteğini kabul / ret |
+| 26h | POST | `…/my-application/team/members/:participantId/remove` | Kaptan | Üyeyi takımdan çıkar |
+| 26i | POST | `…/my-application/team/disband/code` · `…/team/disband` | Kaptan | E-postaya kod gönderir · `{code}` ile takımı dağıtır; herkes bireysel katılıma döner |
 | 27 | GET | `/forms` | Ekip | `page,limit,status,category,search`; form listesi |
 | 28 | POST | `/forms` | Ekip | Form şeması JSON'u |
 | 29 | GET | `/forms/:id` | Ekip | Path `id`; bütün form şeması |

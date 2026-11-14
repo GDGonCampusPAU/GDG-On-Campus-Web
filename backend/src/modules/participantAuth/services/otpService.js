@@ -5,7 +5,11 @@ const emailService = require('../../../services/emailService');
 const failure = (status, message) => Object.assign(new Error(message), { status });
 const hash = (email, code) => createHmac('sha256', getConfig().secret).update(`${email}:${code}`).digest('hex');
 
-const sendOtp = async (email) => {
+/**
+ * @param {string} email
+ * @param {{ subject?: string, purpose?: string }} [copy] E-postadaki konu ve "… doğrulama kodunuz" ifadesi.
+ */
+const sendOtp = async (email, { subject = 'Etkinlik kaydı e-posta doğrulaması', purpose = 'Etkinlik kaydı' } = {}) => {
   const config = getConfig();
   if (process.env.NODE_ENV === 'production' && (!process.env.BREVO_API_KEY || process.env.BREVO_API_KEY === 'your_brevo_api_key_here')) {
     throw failure(503, 'E-posta servisi yapılandırılmamış.');
@@ -25,9 +29,9 @@ const sendOtp = async (email) => {
     throw error;
   }
   try {
-    await emailService.sendEmail({ to: email, subject: 'Etkinlik kaydı e-posta doğrulaması',
-      textContent: `Doğrulama kodunuz: ${code}. ${config.otpTtlMinutes} dakika geçerlidir.`,
-      htmlContent: `<p>Etkinlik kaydı doğrulama kodunuz: <strong>${code}</strong></p><p>${config.otpTtlMinutes} dakika geçerlidir.</p>` });
+    await emailService.sendEmail({ to: email, subject,
+      textContent: `${purpose} doğrulama kodunuz: ${code}. ${config.otpTtlMinutes} dakika geçerlidir.`,
+      htmlContent: `<p>${purpose} doğrulama kodunuz: <strong>${code}</strong></p><p>${config.otpTtlMinutes} dakika geçerlidir.</p>` });
   } catch (error) {
     await ParticipantOtp.deleteOne({ email, codeHash });
     throw failure(502, 'Doğrulama e-postası gönderilemedi. Lütfen tekrar deneyiniz.');
