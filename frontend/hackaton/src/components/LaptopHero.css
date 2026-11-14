@@ -219,7 +219,9 @@
   border-radius: 0 0 var(--r) var(--r);
   border-top: 1px solid #1a1b1d;
   background: linear-gradient(#a3a6ac, #6f7278);
-  transform: translateZ(calc(var(--depth) / 2));
+  /* 0.5px down: with its top edge exactly in the base's plane, Chrome's 3D sorting drops part of the lip
+     (its right end vanished once the screen held animations). */
+  transform: translateZ(calc(var(--depth) / 2)) translateY(0.5px);
 }
 
 .laptop__lip::before {
