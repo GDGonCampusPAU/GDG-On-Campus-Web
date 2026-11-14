@@ -47,6 +47,12 @@ describe('Layout', () => {
     expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(1)
   })
 
+  it('sabit CTA 404 sayfasında yoktur', () => {
+    const { container } = renderAt('/olmayan-sayfa')
+    expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(1)
+    expect(container.querySelector('.app')).not.toHaveClass('app--has-cta')
+  })
+
   it('sabit CTA /kayit/ (sonda eğik çizgi) sayfasında da yoktur', () => {
     const { container } = renderAt('/kayit/')
     expect(screen.getAllByRole('link', { name: 'Kayıt Ol' })).toHaveLength(1)
