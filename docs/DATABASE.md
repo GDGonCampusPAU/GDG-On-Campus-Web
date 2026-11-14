@@ -103,7 +103,7 @@ Diyagramdaki bağlantılar Mongoose referanslarıdır; SQL foreign key gibi DB t
 
 `settings` içinde `verificationRequired` (true), `verificationMethods` (GOOGLE/EMAIL_OTP), `allowMultipleSubmissions` (true), eski `requireAuth` (false) ve başarı mesajı tutulur. `maxSubmissions` için min 1 doğrulaması vardır; controller 0/boş değeri null’a dönüştürerek kotayı kapatır. Sayaç rezervasyonu `updatedAt` değerini değiştirmez; bu alan şema/ayar düzenlemesinin kontrolü için kullanılır.
 
-Sorular form dokümanında gömülüdür (`fields[]`). Her sorunun kalıcı anahtarı `fieldId` değeridir. Backend `Form` şemasında 10 alan türü desteklenir (`text`, `textarea`, `number`, `email`, `phone`, `select`, `radio`, `checkbox`, `file`, `date`; etkinlik şemasındaki `tel` türü `eventPageService` tarafından `phone` türüne eşlenir).
+Sorular form dokümanında gömülüdür (`fields[]`). Her sorunun kalıcı anahtarı `fieldId` değeridir. Backend `Form` şemasında 10 alan türü desteklenir (`text`, `textarea`, `number`, `email`, `phone`, `select`, `radio`, `checkbox`, `file`, `date`, `team`; etkinlik şemasındaki `tel` türü `eventPageService` tarafından `phone` türüne eşlenir).
 
 ### FormResponse → `formresponses`
 
@@ -127,8 +127,17 @@ Sorular form dokümanında gömülüdür (`fields[]`). Her sorunun kalıcı anah
 | `reviewedAt` | Date, inceleme zamanı veya null |
 | `lastNotifiedStatus` | String enum `['APPROVED', 'REJECTED', null]`, son e-posta bildirimi durumu |
 | `lastNotifiedAt` | Date, son e-posta bildiriminin başarıyla gönderildiği tarih veya null |
+| `team` | Opsiyonel ObjectId → HackathonTeam; başvuruda takım kurulduysa veya takıma katılma istendiyse |
+| `teamName` | Takım adının kopyası (personel listesi ve karar e-postası için) |
+| `teamRole` | `CAPTAIN` / `MEMBER` / null |
 
 Cevaplar formdan ayrı koleksiyonda tutulur. İndeksler: `{ form: 1, submittedAt: -1 }`, `{ form: 1, status: 1, submittedAt: -1 }` ve `{ form: 1, singleSubmissionKey: 1 }` (partial unique). Bu partial unique indeks, tek başvurulu formlarda mükerrer gönderimleri veritabanı düzeyinde engeller.
+
+### HackathonTeam → `hackathonteams`
+
+Kayıt formundaki `team` alanıyla kurulan takımlar. `form` (→ Form), `name` (2-40 karakter), `nameKey` (Türkçe küçük harfli anahtar; `{form, nameKey}` unique), `code` (6 karakter, unique; karışan 0/O/1/I/L kullanılmaz), `captain: {participant, email, response}`, `members[]: {participant, email, response, status: PENDING|APPROVED|REJECTED, requestedAt, decidedAt}`, timestamps. Kaptan onayı arayüzü henüz yok; üyeler `PENDING` kalır. Eski kaldırılmış `Team` modelinin `teams` koleksiyonundan ayrıdır.
+
+Mevcut veritabanlarında eski takım soruları (`teamName`, `teamRole`, `teammates`) `npm run migrate:team-field --workspace backend` ile yeni `team` alanına çevrilir (varsayılan deneme modu; yazmak için `-- --apply`, tekrar çalıştırmak güvenli).
 
 ### HackathonApp → `hackathonapps`
 

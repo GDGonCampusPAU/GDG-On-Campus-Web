@@ -5,6 +5,11 @@ const safePattern = pattern => {
   try { new RegExp(pattern); return true; } catch { return false; }
 };
 const answerError = (field, value) => {
+  // Team answers are objects ({ mode, name | code }); validated by the team service.
+  if (field.type === 'team') {
+    if (value == null || value === '') return field.required ? 'zorunludur' : '';
+    return require('../services/teamService').teamAnswerError(value);
+  }
   const empty = value == null || value === '' || (typeof value === 'string' && !value.trim()) || (field.type === 'checkbox' && Array.isArray(value) && value.length === 0);
   if (empty) return field.required ? 'zorunludur' : '';
   if (field.type === 'checkbox') return Array.isArray(value) && value.every(item => typeof item === 'string' && field.options.includes(item)) && new Set(value).size === value.length ? '' : 'geçerli seçeneklerden oluşmalıdır';

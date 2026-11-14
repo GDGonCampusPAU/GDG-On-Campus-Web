@@ -6,6 +6,7 @@ import Schedule from './pages/Schedule.jsx'
 import Team from './pages/Team.jsx'
 import NotFound from './pages/NotFound.jsx'
 import Admin from './pages/Admin.jsx'
+import Application from './pages/Application.jsx'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="kayit" element={<Register />} />
+        <Route path="basvurum" element={<Application />} />
         <Route path="program" element={<Schedule />} />
         <Route path="ekip" element={<Team />} />
         <Route path="*" element={<NotFound />} />

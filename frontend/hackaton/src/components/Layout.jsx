@@ -6,14 +6,15 @@ import Footer from './Footer.jsx'
 import StickyCta from './StickyCta.jsx'
 import './Layout.css'
 
-const PAGE_TITLES = { '/': null, '/kayit': 'Kayıt', '/program': 'Program', '/ekip': 'Ekip' }
+const PAGE_TITLES = { '/': null, '/kayit': 'Kayıt', '/basvurum': 'Başvurum', '/program': 'Program', '/ekip': 'Ekip' }
 
 export default function Layout() {
   const { event } = useEvent()
   const { pathname } = useLocation()
   // '/kayit/' de aynı rotaya eşleşir; sondaki eğik çizgiyi atıp tek biçime indir.
   const path = pathname.replace(/\/+$/, '') || '/'
-  const hasCta = path !== '/kayit' && path !== '/'
+  // "Kayıt Ol" çağrısı kayıt sayfasında ve zaten başvurmuş kişinin sayfasında gereksiz.
+  const hasCta = !['/', '/kayit', '/basvurum'].includes(path)
   const mainRef = useRef(null)
   const lastPath = useRef(pathname)
 

@@ -35,6 +35,21 @@ const broken = {
 }
 
 describe('isEventShape', () => {
+  it('takım alanını kabul eder ama bir formda en fazla bir takım alanına izin verir', async () => {
+    const real = (await import('../data/base.js')).default
+    const withTeams = (count) => ({
+      ...real,
+      register: {
+        ...real.register,
+        steps: [{ title: 'T', fields: Array.from({ length: count }, (_, i) => ({ id: `team${i}`, label: 'Takım', kind: 'team', required: 'yes', hint: '', options: [] })) }],
+      },
+    })
+    expect(isEventShape(real, real)).toBe(true)
+    expect(real.register.steps.flatMap((step) => step.fields).filter((f) => f.kind === 'team')).toHaveLength(1)
+    expect(isEventShape(real, withTeams(1))).toBe(true)
+    expect(isEventShape(real, withTeams(2))).toBe(false)
+  })
+
   it('base ile aynı şekli kabul eder', () => {
     expect(isEventShape(base, { ...base, name: 'Yeni' })).toBe(true)
     expect(isEventShape(base, { ...base, sponsors: [] })).toBe(true)

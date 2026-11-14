@@ -16,6 +16,20 @@ export async function api(path, { token, body, method = 'GET' } = {}) {
   if (!response.ok) throw Object.assign(new Error(data.message || `Sunucu hatası (${response.status})`), { status: response.status })
   return data
 }
+/**
+ * Doğrulanmış katılımcının bu forma daha önce başvurup başvurmadığını döndürür.
+ * @param {string} slug @param {string} token
+ * @returns {Promise<{ submitted: boolean, status?: 'PENDING' | 'APPROVED' | 'REJECTED', submittedAt?: string }>}
+ */
+export const getMySubmission = (slug, token) =>
+  api(`/forms/public/${encodeURIComponent(slug)}/my-submission`, { token }).then(result => result.data ?? { submitted: false })
+/**
+ * Takım kodunun önizlemesi (ad ve kişi sayısı). Kod yoksa 404 (error.status) fırlatır.
+ * @param {string} slug @param {string} code @param {string} token
+ * @returns {Promise<{ name: string, size: number, maxSize: number, full: boolean }>}
+ */
+export const lookupTeam = (slug, code, token) =>
+  api(`/forms/public/${encodeURIComponent(slug)}/teams/${encodeURIComponent(code)}`, { token }).then(result => result.data)
 export const getEventPage = () => api('/event-page/hackathon').then(result => result.data)
 export const publishEventPage = (event, revision, token) => api('/event-page/hackathon', { method: 'PUT', body: { event, revision }, token }).then(result => result.data)
 export async function loginEditor(email, password) {

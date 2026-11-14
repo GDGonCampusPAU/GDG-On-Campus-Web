@@ -24,7 +24,7 @@ const formFieldSchema = new mongoose.Schema(
       enum: {
         values: [
           'text', 'textarea', 'number', 'email', 'phone', 
-          'select', 'radio', 'checkbox', 'file', 'date'
+          'select', 'radio', 'checkbox', 'file', 'date', 'team'
         ],
         message: 'Geçersiz soru tipi: {VALUE}'
       },

@@ -1,0 +1,85 @@
+.application {
+  padding: 48px 0 64px;
+}
+
+.application__header {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.application__title {
+  font-size: clamp(2.25rem, 8vw, 4rem);
+}
+
+.application__intro {
+  max-width: 640px;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* Tarih-saat Mono ile (marka yönergesi). */
+.application__date {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.application__grid {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 40px;
+  padding: 0;
+}
+
+@media (min-width: 900px) {
+  .application__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Program sayfasındaki etkinlik kartlarıyla aynı dil: tonun pastel zemini, yuvarlak köşe. */
+.application__card {
+  display: flex;
+  border-radius: var(--radius-md);
+  background: var(--tone-pastel);
+}
+
+.application__card > section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 24px;
+}
+
+.application__card p {
+  flex: 1;
+  margin: 0 0 8px;
+}
+
+.application__card-title {
+  margin: 4px 0 0;
+  font-size: 1.375rem;
+}
+
+.application__tag {
+  display: inline-block;
+  padding: 2px 12px;
+  border: 2px solid var(--black);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.application__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}

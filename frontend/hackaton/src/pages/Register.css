@@ -65,6 +65,14 @@
   animation-delay: 0.3s;
 }
 
+.register__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
 @keyframes register-pop {
   from {
     opacity: 0;

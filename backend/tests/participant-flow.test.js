@@ -216,3 +216,30 @@ test('invalid verification settings rejected; partial form updates retain restri
   assert.deepEqual(updated.body.data.settings.verificationMethods, ['GOOGLE']);
   assert.equal(updated.body.data.settings.allowMultipleSubmissions, false);
 });
+
+test('my-submission tells a verified participant whether they already applied, without leaking answers', async () => {
+  const form = await makeForm({ verificationRequired: true, verificationMethods: ['EMAIL_OTP', 'GOOGLE'], allowMultipleSubmissions: false });
+  const mine = () => request(app).get('/api/v1/forms/public/test/my-submission');
+
+  assert.equal((await mine()).status, 401);
+  assert.equal((await mine().set('Authorization', 'Bearer forged')).status, 401);
+
+  const { token } = await makeParticipant('applicant@example.com');
+  const before = await mine().set('Authorization', `Bearer ${token}`);
+  assert.equal(before.status, 200);
+  assert.deepEqual(before.body.data, { submitted: false });
+
+  assert.equal((await submit(token, { count: 3 })).status, 201);
+  const after = await mine().set('Authorization', `Bearer ${token}`);
+  assert.equal(after.status, 200);
+  assert.equal(after.body.data.submitted, true);
+  assert.equal(after.body.data.status, 'PENDING');
+  assert.ok(Date.parse(after.body.data.submittedAt));
+  assert.equal(after.body.data.answers, undefined, 'answers stay staff-only');
+
+  // Also reachable by form id, and another participant never sees someone else's application.
+  assert.equal((await request(app).get(`/api/v1/forms/public/${form._id}/my-submission`).set('Authorization', `Bearer ${token}`)).body.data.submitted, true);
+  const other = await makeParticipant('someone-else@example.com');
+  assert.deepEqual((await mine().set('Authorization', `Bearer ${other.token}`)).body.data, { submitted: false });
+  assert.equal((await request(app).get('/api/v1/forms/public/olmayan/my-submission').set('Authorization', `Bearer ${token}`)).status, 404);
+});

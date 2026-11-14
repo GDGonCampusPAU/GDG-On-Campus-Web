@@ -97,6 +97,10 @@ const formResponseSchema = new mongoose.Schema(
       default: 'PENDING',
       index: true
     },
+    // Set when the applicant created (CAPTAIN) or asked to join (MEMBER) a team.
+    team: { type: mongoose.Schema.Types.ObjectId, ref: 'HackathonTeam', default: null },
+    teamName: { type: String, trim: true, default: '' },
+    teamRole: { type: String, enum: ['CAPTAIN', 'MEMBER', null], default: null },
     statusNote: {
       type: String,
       trim: true,

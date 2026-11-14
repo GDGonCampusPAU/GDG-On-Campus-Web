@@ -27,7 +27,7 @@ const resolveFormApplicant = (response) => {
   ];
   const email = candidateEmails.find((value) => typeof value === 'string' && isValidEmail(value.trim()))?.trim().toLowerCase() || null;
   const fullName = answersMap.get('fullName') || answersMap.get('leaderName') || '';
-  const teamName = answersMap.get('teamName') || '';
+  const teamName = answersMap.get('teamName') || response.teamName || '';
   return {
     email,
     recipientName: typeof fullName === 'string' && fullName.trim() ? fullName.trim() : email || 'Katılımcı',

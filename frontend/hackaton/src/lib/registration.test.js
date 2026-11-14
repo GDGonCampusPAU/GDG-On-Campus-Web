@@ -124,7 +124,7 @@ describe('submitRegistration', () => {
   it('Bearer token ve normalize alanları gönderir, kayıt kimliği bekler', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, responseId: 'saved' }) })
     const result = await submitRegistration(valid, { endpoint: '/submit', token: 'verified', fetchImpl })
-    expect(result).toEqual({ ok: true, responseId: 'saved' })
+    expect(result).toEqual({ ok: true, responseId: 'saved', team: null })
     const [url, init] = fetchImpl.mock.calls[0]
     expect(url).toBe('/submit'); expect(init.method).toBe('POST')
     expect(init.headers.Authorization).toBe('Bearer verified')

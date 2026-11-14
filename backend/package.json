@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/utils/seed.js",
+    "migrate:team-field": "node src/utils/migrateTeamField.js",
     "test": "node --test --test-concurrency=1 tests/*.test.js tests/challenger/*.test.js",
     "test:roadmap": "node --test --test-concurrency=1 tests/roadmap/*.roadmap.test.js",
     "lint": "eslint .",

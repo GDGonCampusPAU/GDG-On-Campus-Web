@@ -270,41 +270,21 @@
         "title": "Takım durumu",
         "fields": [
           {
-            "id": "teamName",
-            "label": "Takım adı",
-            "kind": "text",
-            "required": "no",
-            "hint": "Takım arıyorsan boş bırakabilirsin.",
-            "options": []
-          },
-          {
-            "id": "teamRole",
+            "id": "team",
             "label": "Hackathon'a nasıl katılmayı düşünüyorsun?",
-            "kind": "select",
+            "kind": "team",
             "required": "yes",
-            "hint": "",
+            "hint": "Takımlar en fazla 4 kişi olabilir. Takımı kuran kişi kaptan olur; arkadaşları kaptanın paylaştığı takım koduyla katılır.",
             "options": [
               {
-                "value": "looking",
+                "value": "solo",
                 "label": "Bireysel katılacağım, ekip arıyorum"
               },
               {
-                "value": "ready",
-                "label": "Hazır bir ekibimiz var (en fazla 4 kişilik ekip olabilirsiniz)"
-              },
-              {
-                "value": "incomplete",
-                "label": "Birkaç arkadaşımla katılacağım, ekibimizi tamamlamak istiyoruz"
+                "value": "team",
+                "label": "Takımla katılacağım (en fazla 4 kişi)"
               }
             ]
-          },
-          {
-            "id": "teammates",
-            "label": "Takım arkadaşları",
-            "kind": "text",
-            "required": "no",
-            "hint": "İsimleri virgülle ayırarak yazabilirsin.",
-            "options": []
           }
         ]
       },

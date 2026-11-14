@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from './Button.jsx'
 import Field, { Hint } from './Field.jsx'
+import TeamField from './TeamField.jsx'
 import { initialValues, validateStep, normalize } from '../lib/registration.js'
 import './StepForm.css'
 
@@ -8,12 +9,26 @@ const CONFIRM = { title: 'Onay', fields: [] }
 
 const shownValue = (f, v) => {
   const label = (x) => f.options?.find((o) => o.value === x)?.label ?? x
+  if (f.kind === 'team') {
+    if (v?.mode === 'create') return `Takım kuracak: ${v.name}`
+    if (v?.mode === 'join') return `Takıma katılacak · kod ${v.code}`
+    return v?.mode === 'solo' ? 'Bireysel katılım' : ''
+  }
   if (f.kind === 'checkbox') return Array.isArray(v) ? v.map(label).join(', ') : ''
   if (f.kind === 'file') return v?.name || (typeof v === 'string' ? v : '—')
   return (f.kind === 'select' || f.kind === 'radio') ? label(v) : v
 }
 
-export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [] }) {
+/**
+ * @param {object} props
+ * @param {any[]} props.steps
+ * @param {(values: Record<string, any>) => Promise<any>} props.onSubmit
+ * @param {(result: any) => void} [props.onSuccess] Başarılı gönderimin sonucunu (ör. takım bilgisi) alır.
+ * @param {Record<string, any>} [props.initialData]
+ * @param {string[]} [props.lockedFields]
+ * @param {(code: string) => Promise<any>} [props.lookupTeam] `team` alanında kod önizlemesi için.
+ */
+export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [], lookupTeam }) {
   const steps = [...configured, CONFIRM]
   const [stepIndex, setStepIndex] = useState(0)
   const [values, setValues] = useState(() => ({ ...initialValues(configured), ...initialData }))
@@ -97,7 +112,7 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
       inFlight.current = false
       setSubmitting(false)
     }
-    if (result?.ok) onSuccess()
+    if (result?.ok) onSuccess?.(result)
     else setSubmitError(result?.error ?? 'Bir şeyler ters gitti. Tekrar dene.')
   }
 
@@ -196,6 +211,17 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
                   {errors[f.id]}
                 </p>
               </fieldset>
+            )
+          if (f.kind === 'team')
+            return (
+              <TeamField
+                key={f.id}
+                field={f}
+                value={values[f.id]}
+                error={errors[f.id]}
+                lookupTeam={lookupTeam}
+                onChange={(next) => setValues((v) => ({ ...v, [f.id]: next }))}
+              />
             )
           if (f.kind === 'file')
             return (

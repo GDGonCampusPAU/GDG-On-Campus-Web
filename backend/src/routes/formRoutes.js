@@ -10,6 +10,8 @@ const { uploadFormFiles } = require('../middleware/uploadMiddleware');
 // Public Endpoints (Anket/Form Doldurma)
 // ==========================================
 router.get('/public/:slugOrId', formController.getPublicForm);
+router.get('/public/:slugOrId/my-submission', formParticipantMiddleware, formController.getMySubmission);
+router.get('/public/:slugOrId/teams/:code', formParticipantMiddleware, formController.lookupFormTeam);
 router.post('/public/:slugOrId/submit', formParticipantMiddleware, uploadFormFiles.any(), formController.submitFormResponse);
 
 // ==========================================

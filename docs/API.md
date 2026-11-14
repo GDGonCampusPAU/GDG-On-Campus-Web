@@ -20,6 +20,8 @@ En son commit `b4fbf69` ile **Başvuru Durum İnceleme İş Akışı** (`PENDING
 
 Ekip ve hackathon OTP akışları `node:crypto` `randomInt` ve HMAC-SHA256 hash'leme uygular; tek kullanımlılık, 10 dakika süre, 5 deneme hakkı ve 60 saniye yeniden gönderme beklemesi sağlar. Kayıt `PENDING` rolü üretir; Core Team yönetici onayı gerekir. Üretimde eksik mail servisi 503/502 döner. Yeni etkinlik kayıt kanalı `POST /forms/public/hackathon-katilim/submit` olup katılımcı Bearer token ister; `{success:true,responseId}` kalıcı kayıt onayıdır.
 
+**Takım alanı (`team`):** Cevap `{mode:'solo'}`, `{mode:'create', name}` (2-40 karakter, etkinlikte büyük/küçük harf duyarsız benzersiz) veya `{mode:'join', code}` (6 harf/rakam, büyük/küçük harf fark etmez) olur. Takım kurma/katılma başvuruyla aynı transaction'da yapılır; başvuru reddedilirse takım veya üyelik oluşmaz. Takım en fazla 4 kişidir (kaptan + onaylı + bekleyen). Katılan üye `PENDING` olarak kaptan onayını bekler. Hatalar 400 ile Türkçe döner: bulunamayan kod, dolu takım, alınmış ad.
+
 `GET /forms/:id/responses`, `GET /forms/:id/responses/export`, `GET /hackathon/applications` ve `GET /hackathon/applications/export` uç noktaları `status` ve `search` ile regex/literal filtreleme yapabilir. JSON/CSV export akış (streaming) halinde üretilir. Form alanları, seçenekler ve durum/tarih aralıkları sunucuda doğrulanır. Özel eski `/uploads/:filename` linkleri yetkilendirme ister; public kapak görselleri `/uploads/public/` altındadır. Sunucu istek/hata yanıtlarında `X-Request-ID` sağlar.
 
 ---
@@ -103,7 +105,9 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 23 | GET | `/event-page/hackathon` | Public | `{data: {event, revision, formSlug, formId}}` yayınlanan sayfa |
 | 24 | PUT | `/event-page/hackathon` | Ekip | `{event, revision}`; atomik sayfa ve form yayını |
 | 25 | GET | `/forms/public/:slugOrId` | Public | Path slug veya ID; yayınlanmış form şeması |
-| 26 | POST | `/forms/public/:slugOrId/submit` | Form ayarına göre Katılımcı | Alan kimlikleriyle yanıt / dosyalar; varsayılan doğrulama zorunlu |
+| 26 | POST | `/forms/public/:slugOrId/submit` | Form ayarına göre Katılımcı | Alan kimlikleriyle yanıt / dosyalar; varsayılan doğrulama zorunlu. `team` alanı varsa yanıt `team: {name, role, status, code?}` içerir (kod yalnız kaptana) |
+| 26a | GET | `/forms/public/:slugOrId/my-submission` | Katılımcı | `{submitted, status?, submittedAt?}`; cevaplar dönmez. Kayıt sayfası daha önce başvuranı `/basvurum`'a yönlendirir |
+| 26b | GET | `/forms/public/:slugOrId/teams/:code` | Katılımcı | Takım kodu önizlemesi `{name, size, maxSize, full}`; üye e-postaları dönmez, yoksa 404 |
 | 27 | GET | `/forms` | Ekip | `page,limit,status,category,search`; form listesi |
 | 28 | POST | `/forms` | Ekip | Form şeması JSON'u |
 | 29 | GET | `/forms/:id` | Ekip | Path `id`; bütün form şeması |

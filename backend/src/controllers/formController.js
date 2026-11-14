@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const { answerError } = require('../utils/formValidation');
 const { escapeCsvCell, literalSearch } = require('../utils/query');
 const { saveSubmission } = require('../services/formSubmissionService');
+const { lookupTeam } = require('../services/teamService');
 const {
   APPLICATION_STATUSES,
   buildStatusFilter,
@@ -743,8 +744,11 @@ const submitFormResponse = async (req, res, next) => {
     // Save response
     const clientIp = req.ip || req.socket.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
+    const teamField = (form.fields || []).find(field => field.type === 'team');
+    const teamValue = teamField ? rawAnswers[teamField.fieldId] : null;
+    const teamAnswer = teamField && teamValue != null && teamValue !== '' ? { fieldId: teamField.fieldId, value: teamValue } : null;
 
-    const response = await saveSubmission(form._id, {
+    const { response, teamResult } = await saveSubmission(form._id, {
       schemaUpdatedAt,
       schemaVersion: form.updatedAt,
       participant: req.participant?._id || null,
@@ -760,13 +764,20 @@ const submitFormResponse = async (req, res, next) => {
         userAgent,
         user: req.user ? req.user._id : null
       }
-    }, req.participant);
+    }, req.participant, teamAnswer);
     req.submissionSaved = true;
 
     return res.status(201).json({
       success: true,
       message: form.settings?.successMessage || 'Form yanıtınız başarıyla kaydedildi!',
-      responseId: response._id
+      responseId: response._id,
+      // Only the captain receives the join code; a joining member gets the team name and pending status.
+      team: teamResult ? {
+        name: teamResult.team.name,
+        role: teamResult.role,
+        status: teamResult.status,
+        ...(teamResult.role === 'CAPTAIN' ? { code: teamResult.team.code } : {})
+      } : null
     });
   } catch (error) {
     next(error);
@@ -777,7 +788,55 @@ const submitFormResponse = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Tell a verified participant whether they already applied to this form
+ * @route   GET /api/v1/forms/public/:slugOrId/my-submission
+ * @access  Participant (Bearer token from email OTP / Google)
+ * Only existence, status and date are returned; answers stay staff-only.
+ */
+const getMySubmission = async (req, res, next) => {
+  try {
+    if (!req.participant) {
+      return res.status(401).json({ success: false, message: 'Başvurunu görmek için e-posta adresini doğrula.' });
+    }
+    const response = await FormResponse.findOne({
+      form: req.submissionForm._id,
+      $or: [{ participant: req.participant._id }, { verifiedEmail: req.participant.email }]
+    }).sort({ submittedAt: -1 }).select('status submittedAt').lean();
+
+    return res.status(200).json({
+      success: true,
+      data: response
+        ? { submitted: true, status: response.status || 'PENDING', submittedAt: response.submittedAt }
+        : { submitted: false }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Preview the team behind a join code while filling the form
+ * @route   GET /api/v1/forms/public/:slugOrId/teams/:code
+ * @access  Participant (Bearer token)
+ * Returns only name and size; members' identities are never exposed.
+ */
+const lookupFormTeam = async (req, res, next) => {
+  try {
+    if (!req.participant) {
+      return res.status(401).json({ success: false, message: 'Takım kodunu denemek için e-posta adresini doğrula.' });
+    }
+    const team = await lookupTeam({ form: req.submissionForm, code: req.params.code });
+    if (!team) return res.status(404).json({ success: false, message: 'Bu kodla bir takım bulunamadı. Kodu kaptanından kontrol et.' });
+    return res.status(200).json({ success: true, data: team });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  lookupFormTeam,
+  getMySubmission,
   createForm,
   getAllForms,
   getFormById,

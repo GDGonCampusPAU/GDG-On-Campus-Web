@@ -12,7 +12,7 @@ export const choices = {
   tier: ['main', 'support'],
   type: Object.keys(typeLabels),
   status: ['open', 'closed'],
-  kind: ['text', 'textarea', 'email', 'tel', 'select', 'checkbox', 'file', 'number', 'radio', 'date'],
+  kind: ['text', 'textarea', 'email', 'tel', 'select', 'checkbox', 'file', 'number', 'radio', 'date', 'team'],
   required: ['yes', 'no'],
 }
 
@@ -51,7 +51,9 @@ function formUsable(steps) {
     const needsOptions = f.kind === 'select' || f.kind === 'checkbox' || f.kind === 'radio'
     return (!needsOptions || values.length > 0) && values.length <= 100 && values.every(value => typeof value === 'string' && value.length > 0) && new Set(values).size === values.length && f.options.every((o) => typeof o.label === 'string')
   }
-  return ids.length > 0 && ids.length <= 100 && ids.every(id => /^[a-zA-Z][a-zA-Z0-9_]{0,99}$/.test(id)) && new Set(ids).size === ids.length && fields.every(optionsOk)
+  // Takım alanı tek bir takım kaydı üretir; bir formda en fazla bir tane olabilir.
+  const teamFields = fields.filter((f) => f.kind === 'team').length
+  return ids.length > 0 && ids.length <= 100 && ids.every(id => /^[a-zA-Z][a-zA-Z0-9_]{0,99}$/.test(id)) && new Set(ids).size === ids.length && fields.every(optionsOk) && teamFields <= 1
 }
 
 function namesNonEmpty(value) {

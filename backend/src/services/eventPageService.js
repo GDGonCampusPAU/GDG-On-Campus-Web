@@ -23,6 +23,7 @@ const savePage = async (event, revision, userId) => {
   const { isEventShape } = await import('../../../shared/eventContent.mjs');
   if (!isEventShape(base, event)) throw Object.assign(new Error('Etkinlik verisi geçersiz.'), { status: 400 });
   if (!Number.isInteger(revision) || revision < 1) throw Object.assign(new Error('Yayın sürümü gerekli.'), { status: 400 });
+  /** @type {import('mongoose').HydratedDocument<any> | null | undefined} */
   let page;
   await mongoose.connection.transaction(async session => {
     page = await EventPage.findOneAndUpdate({ _id: 'hackathon', revision }, {

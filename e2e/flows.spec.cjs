@@ -19,7 +19,11 @@ test('verified website submission appears in staff panel and downloaded CSV', as
   for (const step of event.register.steps) {
     for (const field of step.fields) {
       if (field.kind === 'email') continue;
-      if (field.kind === 'checkbox') await page.getByLabel(field.options[0].label, { exact: true }).check();
+      if (field.kind === 'team') {
+        await page.getByRole('radio', { name: field.options[1].label }).check();
+        await page.getByRole('radio', { name: 'Takım oluştur' }).check();
+        await page.getByLabel('Takım adı', { exact: true }).fill('Tarayıcı Takımı');
+      } else if (field.kind === 'checkbox') await page.getByLabel(field.options[0].label, { exact: true }).check();
       else if (field.kind === 'select') await page.getByLabel(field.label, { exact: true }).selectOption(field.options[0].value);
       else await page.getByLabel(field.label, { exact: true }).fill(field.kind === 'tel' ? '+905551112233' : 'Browser Participant');
     }
@@ -27,6 +31,8 @@ test('verified website submission appears in staff panel and downloaded CSV', as
   }
   await page.getByRole('button', { name: 'Gönder', exact: true }).click();
   await expect(page.getByRole('heading', { name: event.register.successTitle })).toBeVisible();
+  await expect(page.locator('.team-result__code')).toHaveText(/^[A-Z0-9]{6}$/);
+  await expect(page.getByRole('button', { name: 'Başvuru kontrol sayfama aktar' })).toBeVisible();
   expect((await (await request.get(`${api}/__test__/state`)).json()).responses).toBe(1);
   await login(page);
   await expect(page.getByRole('link', { name: 'browser@example.com' })).toBeVisible();
@@ -41,6 +47,7 @@ test('verified website submission appears in staff panel and downloaded CSV', as
   expect(csv).toContain('browser@example.com');
   expect(csv).toContain('APPROVED');
   expect(csv).toContain('E2E Onaylandı');
+  expect(csv).toContain('Takım kurdu: Tarayıcı Takımı');
 });
 test('team account needs ADMIN approval before it can log in', async ({ page, request }) => {
   await page.goto('http://127.0.0.1:4174/register');

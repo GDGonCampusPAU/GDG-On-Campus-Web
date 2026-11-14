@@ -40,16 +40,21 @@ test('published registration schema accepts verified submissions visible in staf
   assert.equal(verified.status, 200);
   const values = {};
   for (const field of page.event.register.steps.flatMap(step => step.fields)) {
-    values[field.id] = field.kind === 'email' ? 'participant@example.com' : field.kind === 'tel' ? '+905551112233' : field.kind === 'select' ? field.options[0].value : field.kind === 'checkbox' ? [field.options[0].value] : 'Participant Test';
+    values[field.id] = field.kind === 'email' ? 'participant@example.com' : field.kind === 'tel' ? '+905551112233' : field.kind === 'select' ? field.options[0].value : field.kind === 'checkbox' ? [field.options[0].value]
+      : field.kind === 'team' ? { mode: 'create', name: 'Participant Test Takımı' } : 'Participant Test';
   }
   const submitted = await request(app).post(`/api/v1/forms/public/${page.formSlug}/submit`)
     .set('Authorization', `Bearer ${verified.body.token}`).send(values);
   assert.equal(submitted.status, 201, JSON.stringify(submitted.body));
+  // The published template's team field creates a team and hands the code to its captain.
+  assert.equal(submitted.body.team.role, 'CAPTAIN');
+  assert.match(submitted.body.team.code, /^[A-Z0-9]{6}$/);
   const list = await request(app).get(`/api/v1/forms/${page.formId}/responses?search=Participant%20Test`).set('Authorization', `Bearer ${staffToken}`);
   assert.equal(list.status, 200); assert.equal(list.body.data.length, 1);
   assert.equal(list.body.data[0]._id, submitted.body.responseId);
   const csv = await request(app).get(`/api/v1/forms/${page.formId}/responses/export`).set('Authorization', `Bearer ${staffToken}`);
   assert.match(csv.text, /participant@example.com/);
+  assert.match(csv.text, /Takım kurdu: Participant Test Takımı/);
   const repeated = await request(app).post(`/api/v1/forms/public/${page.formSlug}/submit`).set('Authorization', `Bearer ${verified.body.token}`).send(values);
   assert.equal(repeated.status, 409);
   await ensureHackathonPage();
