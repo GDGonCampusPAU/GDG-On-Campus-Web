@@ -1,10 +1,6 @@
-/* İlerleme çubuğu formdan geniş olabilir; form alanları okunur genişlikte kalır. */
+/* Genişlik ve ortalama sayfadan gelir (Register.css: .register > *). */
 .step-form {
-  max-width: 720px;
-}
-
-.step-form > :not(.step-form__progress) {
-  max-width: 560px;
+  max-width: 760px;
 }
 
 .step-form__progress {

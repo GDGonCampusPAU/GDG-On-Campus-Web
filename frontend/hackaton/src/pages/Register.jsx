@@ -45,7 +45,7 @@ export default function Register({ data: dataProp }) {
         <ParticipantVerification slug={formSlug} onVerified={setIdentity} />
       ) : (
         <>
-          <p>Doğrulanan adres: {identity.participant.email}</p>
+          <p className="register__identity">Doğrulanan adres: <strong>{identity.participant.email}</strong></p>
           <StepForm steps={register.steps} initialData={{ ...draftValues, email: identity.participant.email }} lockedFields={['email']}
             onSubmit={async values => {
               setDraftValues(values)

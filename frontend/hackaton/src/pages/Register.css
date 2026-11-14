@@ -1,6 +1,19 @@
 .register {
+  --register-width: 760px;
   padding: 48px 0 0;
 }
+
+/* Kayıt içeriği ortalanmış tek sütunda; form alanları sütunun tamamını kullanır. */
+.register > * {
+  width: 100%;
+  max-width: var(--register-width);
+  margin-inline: auto;
+}
+
+.register__identity {
+  text-align: center;
+}
+
 .participant-verification { max-width: 560px; }
 .participant-verification form { display: grid; gap: 12px; margin-top: 20px; }
 .participant-verification input { padding: 12px; border: 1px solid currentColor; border-radius: 8px; font: inherit; }
@@ -8,13 +21,15 @@
 
 .register__title {
   margin-bottom: 32px;
+  text-align: center;
   font-size: clamp(2.25rem, 8vw, 4rem);
 }
 
 .register__success {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   gap: 16px;
   max-width: 560px;
 }
