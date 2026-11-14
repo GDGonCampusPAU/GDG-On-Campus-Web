@@ -22,6 +22,7 @@ describe('App rotaları', () => {
   it('bilinmeyen rota 404 sayfası gösterir', () => {
     renderAt('/yok-boyle-bir-sayfa')
     expect(screen.getByRole('heading', { level: 1, name: 'Sayfa bulunamadı' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ana sayfaya dön' })).toHaveAttribute('href', '/')
+    expect(screen.getByText('Kaybolmuş görünüyorsun. Seni geri götürmemi ister misin?')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Evet' })).toBeInTheDocument()
   })
 })
