@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
+import { render } from '../src/test/render.jsx'
 import { beforeEach, expect, test, vi } from 'vitest'
 import Applications from '../src/pages/Applications.jsx'
 import Users from '../src/pages/Users.jsx'
