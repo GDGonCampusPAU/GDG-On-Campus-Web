@@ -1,12 +1,12 @@
 # Hackathon etkinlik sitesi
 
-Eski `web/` uygulaması bu dizine taşındı. Node 24, React 18 ve Vite kullanır. Kökten `npm run dev:hackaton` veya bu dizinde `npm run dev` ile http://localhost:5173 adresinde çalışır. Panel http://localhost:5174, API http://localhost:5000 adresindedir.
+Eski `web/` uygulaması bu dizine taşındı. Node 24, React 19 ve Vite kullanır. Kökten `npm run dev:hackaton` veya bu dizinde `npm run dev` ile http://localhost:5173 adresinde çalışır. Panel http://localhost:5174, API http://localhost:5000 adresindedir.
 
 Windows PowerShell'de `npm.ps1` engeline (`PSSecurityException`) takılmamak için komutları `npm.cmd` / `npx.cmd` ile çalıştırın (örn. `npm.cmd test`); ayrıntı: [KURULUM.md](../../docs/KURULUM.md).
 
 İlk kurulumda `.env.example` değerlerini yerel `.env` dosyasına alın. `VITE_API_URL` API köküdür; üretimde aynı origin proxy'si yoksa build sırasında açıkça tanımlanmalıdır. `VITE_GOOGLE_CLIENT_ID` backend `GOOGLE_CLIENT_ID` ile eşleşir; Google Console authorized JavaScript origins ayrıca ayarlanır. E-posta OTP, Google ayarı olmadan kullanılabilir. Google entegrasyonu [resmi JavaScript referansındaki](https://developers.google.com/identity/gsi/web/reference/js-reference) `initialize` ve `renderButton` akışını kullanır.
 
-Site içerikleri `/api/v1/event-page/hackathon` üzerinden yüklenir. İlk kurulum şablonu `shared/hackathon-event.json` dosyasıdır. Sunucu mevcut yayın varsa şablonla üzerine yazmaz. API kapalıysa site üstte uyarı şeridi gösterir ve `shared/hackathon-event.json` yedek içeriğiyle açılır.
+Site içerikleri `/api/v1/event-page/hackathon` üzerinden yüklenir. İlk kurulum şablonu `shared/hackathon-event.json` dosyasıdır. Sunucu mevcut yayın varsa şablonla üzerine yazmaz. Etkinlik verisi `src/context/EventContext.jsx` (`EventProvider`/`useEvent`) ile React state'inde tutulur; `/admin` yayınından sonra açık sayfalar dahil site yenilemeden güncellenir. API kapalıysa site üstte uyarı şeridi gösterir ve `shared/hackathon-event.json` yedek içeriğiyle açılır.
 
 `/kayit` katılımcı e-posta/Google doğrulamasından sonra formu açar. E-posta alanı doğrulanmış adresten doldurulur. Başvuru `hackathon-katilim` formuna Bearer token ile gider; başarı için API kayıt kimliği beklenir. Adres/token olmadan geliştirmede de sahte başarı gösterilmez. Oturum süresi dolarsa yeniden doğrulama istenir; girilmiş form değerleri bellekte korunur.
 
