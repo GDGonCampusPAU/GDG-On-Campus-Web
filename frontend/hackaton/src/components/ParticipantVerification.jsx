@@ -104,12 +104,26 @@ function GoogleVerification({ onCredential, onError }) {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
     if (!clientId) return
     let active = true
+    // GSI düğmesi sabit piksel genişlikte çizilir (en fazla 400px); alan daralınca/genişleyince
+    // (telefon döndürme, pencere boyutu) yeniden çizilmezse kartın dışına taşar.
+    let renderedWidth = 0
+    let resizeTimer
+    const render = () => {
+      const element = container.current
+      if (!active || !element) return
+      const width = Math.min(400, Math.max(200, Math.floor(element.clientWidth || 320)))
+      if (width === renderedWidth) return
+      renderedWidth = width
+      element.replaceChildren()
+      window.google.accounts.id.renderButton(element, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width })
+    }
+    const observer = typeof ResizeObserver === 'undefined' ? null
+      : new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150) })
     const initialize = () => {
       if (!active) return
       window.google.accounts.id.initialize({ client_id: clientId, callback: result => callbacks.current.onCredential(result.credential) })
-      // GSI en fazla 400px genişlik kabul eder; kartın içini doldursun.
-      const width = Math.min(400, Math.max(200, Math.round(container.current?.offsetWidth || 320)))
-      window.google.accounts.id.renderButton(container.current, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width })
+      render()
+      if (container.current) observer?.observe(container.current)
     }
     /** @type {HTMLScriptElement | null} */
     let script = document.querySelector('script[data-google-identity]')
@@ -120,7 +134,7 @@ function GoogleVerification({ onCredential, onError }) {
     }
     const failed = () => callbacks.current.onError('Google doğrulaması yüklenemedi. Lütfen tekrar deneyin.')
     script?.addEventListener('error', failed)
-    return () => { active = false; script?.removeEventListener('load', initialize); script?.removeEventListener('error', failed) }
+    return () => { active = false; clearTimeout(resizeTimer); observer?.disconnect(); script?.removeEventListener('load', initialize); script?.removeEventListener('error', failed) }
   }, [])
   return import.meta.env.VITE_GOOGLE_CLIENT_ID ? <div className="verify__google" ref={container} /> : null
 }
