@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/eventApi.js'
+import Button from './Button.jsx'
+import './ParticipantVerification.css'
 import { loadIdentity, saveIdentity } from '../lib/registrationCache.js'
 
 export default function ParticipantVerification({ slug, onVerified }) {
@@ -47,24 +49,49 @@ export default function ParticipantVerification({ slug, onVerified }) {
       onVerified({ ...identity, formVersion: form.schemaVersion })
     })
   }
-  if (!form) return <section><p role={error ? 'alert' : 'status'}>{error || 'Başvuru formu yükleniyor…'}</p>{error && <button onClick={() => { setError(''); setRetry(value => value + 1) }}>Tekrar dene</button>}</section>
+  if (!form) return (
+    <section className="verify verify--loading">
+      <p role={error ? 'alert' : 'status'} className={error ? 'verify__alert' : 'verify__status'}>{error || 'Başvuru formu yükleniyor…'}</p>
+      {error && <Button variant="ghost" onClick={() => { setError(''); setRetry(value => value + 1) }}>Tekrar dene</Button>}
+    </section>
+  )
   const methods = form.settings?.verificationMethods || []
+  const hasEmail = methods.includes('EMAIL_OTP')
+  const hasGoogle = methods.includes('GOOGLE') && Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)
   return (
-    <section className="participant-verification">
-      <h2>E-posta adresini doğrula</h2>
-      <p>Başvurmadan önce e-posta adresinin sana ait olduğunu doğrula.</p>
-      {error && <p role="alert">{error}</p>}
-      {methods.includes('EMAIL_OTP') && (
-        <form onSubmit={sent ? verify : send}>
-          <label htmlFor="participant-email">Doğrulama e-postası</label>
-          <input id="participant-email" type="email" autoComplete="email" required value={email} disabled={busy || sent} onChange={event => setEmail(event.target.value)} />
-          {sent && <><label htmlFor="participant-code">Doğrulama kodu</label><input id="participant-code" inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6} value={code} disabled={busy} onChange={event => setCode(event.target.value.replace(/\D/g, ''))} /></>}
-          <button type="submit" disabled={busy}>{busy ? 'Bekleyin…' : sent ? 'Doğrula ve devam et' : 'Kod gönder'}</button>
-          {sent && <><button type="button" onClick={send} disabled={busy || cooldown > 0}>{cooldown > 0 ? `Tekrar gönder (${cooldown} sn)` : 'Tekrar gönder'}</button><button type="button" disabled={busy} onClick={() => { setSent(false); setCode(''); setError('') }}>E-postayı değiştir</button></>}
+    <section className="verify" aria-labelledby="verify-title">
+      <div className="verify__shapes" aria-hidden="true">
+        <i className="tone--blue" /><i className="tone--red" /><i className="tone--yellow" /><i className="tone--green" />
+      </div>
+      <p className="verify__eyebrow">Başvurudan önce</p>
+      <h2 id="verify-title" className="verify__title">E-posta adresini doğrula</h2>
+      <p className="verify__lead">Başvurmadan önce e-posta adresinin sana ait olduğunu doğrula.</p>
+      {error && <p role="alert" className="verify__alert">{error}</p>}
+      {hasGoogle && <GoogleVerification onCredential={credential => perform(async () => onVerified({ ...await api('/participant-auth/google', { method: 'POST', body: { idToken: credential } }), formVersion: form.schemaVersion }))} onError={setError} />}
+      {hasGoogle && hasEmail && <p className="verify__divider"><span>veya e-posta ile</span></p>}
+      {hasEmail && (
+        <form className="verify__form" onSubmit={sent ? verify : send}>
+          <div className="field">
+            <label htmlFor="participant-email">Doğrulama e-postası</label>
+            <input id="participant-email" type="email" autoComplete="email" placeholder="ornek@mail.com" required value={email} disabled={busy || sent} onChange={event => setEmail(event.target.value)} />
+          </div>
+          {sent && (
+            <div className="field">
+              <label htmlFor="participant-code">Doğrulama kodu</label>
+              <input id="participant-code" className="verify__code" type="text" inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9]{6}" maxLength={6} placeholder="••••••" value={code} disabled={busy} onChange={event => setCode(event.target.value.replace(/\D/g, ''))} />
+              <p className="field__hint">6 haneli kodu <strong>{email.trim()}</strong> adresine gönderdik. Gelen kutunda yoksa spam klasörüne de bak.</p>
+            </div>
+          )}
+          <Button type="submit" className="btn btn--primary verify__submit" disabled={busy}>{busy ? 'Bekleyin…' : sent ? 'Doğrula ve devam et' : 'Kod gönder'}</Button>
+          {sent && (
+            <div className="verify__secondary">
+              <Button variant="ghost" size="sm" onClick={send} disabled={busy || cooldown > 0}>{cooldown > 0 ? `Tekrar gönder (${cooldown} sn)` : 'Tekrar gönder'}</Button>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setSent(false); setCode(''); setError('') }}>E-postayı değiştir</Button>
+            </div>
+          )}
         </form>
       )}
-      {!methods.includes('EMAIL_OTP') && !import.meta.env.VITE_GOOGLE_CLIENT_ID && <p role="alert">Google doğrulaması bu ortamda yapılandırılmamış.</p>}
-      {methods.includes('GOOGLE') && <GoogleVerification onCredential={credential => perform(async () => onVerified({ ...await api('/participant-auth/google', { method: 'POST', body: { idToken: credential } }), formVersion: form.schemaVersion }))} onError={setError} />}
+      {!hasEmail && !hasGoogle && <p role="alert" className="verify__alert">Google doğrulaması bu ortamda yapılandırılmamış.</p>}
     </section>
   )
 }
@@ -80,7 +107,9 @@ function GoogleVerification({ onCredential, onError }) {
     const initialize = () => {
       if (!active) return
       window.google.accounts.id.initialize({ client_id: clientId, callback: result => callbacks.current.onCredential(result.credential) })
-      window.google.accounts.id.renderButton(container.current, { theme: 'outline', size: 'large', text: 'continue_with' })
+      // GSI en fazla 400px genişlik kabul eder; kartın içini doldursun.
+      const width = Math.min(400, Math.max(200, Math.round(container.current?.offsetWidth || 320)))
+      window.google.accounts.id.renderButton(container.current, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width })
     }
     /** @type {HTMLScriptElement | null} */
     let script = document.querySelector('script[data-google-identity]')
@@ -93,5 +122,5 @@ function GoogleVerification({ onCredential, onError }) {
     script?.addEventListener('error', failed)
     return () => { active = false; script?.removeEventListener('load', initialize); script?.removeEventListener('error', failed) }
   }, [])
-  return import.meta.env.VITE_GOOGLE_CLIENT_ID ? <div ref={container} /> : null
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID ? <div className="verify__google" ref={container} /> : null
 }
