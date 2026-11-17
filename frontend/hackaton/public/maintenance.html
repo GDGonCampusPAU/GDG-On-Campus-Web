@@ -532,7 +532,11 @@
     })()
 
     // While maintenance is on every server answers 503; reload once the real site is back.
-    setInterval(function () {
+    // Checked every 5 s and right away when the tab comes back; hidden tabs do not poll.
+    var checking = false
+    function checkBack() {
+      if (checking || document.visibilityState !== 'visible') return
+      checking = true
       fetch('/', { method: 'HEAD', cache: 'no-store' })
         .then(function (response) {
           if (!response.ok) return
@@ -540,7 +544,10 @@
           else location.reload()
         })
         .catch(function () { /* nothing is listening right now; keep waiting */ })
-    }, 15000)
+        .then(function () { checking = false })
+    }
+    setInterval(checkBack, 5000)
+    document.addEventListener('visibilitychange', checkBack)
   </script>
 </body>
 </html>

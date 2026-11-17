@@ -4,6 +4,7 @@ import { useEvent } from '../context/EventContext.jsx'
 import Navbar from './Navbar.jsx'
 import Footer from './Footer.jsx'
 import StickyCta from './StickyCta.jsx'
+import { useMaintenanceWatch } from '../hooks/useMaintenanceWatch.js'
 import './Layout.css'
 
 const PAGE_TITLES = { '/': null, '/kayit': 'Kayıt', '/basvurum': 'Başvurum', '/program': 'Program', '/ekip': 'Ekip' }
@@ -11,6 +12,8 @@ const PAGE_TITLES = { '/': null, '/kayit': 'Kayıt', '/basvurum': 'Başvurum', '
 export default function Layout() {
   const { event } = useEvent()
   const { pathname } = useLocation()
+  // Yalnız katılımcı sayfalarında: /admin editörü Layout dışındadır, bakım açılınca yarım düzenleme yenilenip kaybolmaz.
+  useMaintenanceWatch()
   // '/kayit/' de aynı rotaya eşleşir; sondaki eğik çizgiyi atıp tek biçime indir.
   const path = pathname.replace(/\/+$/, '') || '/'
   // Sabit "Kayıt Ol" çubuğu yalnızca içerik sayfalarında; ana sayfa, kayıt, başvurum ve 404'te gereksiz.
