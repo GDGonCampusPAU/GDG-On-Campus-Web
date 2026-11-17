@@ -130,7 +130,7 @@ export function useScrollProgress(ref, enabled, pageRef) {
       const y = -el.getBoundingClientRect().top
       const { p, z, c } = immersiveProgress(y, OPEN_DIST * window.innerHeight, zoomDist, scrollLen)
       el.style.setProperty('--z', z.toFixed(3))
-      // calc() içinde var() ile overflow-clip-margin Chrome'da 0'a düşer; değer doğrudan yazılır.
+      // Ekranın kırpma payı (LaptopHero.css .laptop__display clip-path); dikey pencerede sayfa bu kadar dışarı taşar.
       el.style.setProperty('--clip', `${(z * stripe).toFixed(1)}px`)
       const zoomed = String(z >= 1)
       if (el.dataset.zoomed !== zoomed) el.dataset.zoomed = zoomed

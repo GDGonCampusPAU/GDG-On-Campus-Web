@@ -343,11 +343,12 @@
 
 /* Sayfa ekranın içinde: --c kadar yukarı kayar. Tarayıcı kaydırması yok, taşan kısım kırpılır.
    Dikey pencerede ekran alandan kısadır. Sayfa --clip kadar dışarı taşar, yaklaşma bitince koyu şerit kalmaz.
-   Yaklaşma sonunda ekran pencerenin kendisidir: yuvarlak köşe söner. */
+   Yaklaşma sonunda ekran pencerenin kendisidir: yuvarlak köşe söner.
+   Kırpma clip-path ile: negatif inset kırpma alanını kutunun dışına genişletir. overflow-clip-margin Safari/iOS'ta
+   (iPhone'daki Chrome dahil, hepsi WebKit) desteklenmez; onunla sayfa ekran dikdörtgeninde kesilip koyu şeritler kalıyordu. */
 .laptop__display {
   height: 100%;
-  overflow: clip;
-  overflow-clip-margin: var(--clip, 0px);
+  clip-path: inset(calc(var(--clip, 0px) * -1) round calc(0.8cqw * (1 - var(--z))));
   border-radius: calc(0.8cqw * (1 - var(--z)));
   background: var(--screen);
   box-shadow: inset 0 0 8cqw rgb(66 133 244 / calc(var(--on) * 0.2));
