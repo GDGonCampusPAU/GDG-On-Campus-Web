@@ -183,10 +183,10 @@ Proje iki katmanlı test mimarisiyle %100 oranında doğrulanmıştır:
    - Nginx `/api/` (`/api/v1`), `/uploads/`, `/health` ve `/ready` isteklerini `backend:5000` servisine yönlendirir (`TRUST_PROXY_HOPS=1`).
 
 3. **Otomatik Deploy (GitHub Actions → sunucu):**
-   - Sunucuda proje `/root/gdg-web` dizinindedir. `dev` dalına her push'ta `Checks` iş akışındaki `deploy` job'u, kontroller geçerse sunucuya SSH ile bağlanıp [`scripts/deploy.sh`](../scripts/deploy.sh)'ı çalıştırır: dal çekilir (`git reset --hard origin/<dal>`), imajlar eski sürüm yayındayken derlenir, ardından site **otomatik bakım moduna** alınır (`.maintenance/active.json`, panelden açılan bayrakla aynı), konteynerler `up -d --wait` ile değiştirilir ve sağlık kontrolleri geçince bakım modu kapanır. Bakım modu deploy öncesinde panelden elle açılmışsa açık bırakılır; başlatma başarısız olursa site bakım modunda kalır. Eski imajlar silinir. `.env` dosyaları ve `backend/uploads` git dışında olduğu için korunur.
+   - Sunucuda proje `/root/gdg-web` dizinindedir ve **`main`** dalını takip eder. `main`'e her push'ta (onaylı PR merge'ü) `Checks` iş akışındaki `deploy` job'u, kontroller geçerse sunucuya SSH ile bağlanıp [`scripts/deploy.sh`](../scripts/deploy.sh)'ı çalıştırır. `dev`'e push deploy etmez. Script dalı çeker (`git reset --hard origin/<dal>`), imajlar eski sürüm yayındayken derlenir, ardından site **otomatik bakım moduna** alınır (`.maintenance/active.json`, panelden açılan bayrakla aynı), konteynerler `up -d --wait` ile değiştirilir ve sağlık kontrolleri geçince bakım modu kapanır. Bakım modu deploy öncesinde panelden elle açılmışsa açık bırakılır; başlatma başarısız olursa site bakım modunda kalır. Eski imajlar silinir. `.env` dosyaları ve `backend/uploads` git dışında olduğu için korunur.
    - Deploy anahtarı sunucuda `authorized_keys` içinde `command="/root/gdg-web/scripts/deploy.sh",restrict` ile kilitlidir; bu anahtar yalnız deploy tetikleyebilir. GitHub secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_KNOWN_HOSTS`.
-   - Sunucu yalnız kök `.env` içindeki `DEPLOY_BRANCH` dalını kabul eder. `main`'e geçmek için: [`check.yml`](../.github/workflows/check.yml) içinde `DEPLOY_BRANCH` ve `deploy` job'unun `if` koşulundaki `'dev'` → `main`, sunucuda `/root/gdg-web/.env` içinde `DEPLOY_BRANCH=main`.
-   - Elle deploy (sunucuda): `/root/gdg-web/scripts/deploy.sh dev`.
+   - Sunucu yalnız kök `.env` içindeki `DEPLOY_BRANCH` dalını kabul eder (şu an `main`; 17 Kasım 2026'da `dev`'den geçildi). Dalı değiştirmek için: [`check.yml`](../.github/workflows/check.yml) içinde `DEPLOY_BRANCH` ve `deploy` job'unun `if` koşulundaki dal adı, sunucuda `/root/gdg-web/.env` içinde `DEPLOY_BRANCH`.
+   - Elle deploy (sunucuda): `/root/gdg-web/scripts/deploy.sh main`.
 
 ---
 
