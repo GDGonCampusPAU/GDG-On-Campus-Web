@@ -20,8 +20,7 @@ test('verified website submission appears in staff panel and downloaded CSV', as
     for (const field of step.fields) {
       if (field.kind === 'email') continue;
       if (field.kind === 'team') {
-        await page.getByRole('radio', { name: field.options[1].label }).check();
-        await page.getByRole('radio', { name: 'Takım oluştur' }).check();
+        await page.getByRole('radio', { name: field.options.find(o => o.value === 'create').label }).check();
         await page.getByLabel('Takım adı', { exact: true }).fill('Tarayıcı Takımı');
       } else if (field.kind === 'checkbox') await page.getByLabel(field.options[0].label, { exact: true }).check();
       else if (field.kind === 'select') await page.getByLabel(field.label, { exact: true }).selectOption(field.options[0].value);

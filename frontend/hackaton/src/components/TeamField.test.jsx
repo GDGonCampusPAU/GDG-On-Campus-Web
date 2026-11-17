@@ -11,8 +11,8 @@ const teamField = {
   required: 'yes',
   hint: 'Takımlar en fazla 4 kişi.',
   options: [
-    { value: 'solo', label: 'Bireysel katılacağım, ekip arıyorum' },
-    { value: 'team', label: 'Takımla katılacağım (en fazla 4 kişi)' },
+    { value: 'create', label: 'Takım kur' },
+    { value: 'join', label: 'Takıma katıl' },
   ],
 }
 const steps = [{ title: 'Takım durumu', fields: [teamField] }]
@@ -26,36 +26,38 @@ const next = (user) => user.click(screen.getByRole('button', { name: 'İleri' })
 const send = (user) => user.click(screen.getByRole('button', { name: 'Gönder' }))
 
 describe('Takım alanı', () => {
-  it('seçim yapılmadan ilerlemez; admin metinlerini kullanır', async () => {
+  it('bireysel seçenek yoktur; doğrudan kur / katıl sorulur, seçmeden ilerlenemez', async () => {
     const { user } = setup()
-    expect(screen.getByRole('radio', { name: 'Bireysel katılacağım, ekip arıyorum' })).toBeInTheDocument()
+    expect(screen.getAllByRole('radio').map((r) => r.closest('label').textContent)).toEqual(['Takım kur', 'Takıma katıl'])
+    expect(screen.queryByText(/Bireysel/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Takım adı')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Takım kodu')).not.toBeInTheDocument()
     await next(user)
-    expect(screen.getByText('Bir seçenek seç.')).toBeInTheDocument()
-    expect(screen.queryByText('Takım oluştur')).not.toBeInTheDocument()
+    expect(screen.getByText('Takım kur ya da bir takıma katıl.')).toBeInTheDocument()
   })
 
-  it('bireysel katılım özetlenir ve { mode: "solo" } gönderilir', async () => {
-    const { user, onSubmit } = setup()
-    await user.click(screen.getByRole('radio', { name: /Bireysel/ }))
-    await next(user)
-    expect(screen.getByText('Bireysel katılım')).toBeInTheDocument()
-    await send(user)
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ team: { mode: 'solo' } }))
+  it('admin metinlerini kullanır; seçenekleri olmayan (eski) alanda varsayılan metinler çıkar', () => {
+    const custom = { ...teamField, options: [{ value: 'create', label: 'Yeni takım aç' }, { value: 'join', label: 'Koda katıl' }] }
+    const { unmount } = render(<StepForm steps={[{ title: 'T', fields: [custom] }]} onSubmit={vi.fn()} />)
+    expect(screen.getByRole('radio', { name: 'Yeni takım aç' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Koda katıl' })).toBeInTheDocument()
+    unmount()
+    const legacy = { ...teamField, options: [{ value: 'solo', label: 'Bireysel' }, { value: 'team', label: 'Takımla' }] }
+    render(<StepForm steps={[{ title: 'T', fields: [legacy] }]} onSubmit={vi.fn()} />)
+    expect(screen.getAllByRole('radio').map((r) => r.closest('label').textContent)).toEqual(['Takım kur', 'Takıma katıl'])
   })
 
-  it('takımla seçilince oluştur/katıl sorulur; seçmeden ilerlenemez', async () => {
-    const { user } = setup()
-    await user.click(screen.getByRole('radio', { name: /Takımla katılacağım/ }))
-    expect(screen.getByRole('radio', { name: 'Takım oluştur' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Takıma katıl' })).toBeInTheDocument()
+  it('eski taslaktaki bireysel seçim seçilmemiş sayılır, gönderilemez', async () => {
+    const user = userEvent.setup()
+    render(<StepForm steps={steps} onSubmit={vi.fn()} initialData={{ team: { mode: 'solo' } }} />)
+    expect(screen.getAllByRole('radio').every((r) => !r.checked)).toBe(true)
     await next(user)
-    expect(screen.getByText(/oluşturmak mı yoksa bir takıma katılmak mı/)).toBeInTheDocument()
+    expect(screen.getByText('Takım kur ya da bir takıma katıl.')).toBeInTheDocument()
   })
 
   it('takım oluşturmada ad istenir, kısa ad reddedilir, ad sadeleştirilerek gönderilir', async () => {
     const { user, onSubmit } = setup()
-    await user.click(screen.getByRole('radio', { name: /Takımla katılacağım/ }))
-    await user.click(screen.getByRole('radio', { name: 'Takım oluştur' }))
+    await user.click(screen.getByRole('radio', { name: 'Takım kur' }))
     await user.type(screen.getByLabelText('Takım adı'), 'K')
     await next(user)
     expect(screen.getByText('Takım adı 2-40 karakter olmalı.')).toBeInTheDocument()
@@ -69,7 +71,6 @@ describe('Takım alanı', () => {
   it('takıma katılmada kod büyük harfe çevrilir, takım önizlenir ve kod gönderilir', async () => {
     const lookupTeam = vi.fn().mockResolvedValue({ name: 'Yıldızlar', size: 2, maxSize: 4, full: false })
     const { user, onSubmit } = setup({ lookupTeam })
-    await user.click(screen.getByRole('radio', { name: /Takımla katılacağım/ }))
     await user.click(screen.getByRole('radio', { name: 'Takıma katıl' }))
     const input = screen.getByLabelText('Takım kodu')
     await user.type(input, 'ab-12 cd9')
@@ -88,7 +89,6 @@ describe('Takım alanı', () => {
       throw Object.assign(new Error('yok'), { status: 404 })
     })
     const { user } = setup({ lookupTeam })
-    await user.click(screen.getByRole('radio', { name: /Takımla katılacağım/ }))
     await user.click(screen.getByRole('radio', { name: 'Takıma katıl' }))
     const input = screen.getByLabelText('Takım kodu')
     await user.type(input, 'AB1')
@@ -106,7 +106,8 @@ describe('Takım alanı', () => {
     const v = (team) => normalize(steps, { team }).team
     expect(v({ mode: 'create', name: '  A  B ', code: 'XX' })).toEqual({ mode: 'create', name: 'A B' })
     expect(v({ mode: 'join', code: ' ab12cd ', name: 'eski' })).toEqual({ mode: 'join', code: 'AB12CD' })
-    expect(v({ mode: 'solo', name: 'x' })).toEqual({ mode: 'solo' })
+    expect(v({ mode: 'solo', name: 'x' })).toEqual({ mode: '' })
+    expect(v({ mode: 'team' })).toEqual({ mode: '' })
     expect(v(undefined)).toEqual({ mode: '' })
     expect(validateStep(steps[0], { team: { mode: 'join', code: 'AB12CD' } })).toEqual({})
   })

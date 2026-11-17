@@ -271,18 +271,18 @@
         "fields": [
           {
             "id": "team",
-            "label": "Hackathon'a nasıl katılmayı düşünüyorsun?",
+            "label": "Takımını kur ya da bir takıma katıl",
             "kind": "team",
             "required": "yes",
             "hint": "Takımlar en fazla 4 kişi olabilir. Takımı kuran kişi kaptan olur; arkadaşları kaptanın paylaştığı takım koduyla katılır.",
             "options": [
               {
-                "value": "solo",
-                "label": "Bireysel katılacağım, ekip arıyorum"
+                "value": "create",
+                "label": "Takım kur"
               },
               {
-                "value": "team",
-                "label": "Takımla katılacağım (en fazla 4 kişi)"
+                "value": "join",
+                "label": "Takıma katıl"
               }
             ]
           }
