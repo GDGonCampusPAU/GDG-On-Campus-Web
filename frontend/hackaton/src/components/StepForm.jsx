@@ -14,7 +14,7 @@ const shownValue = (f, v) => {
   if (f.kind === 'team') {
     if (v?.mode === 'create') return `Takım kuracak: ${v.name}`
     if (v?.mode === 'join') return `Takıma katılacak · kod ${v.code}`
-    return v?.mode === 'solo' ? 'Bireysel katılım' : ''
+    return ''
   }
   if (f.kind === 'checkbox') return Array.isArray(v) ? v.map(label).join(', ') : ''
   if (f.kind === 'file') return v?.name || (typeof v === 'string' ? v : '—')

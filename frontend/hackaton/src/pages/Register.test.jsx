@@ -232,7 +232,7 @@ describe('Register sayfası', () => {
       expect(screen.queryByRole('button', { name: 'Kodu kopyala' })).not.toBeInTheDocument()
     })
 
-    it('bireysel başvuruda takım kartı yoktur; "Başvuru kontrol sayfama aktar" Başvurum sayfasına götürür', async () => {
+    it('takım alanı olmayan formda takım kartı yoktur; "Başvuru kontrol sayfama aktar" Başvurum sayfasına götürür', async () => {
       submitWith(null)
       const user = await finish()
       expect(screen.queryByText(/takımın kuruldu|katılma isteğin/)).not.toBeInTheDocument()

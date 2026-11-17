@@ -1,6 +1,7 @@
 // Form, event.json içindeki register.steps verisinden çizilir. Alan şekli:
 // { id, label, kind: text|textarea|email|tel|select|checkbox|file|number|radio|date|team, required: yes|no, hint, options: [{ value, label }] }
-// `team` değeri: { mode: '' | 'solo' | 'team' | 'create' | 'join', name?, code? } ('team' = takımla seçildi, oluştur/katıl henüz seçilmedi)
+// `team` değeri: { mode: '' | 'create' | 'join', name?, code? }. Kayıtta bireysel seçenek yoktur; eski taslaklardaki
+// 'solo' / 'team' seçim yapılmamış ('') sayılır ki kişi farkında olmadan bireysel başvurmasın.
 export const fieldsOf = (steps) => steps.flatMap((s) => s.fields)
 
 const collapse = (s) => (typeof s === 'string' ? s.trim().replace(/\s+/g, ' ') : s)
@@ -22,7 +23,6 @@ function cleanTeam(v) {
   const mode = v && typeof v === 'object' ? v.mode : ''
   if (mode === 'create') return { mode, name: collapse(v.name ?? '') }
   if (mode === 'join') return { mode, code: normalizeTeamCode(v.code ?? '') }
-  if (mode === 'solo' || mode === 'team') return { mode }
   return { mode: '' }
 }
 
@@ -47,8 +47,7 @@ const PHONE_RE = /^\+?\d{10,14}$/
 const known = (f, v) => f.options.some((o) => o.value === v)
 
 function teamError(f, v) {
-  if (!v.mode) return f.required === 'yes' ? 'Bir seçenek seç.' : ''
-  if (v.mode === 'team') return 'Takım oluşturmak mı yoksa bir takıma katılmak mı istediğini seç.'
+  if (v.mode !== 'create' && v.mode !== 'join') return f.required === 'yes' ? 'Takım kur ya da bir takıma katıl.' : ''
   if (v.mode === 'create' && (v.name.length < 2 || v.name.length > 40)) return 'Takım adı 2-40 karakter olmalı.'
   if (v.mode === 'join' && !TEAM_CODE_RE.test(v.code)) return 'Takım kodu 6 harf ve rakamdan oluşur.'
   return ''

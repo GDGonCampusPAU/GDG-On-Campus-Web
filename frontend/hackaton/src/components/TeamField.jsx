@@ -3,12 +3,11 @@ import Field, { Hint } from './Field.jsx'
 import { TEAM_CODE_RE, normalizeTeamCode } from '../lib/registration.js'
 import './TeamField.css'
 
-// Üst seçimin metinleri alanın options'ından gelir (admin düzenleyebilir); yoksa bunlar kullanılır.
-const DEFAULT_LABELS = { solo: 'Bireysel katılacağım', team: 'Takımla katılacağım' }
-const isTeamMode = (mode) => mode === 'team' || mode === 'create' || mode === 'join'
+// Seçenek metinleri alanın options'ından gelir (create / join; admin düzenleyebilir); yoksa bunlar kullanılır.
+const DEFAULT_LABELS = { create: 'Takım kur', join: 'Takıma katıl' }
 
 /**
- * Kayıt formundaki `team` alanı: bireysel / takımla → takım oluştur (ad) veya takıma katıl (6 karakterlik kod).
+ * Kayıt formundaki `team` alanı: takım kur (ad) veya takıma katıl (6 karakterlik kod). Bireysel kayıt yoktur.
  * @param {object} props
  * @param {{ id: string, label: string, required: string, hint?: string, options?: { value: string, label: string }[] }} props.field
  * @param {{ mode: string, name?: string, code?: string }} props.value
@@ -26,82 +25,64 @@ export default function TeamField({ field, value, onChange, error, lookupTeam })
   return (
     <fieldset className={`step-form__fieldset team-field${field.required === 'yes' ? ' team-field--required' : ''}`} aria-describedby={describedBy}>
       <legend>{field.label}</legend>
-      {['solo', 'team'].map((key) => (
-        <label key={key} className="step-form__check">
-          <input
-            type="radio"
-            name={`${id}-participation`}
-            checked={key === 'solo' ? mode === 'solo' : isTeamMode(mode)}
-            onChange={() => onChange(key === 'solo' ? { mode: 'solo' } : { mode: 'team' })}
-            aria-invalid={!mode ? invalid : undefined}
-          />
-          {labelOf(key)}
-        </label>
-      ))}
+      <label className="step-form__check">
+        <input
+          type="radio"
+          name={`${id}-action`}
+          checked={mode === 'create'}
+          onChange={() => onChange({ mode: 'create', name: value?.name ?? '' })}
+          aria-invalid={!mode ? invalid : undefined}
+        />
+        {labelOf('create')}
+      </label>
+      <label className="step-form__check">
+        <input
+          type="radio"
+          name={`${id}-action`}
+          checked={mode === 'join'}
+          onChange={() => onChange({ mode: 'join', code: value?.code ?? '' })}
+          aria-invalid={!mode ? invalid : undefined}
+        />
+        {labelOf('join')}
+      </label>
 
-      {isTeamMode(mode) && (
+      {mode === 'create' && (
         <div className="team-field__panel">
-          <fieldset className="team-field__choice">
-            <legend>Takımın için ne yapmak istersin?</legend>
-            <label className="step-form__check">
-              <input
-                type="radio"
-                name={`${id}-action`}
-                checked={mode === 'create'}
-                onChange={() => onChange({ mode: 'create', name: value?.name ?? '' })}
-                aria-invalid={mode === 'team' ? invalid : undefined}
-              />
-              Takım oluştur
-            </label>
-            <label className="step-form__check">
-              <input
-                type="radio"
-                name={`${id}-action`}
-                checked={mode === 'join'}
-                onChange={() => onChange({ mode: 'join', code: value?.code ?? '' })}
-                aria-invalid={mode === 'team' ? invalid : undefined}
-              />
-              Takıma katıl
-            </label>
-          </fieldset>
+          <Field id={`${id}-name`} label="Takım adı" required hint="Takımı kuran kişi kaptan olur. Kayıttan sonra takım kodunu arkadaşlarınla paylaşırsın.">
+            <input
+              id={`${id}-name`}
+              type="text"
+              maxLength={40}
+              autoComplete="off"
+              value={value.name ?? ''}
+              onChange={(e) => onChange({ mode: 'create', name: e.target.value })}
+              aria-invalid={invalid}
+              aria-describedby={[error ? `${id}-error` : null, `${id}-name-hint`].filter(Boolean).join(' ')}
+            />
+          </Field>
+        </div>
+      )}
 
-          {mode === 'create' && (
-            <Field id={`${id}-name`} label="Takım adı" required hint="Takımı kuran kişi kaptan olur. Kayıttan sonra takım kodunu arkadaşlarınla paylaşırsın.">
-              <input
-                id={`${id}-name`}
-                type="text"
-                maxLength={40}
-                autoComplete="off"
-                value={value.name ?? ''}
-                onChange={(e) => onChange({ mode: 'create', name: e.target.value })}
-                aria-invalid={invalid}
-                aria-describedby={[error ? `${id}-error` : null, `${id}-name-hint`].filter(Boolean).join(' ')}
-              />
-            </Field>
-          )}
-
-          {mode === 'join' && (
-            <>
-              <Field id={`${id}-code`} label="Takım kodu" required hint="Kaptanından aldığın 6 karakterlik kodu yaz.">
-                <input
-                  id={`${id}-code`}
-                  className="team-field__code"
-                  type="text"
-                  inputMode="text"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                  maxLength={6}
-                  placeholder="ABC123"
-                  value={value.code ?? ''}
-                  onChange={(e) => onChange({ mode: 'join', code: normalizeTeamCode(e.target.value) })}
-                  aria-invalid={invalid}
-                  aria-describedby={[error ? `${id}-error` : null, `${id}-code-hint`, `${id}-lookup`].filter(Boolean).join(' ')}
-                />
-              </Field>
-              <TeamLookup id={`${id}-lookup`} code={value.code ?? ''} lookupTeam={lookupTeam} />
-            </>
-          )}
+      {mode === 'join' && (
+        <div className="team-field__panel">
+          <Field id={`${id}-code`} label="Takım kodu" required hint="Kaptanından aldığın 6 karakterlik kodu yaz.">
+            <input
+              id={`${id}-code`}
+              className="team-field__code"
+              type="text"
+              inputMode="text"
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={6}
+              placeholder="ABC123"
+              value={value.code ?? ''}
+              onChange={(e) => onChange({ mode: 'join', code: normalizeTeamCode(e.target.value) })}
+              aria-invalid={invalid}
+              aria-describedby={[error ? `${id}-error` : null, `${id}-code-hint`, `${id}-lookup`].filter(Boolean).join(' ')}
+            />
+          </Field>
+          <TeamLookup id={`${id}-lookup`} code={value.code ?? ''} lookupTeam={lookupTeam} />
         </div>
       )}
 
