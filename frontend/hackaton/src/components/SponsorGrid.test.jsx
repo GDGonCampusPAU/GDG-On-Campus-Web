@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect } from 'vitest'
 import SponsorGrid from './SponsorGrid.jsx'
 
@@ -48,6 +49,37 @@ describe('SponsorGrid', () => {
       />,
     )
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
+  })
+
+  it('ana sponsora tıklayınca kanatlanıp uçar, kendi animasyonu bitince iner; destek sponsor etkilenmez', async () => {
+    const user = userEvent.setup()
+    const { container } = render(
+      <SponsorGrid
+        sponsors={[
+          { name: 'Ana', tier: 'main', logo: null, url: null },
+          { name: 'Destek', tier: 'support', logo: null, url: null },
+        ]}
+      />,
+    )
+    const main = screen.getByText('Ana').closest('.sponsor')
+    const wings = () => container.querySelectorAll('.sponsor__wing')
+    // jsdom has no AnimationEvent, so React listens for the webkit-prefixed name and ignores fireEvent.animationEnd
+    const animationEnd = (el) => fireEvent(el, new Event('webkitAnimationEnd', { bubbles: true }))
+
+    await user.click(screen.getByText('Destek'))
+    expect(container.querySelector('.is-flying')).toBeNull()
+    expect(wings()).toHaveLength(0)
+
+    await user.click(screen.getByText('Ana'))
+    expect(main).toHaveClass('is-flying')
+    expect(wings()).toHaveLength(2)
+
+    animationEnd(wings()[0])
+    expect(main).toHaveClass('is-flying')
+
+    animationEnd(main)
+    expect(main).not.toHaveClass('is-flying')
+    expect(wings()).toHaveLength(0)
   })
 
   it('boş listede hiçbir şey render etmez', () => {
