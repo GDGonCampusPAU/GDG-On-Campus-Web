@@ -21,6 +21,7 @@ const requireRoles = (...allowedRoles) => {
     if (req.user.role === 'PENDING') {
       return res.status(403).json({
         success: false,
+        code: 'ACCOUNT_PENDING',
         message: 'Hesabınız yönetici onayını bekliyor.'
       });
     }

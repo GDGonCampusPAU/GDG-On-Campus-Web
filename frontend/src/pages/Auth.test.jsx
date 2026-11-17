@@ -52,12 +52,24 @@ test('unverified login switches to OTP step, verifies email and retries login', 
 
 test('pending account shows approval message instead of logging in', async () => {
   const user = userEvent.setup()
-  api.login.mockRejectedValue({ status: 403, data: {} })
+  api.login.mockRejectedValue({ status: 403, data: { code: 'ACCOUNT_PENDING' } })
   render(<Login />)
   await user.type(screen.getByLabelText(/E-posta/), 'pending@gmail.com')
   await user.type(screen.getByLabelText(/Şifre/), 'password')
   await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('onaylanmadı')
+})
+
+test('other 403 errors (e.g. origin not allowed) show their own message, not the approval one', async () => {
+  const user = userEvent.setup()
+  api.login.mockRejectedValue({ status: 403, message: 'Bu origin için erişim izni yok.', data: { success: false } })
+  render(<Login />)
+  await user.type(screen.getByLabelText(/E-posta/), 'admin@pau.edu.tr')
+  await user.type(screen.getByLabelText(/Şifre/), 'password')
+  await user.click(screen.getByRole('button', { name: 'Giriş Yap' }))
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('Bu origin için erişim izni yok.')
+  expect(alert).not.toHaveTextContent('onaylanmadı')
 })
 
 test('registration validates invalid domains and mismatched passwords without hitting API', async () => {
