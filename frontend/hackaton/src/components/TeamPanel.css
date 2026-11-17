@@ -61,6 +61,16 @@
   font-weight: 700;
 }
 
+/* Yönetici takım değişikliklerini kapattığında: bilgi notu (mavi; uyarı değil, durum bildirimi). */
+.team-panel__locked {
+  margin-bottom: 16px !important;
+  padding: 12px 16px;
+  border-left: 4px solid var(--blue);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--blue-pastel);
+  font-weight: 700;
+}
+
 .team-panel__solo {
   margin-bottom: 16px !important;
   padding: 12px 16px;

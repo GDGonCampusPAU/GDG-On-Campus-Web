@@ -14,6 +14,8 @@ export default function ParticipantVerification({ slug, onVerified }) {
   const [cooldown, setCooldown] = useState(0)
   const inFlight = useRef(false)
   const [retry, setRetry] = useState(0)
+  // Kayıtlar kapalıyken önceden başvuranlar "Başvurum" sayfasına yine bu doğrulamayla ulaşır.
+  const [returning, setReturning] = useState(false)
   useEffect(() => {
     let active = true
     api(`/forms/public/${encodeURIComponent(slug)}`).then(result => { if (active) setForm(result.data) })
@@ -36,7 +38,7 @@ export default function ParticipantVerification({ slug, onVerified }) {
     return perform(async () => {
       // Bu cihazda aynı e-posta son 30 dk içinde doğrulandıysa yeni kod istenmez.
       const cached = loadIdentity(email)
-      if (cached) return onVerified({ ...cached, formVersion: form.schemaVersion })
+      if (cached) return onVerified({ ...cached, formVersion: form.schemaVersion, registration: form.registration })
       const result = await api('/participant-auth/email/send-otp', { method: 'POST', body: { email: email.trim() } })
       setSent(true); setCooldown(result.resendAfterSeconds)
     })
@@ -46,7 +48,7 @@ export default function ParticipantVerification({ slug, onVerified }) {
     return perform(async () => {
       const identity = await api('/participant-auth/email/verify', { method: 'POST', body: { email: email.trim(), code } })
       saveIdentity(identity)
-      onVerified({ ...identity, formVersion: form.schemaVersion })
+      onVerified({ ...identity, formVersion: form.schemaVersion, registration: form.registration })
     })
   }
   if (!form) return (
@@ -55,19 +57,30 @@ export default function ParticipantVerification({ slug, onVerified }) {
       {error && <Button variant="ghost" onClick={() => { setError(''); setRetry(value => value + 1) }}>Tekrar dene</Button>}
     </section>
   )
+  const closed = form.registration?.open === false
+  if (closed && !returning) return (
+    <section className="verify verify--closed" aria-labelledby="verify-title">
+      <Shapes />
+      <p className="verify__eyebrow">Kayıtlar kapandı</p>
+      <h2 id="verify-title" className="verify__title">Şu an kayıt alamıyoruz</h2>
+      <p className="verify__closed-message">{form.registration.message}</p>
+      <p className="verify__returning">
+        Daha önce başvurdun mu?{' '}
+        <button type="button" className="verify__link" onClick={() => setReturning(true)}>Başvuruma bak</button>
+      </p>
+    </section>
+  )
   const methods = form.settings?.verificationMethods || []
   const hasEmail = methods.includes('EMAIL_OTP')
   const hasGoogle = methods.includes('GOOGLE') && Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)
   return (
     <section className="verify" aria-labelledby="verify-title">
-      <div className="verify__shapes" aria-hidden="true">
-        <i className="tone--blue" /><i className="tone--red" /><i className="tone--yellow" /><i className="tone--green" />
-      </div>
-      <p className="verify__eyebrow">Başvurudan önce</p>
+      <Shapes />
+      <p className="verify__eyebrow">{closed ? 'Başvurum' : 'Başvurudan önce'}</p>
       <h2 id="verify-title" className="verify__title">E-posta adresini doğrula</h2>
-      <p className="verify__lead">Başvurmadan önce e-posta adresinin sana ait olduğunu doğrula.</p>
+      <p className="verify__lead">{closed ? 'Başvurunu görmek için başvururken kullandığın e-posta adresini doğrula.' : 'Başvurmadan önce e-posta adresinin sana ait olduğunu doğrula.'}</p>
       {error && <p role="alert" className="verify__alert">{error}</p>}
-      {hasGoogle && <GoogleVerification onCredential={credential => perform(async () => onVerified({ ...await api('/participant-auth/google', { method: 'POST', body: { idToken: credential } }), formVersion: form.schemaVersion }))} onError={setError} />}
+      {hasGoogle && <GoogleVerification onCredential={credential => perform(async () => onVerified({ ...await api('/participant-auth/google', { method: 'POST', body: { idToken: credential } }), formVersion: form.schemaVersion, registration: form.registration }))} onError={setError} />}
       {hasGoogle && hasEmail && <p className="verify__divider"><span>veya e-posta ile</span></p>}
       {hasEmail && (
         <form className="verify__form" onSubmit={sent ? verify : send}>
@@ -93,6 +106,14 @@ export default function ParticipantVerification({ slug, onVerified }) {
       )}
       {!hasEmail && !hasGoogle && <p role="alert" className="verify__alert">Google doğrulaması bu ortamda yapılandırılmamış.</p>}
     </section>
+  )
+}
+
+function Shapes() {
+  return (
+    <div className="verify__shapes" aria-hidden="true">
+      <i className="tone--blue" /><i className="tone--red" /><i className="tone--yellow" /><i className="tone--green" />
+    </div>
   )
 }
 

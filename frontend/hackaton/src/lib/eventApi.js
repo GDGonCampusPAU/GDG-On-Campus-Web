@@ -13,7 +13,7 @@ export async function api(path, { token, body, method = 'GET' } = {}) {
     })
   } catch { throw new Error('Sunucuya ulaşılamadı. Lütfen tekrar deneyin.') }
   const data = await response.json().catch(() => ({}))
-  if (!response.ok) throw Object.assign(new Error(data.message || `Sunucu hatası (${response.status})`), { status: response.status })
+  if (!response.ok) throw Object.assign(new Error(data.message || `Sunucu hatası (${response.status})`), { status: response.status, code: data.code })
   return data
 }
 /**
@@ -32,7 +32,7 @@ export const lookupTeam = (slug, code, token) =>
   api(`/forms/public/${encodeURIComponent(slug)}/teams/${encodeURIComponent(code)}`, { token }).then(result => result.data)
 /**
  * "Başvurum" sayfasının işlemleri. Her çağrı güncel başvuru görünümünü döndürür:
- * { status, statusNote, submittedAt, email, answers, team }
+ * { status, statusNote, submittedAt, email, answers, permissions: { teamChanges, answerEditing }, team }
  * @param {string} slug @param {string} token
  */
 export function applicationApi(slug, token) {

@@ -138,7 +138,27 @@ const formSchema = new mongoose.Schema(
       requireAuth: {
         type: Boolean,
         default: false
-      }
+      },
+      // Admin izinleri ("Başvurum" sayfası). Kapalıyken katılımcı yalnız görüntüler:
+      // teamChangesEnabled → takım kurma/katılma/ayrılma, üye çıkarma, kaptanlık devri, dağıtma (kayıt formundan
+      //   takım kurma/katılma isteği ve kaptanın istekleri kabul/reddi kilitliyken de açıktır);
+      // answerEditingEnabled → başvuru bilgilerini güncelleme. Personelin takım araçları etkilenmez.
+      teamChangesEnabled: {
+        type: Boolean,
+        default: true
+      },
+      answerEditingEnabled: {
+        type: Boolean,
+        default: true
+      },
+      // Kayıt izni. Kapalıyken yeni başvuru alınmaz; kayıt sayfası şu metni gösterir:
+      // "İlginiz için teşekkür ederiz, {reason} için kaydınızı yapamıyoruz. {ending}"
+      registrationEnabled: {
+        type: Boolean,
+        default: true
+      },
+      registrationClosedReason: { type: String, default: '', trim: true, maxlength: 120 },
+      registrationClosedEnding: { type: String, default: '', trim: true, maxlength: 200 }
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

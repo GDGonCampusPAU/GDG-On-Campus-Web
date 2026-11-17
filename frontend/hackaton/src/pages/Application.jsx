@@ -31,6 +31,30 @@ const editableSteps = (steps) =>
     .map((step) => ({ ...step, fields: step.fields.filter((field) => field.kind !== 'team' && field.kind !== 'file') }))
     .filter((step) => step.fields.length > 0)
 
+/** Seçenekli alanlarda değer yerine etiketi gösterir; boş cevaplar "—". */
+const shownAnswer = (field, value) => {
+  const label = (option) => field.options?.find((o) => o.value === option)?.label ?? option
+  if (field.kind === 'file') return value ? 'Dosya yüklendi' : '—'
+  if (Array.isArray(value)) return value.length ? value.map(label).join(', ') : '—'
+  if (value == null || value === '') return '—'
+  return ['select', 'radio'].includes(field.kind) ? label(value) : String(value)
+}
+
+/** Düzenleme kapalıyken bilgilerin salt okunur görünümü (takım bölümü ayrıca gösterilir). */
+function AnswersView({ steps, answers }) {
+  const fields = steps.flatMap((step) => step.fields).filter((field) => field.kind !== 'team')
+  return (
+    <dl className="application__answers">
+      {fields.map((field) => (
+        <div key={field.id} className="application__answer">
+          <dt>{field.label}</dt>
+          <dd>{shownAnswer(field, answers[field.id])}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 /** Daha önce başvurmuş, e-postası doğrulanmış katılımcının sayfası. Kayıt sayfası buraya yönlendirir. */
 export default function Application() {
   const { state } = useLocation()
@@ -71,6 +95,9 @@ export default function Application() {
   const submittedAt = application?.submittedAt ?? state.submission?.submittedAt
   const submittedLabel = submittedAt ? formatDate(submittedAt) : null
   const status = STATUS[application?.status] ?? STATUS.PENDING
+  // Yönetici kapattıysa bilgiler yalnız görüntülenir, takım işlemleri yapılamaz.
+  const canEdit = application?.permissions?.answerEditing !== false
+  const canChangeTeam = application?.permissions?.teamChanges !== false
 
   return (
     <div className="application container">
@@ -130,22 +157,32 @@ export default function Application() {
               <section aria-labelledby="application-edit">
                 <span className="application__tag">Bilgilerim</span>
                 <h2 id="application-edit" className="application__card-title">
-                  Bilgilerimi değiştir
+                  {canEdit ? 'Bilgilerimi değiştir' : 'Bilgilerimi gör'}
                 </h2>
-                <p>Takım dışındaki başvuru bilgilerini güncelleyebilirsin. Güncellediğinde başvurun yeniden yönetici onayına gider.</p>
+                <p>
+                  {canEdit
+                    ? 'Takım dışındaki başvuru bilgilerini güncelleyebilirsin. Güncellediğinde başvurun yeniden yönetici onayına gider.'
+                    : 'Başvuru bilgilerini düzenleme şu an kapalı. Gönderdiğin bilgileri buradan görüntüleyebilirsin.'}
+                </p>
                 <Button
                   variant="ghost"
                   aria-expanded={editing}
                   aria-controls="application-editor"
                   onClick={() => { setEditing((open) => !open); setSaved(false) }}
                 >
-                  {editing ? 'Düzenlemeyi kapat' : 'Bilgilerimi düzenle'}
+                  {canEdit ? (editing ? 'Düzenlemeyi kapat' : 'Bilgilerimi düzenle') : (editing ? 'Bilgilerimi gizle' : 'Bilgilerimi gör')}
                 </Button>
               </section>
             </li>
           </ul>
 
-          {editing && (
+          {editing && !canEdit && (
+            <section id="application-editor" className="application__editor" aria-label="Başvuru bilgilerim">
+              <AnswersView steps={event.register.steps} answers={{ ...application.answers, email: application.email }} />
+            </section>
+          )}
+
+          {editing && canEdit && (
             <section id="application-editor" className="application__editor" aria-label="Başvuru bilgilerini düzenle">
               <p className="application__warning" role="note">
                 Kaydettiğinde başvurun yeniden yönetici onayına düşer{application.status === 'APPROVED' ? '; şu anki kabul durumu da kalkar' : ''}.
@@ -160,6 +197,8 @@ export default function Application() {
                     return { ok: true, application: await api.update(values) }
                   } catch (error) {
                     if (error?.status === 401) setExpired(true)
+                    // Sayfa açıkken yönetici düzenlemeyi kapattıysa güncel izinlerle yeniden yükle.
+                    if (error?.code === 'ANSWER_EDITING_LOCKED') setReload((n) => n + 1)
                     return { ok: false, error: error?.message || 'Bilgiler kaydedilemedi. Tekrar dene.' }
                   }
                 }}
@@ -174,6 +213,8 @@ export default function Application() {
 
           <TeamPanel
             team={application.team}
+            locked={!canChangeTeam}
+            onLocked={() => setReload((n) => n + 1)}
             api={api}
             lookupTeam={previewTeam}
             onChange={setApplication}

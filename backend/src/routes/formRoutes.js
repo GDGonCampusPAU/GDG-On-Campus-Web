@@ -4,6 +4,7 @@ const formParticipantMiddleware = require('../modules/participantAuth/middleware
 const formController = require('../controllers/formController');
 const myApplication = require('../controllers/myApplicationController');
 const teamAdmin = require('../controllers/teamAdminController');
+const permissions = require('../services/formPermissionsService');
 const authMiddleware = require('../middleware/authMiddleware');
 const { requireRoles } = require('../middleware/roleMiddleware');
 const { uploadFormFiles } = require('../middleware/uploadMiddleware');
@@ -49,6 +50,13 @@ router.delete('/:id', formController.deleteForm);
 router.get('/:id/responses', formController.getFormResponses);
 router.patch('/:id/responses/:responseId/status', formController.updateFormResponseStatus);
 router.get('/:id/responses/export', formController.exportFormResponses);
+
+// Participant permissions (ADMIN only): may participants change teams / edit their answers?
+const respond = (fn) => async (req, res, next) => {
+  try { res.json({ success: true, data: await fn(req) }); } catch (error) { next(error); }
+};
+router.get('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.getPermissions(req.params.id)));
+router.put('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.updatePermissions(req.params.id, req.body)));
 
 // Registration teams (staff): list, remove member, change captain, disband.
 router.get('/:id/teams', teamAdmin.listTeams);

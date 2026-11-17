@@ -8,6 +8,7 @@ const HackathonTeam = require('../models/HackathonTeam');
 const { answerError } = require('../utils/formValidation');
 const { MAX_TEAM_SIZE, normalizeCode, teamStatusSummary, teamAnswerError, applyTeamChoice } = require('./teamService');
 const otpService = require('../modules/participantAuth/services/otpService');
+const { permissionsOf } = require('./formPermissionsService');
 
 const failure = (status, message) => Object.assign(new Error(message), { status });
 
@@ -92,6 +93,8 @@ const getApplication = async (form, participant) => {
     submittedAt: response.submittedAt,
     email: participant.email,
     answers,
+    // The page shows read-only views for whatever the admin has closed.
+    permissions: permissionsOf(form),
     team: await teamView(participant, await findMembership(form, participant._id))
   };
 };

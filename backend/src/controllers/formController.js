@@ -1,3 +1,4 @@
+const { registrationOf } = require('../services/formPermissionsService');
 const mongoose = require('mongoose');
 const { answerError } = require('../utils/formValidation');
 const { escapeCsvCell, literalSearch } = require('../utils/query');
@@ -661,6 +662,8 @@ const getPublicForm = async (req, res, next) => {
       startDate: form.startDate,
       endDate: form.endDate,
       settings: form.settings,
+      // Admin can close registration; the page then shows this message instead of the form.
+      registration: registrationOf(form),
       fields: (form.fields || []).sort((a, b) => (a.order || 0) - (b.order || 0))
     };
 
@@ -691,6 +694,11 @@ const submitFormResponse = async (req, res, next) => {
         success: false,
         message: 'Bu form şu anda yanıtlara kapalıdır.'
       });
+    }
+
+    const registration = registrationOf(form);
+    if (!registration.open) {
+      return res.status(403).json({ success: false, code: 'REGISTRATION_CLOSED', message: registration.message });
     }
 
     if (form.startDate && now < new Date(form.startDate)) {
