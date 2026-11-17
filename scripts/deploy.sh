@@ -48,18 +48,27 @@ echo "==> Derleniyor (eski sürüm yayında)"
 FLAG_DIR="$APP_DIR/.maintenance"
 FLAG="$FLAG_DIR/active.json"
 OURS=0
+# nginx workers run as the unprivileged "nginx" user: the directory must be world-readable,
+# otherwise `-f active.json` is false and maintenance silently never shows.
+mkdir -p "$FLAG_DIR" && chmod 755 "$FLAG_DIR"
 if [[ -e "$FLAG" ]]; then
   echo "==> Bakım modu zaten açık (elle açılmış); deploy sonrası açık kalacak"
 else
-  mkdir -p "$FLAG_DIR"
   printf '{\n  "since": "%s",\n  "by": { "id": "deploy", "name": "Otomatik deploy (%s)" }\n}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" "$AFTER" > "$FLAG.tmp" && mv "$FLAG.tmp" "$FLAG"
+    "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" "$AFTER" > "$FLAG.tmp" && chmod 644 "$FLAG.tmp" && mv "$FLAG.tmp" "$FLAG"
   OURS=1
   echo "==> Bakım modu açıldı"
 fi
 
-echo "==> Yeni sürüm başlatılıyor"
-if ! "${COMPOSE[@]}" up -d --remove-orphans --wait --wait-timeout 300; then
+# Swap in two steps so the maintenance page stays up: the old web (nginx) container keeps
+# serving it while mongo/backend are replaced and become healthy; web itself is swapped last,
+# leaving only nginx's ~1 s restart without a page. DEPLOY_FORCE_RECREATE=1 recreates everything.
+UP_FLAGS=(-d --wait --wait-timeout 300)
+[[ "${DEPLOY_FORCE_RECREATE:-0}" == 1 ]] && UP_FLAGS+=(--force-recreate)
+echo "==> Yeni sürüm başlatılıyor (önce veritabanı + API, sonra web)"
+if ! { "${COMPOSE[@]}" up "${UP_FLAGS[@]}" --no-deps mongo backend &&
+       "${COMPOSE[@]}" up "${UP_FLAGS[@]}" --no-deps web &&
+       "${COMPOSE[@]}" up -d --wait --wait-timeout 300 --remove-orphans; }; then
   "${COMPOSE[@]}" ps --format 'table {{.Service}}\t{{.Status}}' || true
   echo "!! Başlatma başarısız; site bakım modunda bırakıldı. Düzeltip tekrar deploy edin" >&2
   echo "   ya da bakım modunu panelden / 'rm $FLAG' ile kapatın." >&2
