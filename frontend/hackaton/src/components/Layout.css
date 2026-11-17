@@ -1,0 +1,22 @@
+/* Footer kısa sayfalarda da ekranın dibinde kalır: içerik alanı boşluğu doldurur. */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app__main {
+  flex: 1 0 auto;
+  scroll-margin-top: var(--nav-h);
+}
+
+.app__main:focus {
+  outline: none;
+}
+
+@media (max-width: 767px) {
+  .app--has-cta {
+    padding-bottom: 76px;
+  }
+}

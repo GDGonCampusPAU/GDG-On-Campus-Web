@@ -1,0 +1,86 @@
+.register {
+  --register-width: 760px;
+  padding: 48px 0 0;
+}
+
+/* Kayıt içeriği ortalanmış tek sütunda; form alanları sütunun tamamını kullanır. */
+.register > * {
+  width: 100%;
+  max-width: var(--register-width);
+  margin-inline: auto;
+}
+
+/* Doğrulama kartı formdan dar: tek alan + tek düğme. */
+.register > .verify {
+  max-width: 520px;
+}
+
+.register > .verify--closed {
+  max-width: 600px;
+}
+
+.register__identity {
+  text-align: center;
+}
+
+
+.register__title {
+  margin-bottom: 32px;
+  text-align: center;
+  font-size: clamp(2.25rem, 8vw, 4rem);
+}
+
+.register__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  max-width: 560px;
+}
+
+.register__success h2:focus {
+  outline: none;
+}
+
+.register__shapes {
+  display: flex;
+  gap: 10px;
+}
+
+.register__shapes i {
+  width: 36px;
+  height: 36px;
+  background: var(--tone);
+  animation: register-pop 0.5s ease-out backwards;
+}
+
+.register__shapes i:nth-child(1) {
+  border-radius: 50%;
+}
+.register__shapes i:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.register__shapes i:nth-child(3) {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  animation-delay: 0.2s;
+}
+.register__shapes i:nth-child(4) {
+  border-radius: 36px 36px 0 0;
+  animation-delay: 0.3s;
+}
+
+.register__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@keyframes register-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4) translateY(12px);
+  }
+}

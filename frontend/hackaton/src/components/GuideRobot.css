@@ -1,0 +1,176 @@
+.guide-robot {
+  display: block;
+  overflow: visible;
+}
+
+.guide-robot__body,
+.guide-robot__arm-r,
+.guide-robot__head,
+.guide-robot__eyes,
+.guide-robot__gear {
+  transform-box: view-box;
+}
+
+/* Lying = the whole robot turned onto the floor, pivoting at its feet. */
+.guide-robot__body {
+  transform-origin: 200px 310px;
+  transition: transform 0.9s cubic-bezier(0.5, 0, 0.3, 1);
+}
+
+.guide-robot.is-lying .guide-robot__body {
+  transform: translate(160px, -88px) rotate(-90deg);
+}
+
+.guide-robot__arm-l {
+  transform-box: view-box;
+  transform-origin: 138px 170px;
+  transition: transform 0.6s ease;
+}
+
+/* Lying: the free hand rests on its belly. */
+.guide-robot.is-lying .guide-robot__arm-l {
+  transform: rotate(-74deg);
+}
+
+.guide-robot__arm-r {
+  transform-origin: 262px 170px;
+  transition: transform 0.6s ease;
+}
+
+.guide-robot.is-talk .guide-robot__arm-r {
+  animation: guide-robot-wave 1.6s ease-in-out infinite;
+}
+
+.guide-robot.is-upset .guide-robot__arm-r {
+  transform: rotate(118deg);
+}
+
+.guide-robot__head {
+  transform-origin: 200px 132px;
+}
+
+.guide-robot.is-upset .guide-robot__head {
+  animation: guide-robot-shake 0.5s ease-in-out 0.9s 2;
+}
+
+.guide-robot__eyes {
+  transform-origin: 200px 84px;
+}
+
+.guide-robot.is-talk .guide-robot__eyes {
+  animation: guide-robot-blink 4s infinite;
+}
+
+.guide-robot__gear {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: guide-robot-spin 6s linear infinite;
+}
+
+.guide-robot__gear--back {
+  animation-direction: reverse;
+  animation-duration: 4.5s;
+}
+
+/* Face parts per mood. */
+.guide-robot__eyes-closed,
+.guide-robot__brows-cross,
+.guide-robot__mouth-frown,
+.guide-robot__tear,
+.guide-robot__cross-mark,
+.guide-robot__notes,
+.guide-robot__pillow {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.guide-robot.is-lying .guide-robot__eyes {
+  opacity: 0;
+}
+
+.guide-robot.is-lying .guide-robot__eyes-closed,
+.guide-robot.is-lying .guide-robot__pillow,
+.guide-robot.is-upset .guide-robot__brows-cross,
+.guide-robot.is-upset .guide-robot__mouth-frown,
+.guide-robot.is-upset .guide-robot__tear,
+.guide-robot.is-upset .guide-robot__cross-mark {
+  opacity: 1;
+}
+
+.guide-robot.is-upset .guide-robot__brows-calm,
+.guide-robot.is-upset .guide-robot__mouth-smile {
+  opacity: 0;
+}
+
+.guide-robot.is-lying .guide-robot__notes {
+  opacity: 1;
+  transition-delay: 0.9s;
+  animation: guide-robot-hum 2.4s ease-in-out infinite;
+}
+
+.guide-robot.is-upset .guide-robot__tear {
+  animation: guide-robot-tear 2s ease-in 1.2s infinite;
+}
+
+@keyframes guide-robot-wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-16deg);
+  }
+}
+
+@keyframes guide-robot-blink {
+  0%,
+  46%,
+  50%,
+  100% {
+    transform: scaleY(1);
+  }
+  48% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes guide-robot-shake {
+  25% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes guide-robot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes guide-robot-hum {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes guide-robot-tear {
+  0%,
+  30% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-robot *,
+  .guide-robot.is-talk .guide-robot__arm-r,
+  .guide-robot.is-talk .guide-robot__eyes {
+    animation: none !important;
+    transition: none !important;
+  }
+}

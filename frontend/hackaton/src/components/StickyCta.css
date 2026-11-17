@@ -1,0 +1,21 @@
+.sticky-cta {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .sticky-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    padding: 12px var(--gutter);
+    background: var(--white);
+    border-top: 1px solid var(--off-white);
+  }
+
+  .sticky-cta .btn {
+    width: 100%;
+  }
+}

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// Validates emails strictly for Gmail or Pamukkale University domains (@pau.edu.tr / @posta.pau.edu.tr)
+
 const PAU_OR_GMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@(gmail\.com|pau\.edu\.tr|posta\.pau\.edu\.tr)$/i;
 
 const userSchema = new mongoose.Schema(
@@ -33,11 +33,13 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['PENDING', 'ORGANIZER', 'ADMIN'],
+        values: ['PENDING', 'MEMBER', 'ORGANIZER', 'ADMIN'],
         message: 'Geçersiz rol tipi: {VALUE}'
       },
       default: 'PENDING'
     },
+    roleChangeVersion: { type: Number, default: 0, select: false },
+    tokenVersion: { type: Number, default: 0, select: false },
     isEmailVerified: {
       type: Boolean,
       default: false
@@ -53,19 +55,18 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Method to verify candidate password against hashed password
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
-// Safe JSON transform - remove passwordHash automatically
 userSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   delete userObject.passwordHash;
+  delete userObject.roleChangeVersion;
+  delete userObject.tokenVersion;
   return userObject;
 };
 
-const User = mongoose.model('User', userSchema);
-
+/** @type {import('mongoose').Model<any, {}, { comparePassword(candidatePassword: string): Promise<boolean> }>} */
+const User = /** @type {any} */ (mongoose.model('User', userSchema));
 module.exports = User;
-

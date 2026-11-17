@@ -28,6 +28,7 @@ const authMiddleware = async (req, res, next) => {
     let decoded;
     try {
       decoded = verifyToken(token);
+      if (decoded.type === 'participant' || !decoded.id) throw new Error('Ekip tokenı gerekli.');
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
         return res.status(401).json({
@@ -42,11 +43,22 @@ const authMiddleware = async (req, res, next) => {
     }
 
     // Ensure the user still exists in the database
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select('+tokenVersion +roleChangeVersion');
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Kullanıcı bulunamadı veya hesabı silinmiş.'
+      });
+    }
+
+    // A token without tokenVersion counts as version 0, so it is revoked by the first bump too.
+    if (
+      (decoded.tokenVersion ?? 0) !== (user.tokenVersion || 0) ||
+      (decoded.roleChangeVersion !== undefined && decoded.roleChangeVersion !== (user.roleChangeVersion || 0))
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: 'Oturumunuz geçersiz kılındı. Lütfen tekrar giriş yapınız.'
       });
     }
 

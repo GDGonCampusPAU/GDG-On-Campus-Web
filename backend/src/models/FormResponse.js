@@ -4,7 +4,7 @@ const answerSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     label: {
       type: String,
@@ -22,19 +22,19 @@ const uploadedFileSchema = new mongoose.Schema(
   {
     fieldId: {
       type: String,
-      required: true
+      required: [true, 'Alan kimliği zorunludur.']
     },
     originalName: {
       type: String,
-      required: true
+      required: [true, 'Orijinal dosya adı zorunludur.']
     },
     filename: {
       type: String,
-      required: true
+      required: [true, 'Dosya adı zorunludur.']
     },
     url: {
       type: String,
-      required: true
+      required: [true, 'Dosya URL adresi zorunludur.']
     },
     size: {
       type: Number,
@@ -52,15 +52,21 @@ const formResponseSchema = new mongoose.Schema(
       required: [true, 'Form referansı zorunludur.'],
       index: true
     },
+    participant: { type: mongoose.Schema.Types.ObjectId, ref: 'Participant', default: null },
+    verifiedEmail: { type: String, default: null },
+    verificationMethod: { type: String, enum: ['GOOGLE', 'EMAIL_OTP', null], default: null },
+    verifiedAt: { type: Date, default: null },
+    singleSubmissionKey: { type: String },
     formSlug: {
       type: String,
-      required: true,
+      required: [true, 'Form URL adresi (slug) zorunludur.'],
       index: true
     },
     answers: {
       type: [answerSchema],
       default: []
     },
+    schemaVersion: { type: Date, default: null },
     uploadedFiles: {
       type: [uploadedFileSchema],
       default: []
@@ -84,6 +90,44 @@ const formResponseSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
       index: true
+    },
+    status: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: 'PENDING',
+      index: true
+    },
+    // Set when the applicant created (CAPTAIN) or asked to join (MEMBER) a team.
+    team: { type: mongoose.Schema.Types.ObjectId, ref: 'HackathonTeam', default: null },
+    teamName: { type: String, trim: true, default: '' },
+    teamRole: { type: String, enum: ['CAPTAIN', 'MEMBER', null], default: null },
+    // MEMBER: PENDING until the captain accepts. CAPTAIN is always APPROVED.
+    teamStatus: { type: String, enum: ['APPROVED', 'PENDING', null], default: null },
+    // Set when the participant edits their answers; the application then waits for the admin again.
+    editedAt: { type: Date, default: null },
+    statusNote: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: ''
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    reviewedAt: {
+      type: Date,
+      default: null
+    },
+    lastNotifiedStatus: {
+      type: String,
+      enum: ['APPROVED', 'REJECTED', null],
+      default: null
+    },
+    lastNotifiedAt: {
+      type: Date,
+      default: null
     }
   },
   {
@@ -91,11 +135,12 @@ const formResponseSchema = new mongoose.Schema(
     versionKey: false
   }
 );
-
-// Indexes
 formResponseSchema.index({ form: 1, submittedAt: -1 });
+formResponseSchema.index({ form: 1, status: 1, submittedAt: -1 });
+formResponseSchema.index(
+  { form: 1, singleSubmissionKey: 1 },
+  { unique: true, partialFilterExpression: { singleSubmissionKey: { $type: 'string' } } }
+);
 
 const FormResponse = mongoose.model('FormResponse', formResponseSchema);
-
 module.exports = FormResponse;
-

@@ -1,161 +1,15 @@
+const { escapeCsvCell, literalSearch } = require('../../../utils/query');
 const HackathonApp = require('../models/HackathonApp');
-const VerificationToken = require('../../../models/VerificationToken');
-const { validateHackathonInput, isValidEmail } = require('../../../utils/validators');
-const { sendHackathonOtpEmail } = require('../../../services/emailService');
+const {
+  APPLICATION_STATUSES,
+  buildStatusFilter,
+  combineFilters,
+  updateApplicationDecision
+} = require('../../../services/applicationStatusService');
 
-/**
- * Helper to resolve resume URL from file upload or body
- */
-const resolveResumeUrl = (req) => {
-  if (req.file) {
-    const protocol = req.protocol;
-    const host = req.get('host');
-    return `${protocol}://${host}/uploads/${req.file.filename}`;
-  }
-  return req.body.resumeUrl || null;
-};
-
-/**
- * Helper to escape CSV cell value
- */
-const escapeCsvCell = (val) => {
-  if (val === null || val === undefined) return '""';
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
-};
-
-/**
- * @desc    Send verification code to hackathon team leader email
- * @route   POST /api/v1/hackathon/send-verification
- * @access  Public
- */
-const sendHackathonVerification = async (req, res, next) => {
-  try {
-    const { leaderEmail, leaderName, teamName } = req.body;
-
-    if (!leaderEmail || !isValidEmail(leaderEmail)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Lütfen geçerli bir e-posta adresi giriniz.'
-      });
-    }
-
-    const normalizedEmail = leaderEmail.toLowerCase().trim();
-
-    // Generate 6-digit OTP code (10 min TTL)
-    const code = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
-
-    // Send email via Brevo
-    await sendHackathonOtpEmail({
-      email: normalizedEmail,
-      leaderName: leaderName ? leaderName.trim() : 'Takım Lideri',
-      teamName: teamName ? teamName.trim() : '',
-      code
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Doğrulama kodu takım lideri e-posta adresine gönderildi. Lütfen gelen kutunuzu kontrol ediniz.'
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Submit hackathon application form (requires valid verificationCode)
- * @route   POST /api/v1/hackathon/apply
- * @access  Public
- */
-const applyHackathon = async (req, res, next) => {
-  try {
-    const {
-      teamName,
-      leaderName,
-      leaderEmail,
-      leaderPhone,
-      memberCount,
-      projectIdea,
-      verificationCode,
-      code
-    } = req.body;
-
-    const inputCode = verificationCode || code;
-
-    // 1. Validate Form Fields
-    const errors = validateHackathonInput({
-      teamName,
-      leaderName,
-      leaderEmail,
-      leaderPhone,
-      memberCount,
-      projectIdea
-    });
-
-    if (errors.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: errors.join(' ')
-      });
-    }
-
-    const normalizedEmail = leaderEmail.trim().toLowerCase();
-
-    // 2. Validate Verification Code
-    if (!inputCode) {
-      // If code was not entered, auto-send code and prompt user to enter it
-      const otpCode = await VerificationToken.generateOtp(normalizedEmail, 'HACKATHON_APPLY', 10);
-      await sendHackathonOtpEmail({
-        email: normalizedEmail,
-        leaderName: leaderName.trim(),
-        teamName: teamName.trim(),
-        code: otpCode
-      });
-
-      return res.status(400).json({
-        success: false,
-        requiresVerification: true,
-        message: 'Başvuruyu tamamlamak için takım lideri e-postasına gönderilen 6 haneli doğrulama kodunu giriniz.'
-      });
-    }
-
-    // Verify OTP
-    const verification = await VerificationToken.verifyOtp(normalizedEmail, inputCode, 'HACKATHON_APPLY');
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
-
-    // 3. Process Resume / Attachment
-    const resumeUrl = resolveResumeUrl(req);
-
-    // 4. Save Hackathon Application
-    const application = await HackathonApp.create({
-      teamName: teamName.trim(),
-      leaderName: leaderName.trim(),
-      leaderEmail: normalizedEmail,
-      leaderPhone: leaderPhone.trim(),
-      memberCount: Number(memberCount),
-      projectIdea: projectIdea.trim(),
-      resumeUrl
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: 'E-posta adresiniz doğrulandı ve Hackathon başvurunuz başarıyla alındı! Ekibinizle iletişime geçilecektir.',
-      data: {
-        applicationId: application._id,
-        teamName: application.teamName,
-        leaderName: application.leaderName,
-        appliedAt: application.appliedAt
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// The public legacy endpoints (send-verification, apply) were removed: registration runs through
+// /api/v1/forms (participant verification + admin "Kayıtlar" permission). Staff keep read access
+// to applications collected before that.
 
 /**
  * @desc    Get all submitted applications for Core Team
@@ -164,20 +18,31 @@ const applyHackathon = async (req, res, next) => {
  */
 const getApplications = async (req, res, next) => {
   try {
+    const rawStatus = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    if (rawStatus && !APPLICATION_STATUSES.includes(rawStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz başvuru durumu filtresi (PENDING, APPROVED, REJECTED olmalıdır).'
+      });
+    }
+
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
     const skip = (page - 1) * limit;
 
-    const filter = {};
-
+    let searchClause = null;
     if (req.query.search && typeof req.query.search === 'string') {
-      const searchRegex = new RegExp(req.query.search.trim(), 'i');
-      filter.$or = [
-        { teamName: searchRegex },
-        { leaderName: searchRegex },
-        { leaderEmail: searchRegex }
-      ];
+      const searchRegex = literalSearch(req.query.search);
+      searchClause = {
+        $or: [
+          { teamName: searchRegex },
+          { leaderName: searchRegex },
+          { leaderEmail: searchRegex }
+        ]
+      };
     }
+
+    const filter = combineFilters(buildStatusFilter(rawStatus), searchClause);
 
     const [applications, totalItems] = await Promise.all([
       HackathonApp.find(filter)
@@ -188,11 +53,16 @@ const getApplications = async (req, res, next) => {
       HackathonApp.countDocuments(filter)
     ]);
 
+    const normalizedApplications = applications.map((application) => ({
+      ...application,
+      status: application.status || 'PENDING'
+    }));
+
     const totalPages = Math.ceil(totalItems / limit) || 1;
 
     return res.status(200).json({
       success: true,
-      data: applications,
+      data: normalizedApplications,
       pagination: {
         totalItems,
         totalPages,
@@ -208,62 +78,98 @@ const getApplications = async (req, res, next) => {
 };
 
 /**
+ * @desc    Update legacy hackathon application status and notify team leader
+ * @route   PATCH /api/v1/hackathon/applications/:id/status
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const updateApplicationStatus = async (req, res, next) => {
+  try {
+    const application = await HackathonApp.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hackathon başvurusu bulunamadı.'
+      });
+    }
+
+    const { application: updated, emailSent } = await updateApplicationDecision({
+      doc: application,
+      reviewerId: req.user?._id,
+      status: req.body.status,
+      note: req.body.note,
+      notify: req.body.notify,
+      recipientEmail: application.leaderEmail,
+      recipientName: application.leaderName || application.fullName || application.teamName || 'Takım Lideri',
+      teamName: application.teamName || '',
+      eventTitle: 'PAU Hackathon 2026'
+    });
+
+    const statusLabel = updated.status === 'APPROVED'
+      ? 'onaylandı'
+      : updated.status === 'REJECTED'
+        ? 'reddedildi'
+        : 'beklemeye alındı';
+
+    return res.status(200).json({
+      success: true,
+      emailSent,
+      message: emailSent
+        ? `Başvuru ${statusLabel} ve takım liderine bilgilendirme e-postası gönderildi.`
+        : `Başvuru durumu güncellendi (${statusLabel}).`,
+      data: updated
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Export applications as CSV or JSON
  * @route   GET /api/v1/hackathon/applications/export
  * @access  Private (ORGANIZER, ADMIN)
  */
 const exportApplications = async (req, res, next) => {
   try {
-    const format = (req.query.format || 'csv').toLowerCase();
-
-    const applications = await HackathonApp.find()
-      .sort({ appliedAt: -1 })
-      .lean();
-
-    if (format === 'json') {
-      res.setHeader('Content-Disposition', 'attachment; filename="hackathon_applications.json"');
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      return res.status(200).send(JSON.stringify(applications, null, 2));
+    const { write, streamJson } = require('../../../utils/streamExport');
+    const rawStatus = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    if (rawStatus && !APPLICATION_STATUSES.includes(rawStatus)) {
+      return res.status(400).json({ message: 'Geçersiz başvuru durumu filtresi (PENDING, APPROVED, REJECTED olmalıdır).' });
     }
-
-    const headers = [
-      'ID',
-      'Takım Adı',
-      'Lider Adı',
-      'Lider E-posta',
-      'Lider Telefon',
-      'Üye Sayısı',
-      'Proje Fikri',
-      'Özgeçmiş / CV Linki',
-      'Başvuru Tarihi'
-    ];
-
-    const rows = applications.map((app) => [
-      escapeCsvCell(app._id),
-      escapeCsvCell(app.teamName),
-      escapeCsvCell(app.leaderName),
-      escapeCsvCell(app.leaderEmail),
-      escapeCsvCell(app.leaderPhone),
-      escapeCsvCell(app.memberCount),
-      escapeCsvCell(app.projectIdea),
-      escapeCsvCell(app.resumeUrl || ''),
-      escapeCsvCell(new Date(app.appliedAt).toISOString())
-    ]);
-
-    const csvContent =
-      '\uFEFF' + [headers.map(escapeCsvCell).join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-
+    const format = req.query.format || 'csv';
+    if (!['csv', 'json'].includes(format)) return res.status(400).json({ message: 'Desteklenen formatlar: csv, json.' });
+    let searchClause = null;
+    if (req.query.search && typeof req.query.search === 'string' && req.query.search.trim()) {
+      const searchRegex = literalSearch(req.query.search);
+      searchClause = {
+        $or: [
+          { teamName: searchRegex },
+          { leaderName: searchRegex },
+          { leaderEmail: searchRegex }
+        ]
+      };
+    }
+    const filter = combineFilters(buildStatusFilter(rawStatus), searchClause);
+    const cursor = HackathonApp.find(filter).sort({ appliedAt: -1 }).lean().cursor();
+    res.setHeader('Content-Disposition', `attachment; filename="hackathon_applications.${format}"`);
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return await streamJson(res, cursor);
+    }
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="hackathon_applications.csv"');
-    return res.status(200).send(csvContent);
-  } catch (error) {
-    next(error);
-  }
+    try {
+      await write(res, '\uFEFF' + ['ID', 'Takım Adı', 'Lider Adı', 'Lider E-posta', 'Lider Telefon', 'Üye Sayısı', 'Proje Fikri', 'Özgeçmiş / CV Linki', 'Başvuru Tarihi', 'Durum', 'Değerlendirme Notu'].map(escapeCsvCell).join(',') + '\r\n');
+      for await (const application of cursor) {
+        await write(res, [application._id, application.teamName, application.leaderName || application.fullName,
+          application.leaderEmail, application.leaderPhone, application.memberCount, application.projectIdea || application.motivation,
+          application.resumeUrl, new Date(application.appliedAt).toISOString(), application.status || 'PENDING', application.statusNote || ''].map(escapeCsvCell).join(',') + '\r\n');
+      }
+    } finally { await cursor.close(); }
+    res.end();
+  } catch (error) { next(error); }
 };
 
 module.exports = {
-  sendHackathonVerification,
-  applyHackathon,
   getApplications,
+  updateApplicationStatus,
   exportApplications
 };

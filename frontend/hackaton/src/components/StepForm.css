@@ -1,0 +1,223 @@
+/* Genişlik ve ortalama sayfadan gelir (Register.css: .register > *). */
+.step-form {
+  max-width: 760px;
+}
+
+.step-form__progress {
+  display: flex;
+  margin: 28px 0 40px;
+  padding: 0;
+}
+
+.step-form__dot {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-align: center;
+}
+
+/* Adımları birleştiren çizgi: dairenin ortasından bir sonraki dairenin kenarına kadar. */
+.step-form__dot:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 17px;
+  left: calc(50% + 24px);
+  right: calc(-50% + 24px);
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--black) 20%, transparent);
+}
+
+.step-form__dot.is-done:not(:last-child)::after {
+  background: var(--green);
+}
+
+.step-form__num {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--black);
+  border-radius: 50%;
+  background: var(--white);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.step-form__dot.is-current .step-form__num {
+  background: var(--yellow);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--yellow) 35%, transparent);
+}
+
+.step-form__dot.is-done .step-form__num {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--white);
+}
+
+.step-form__name {
+  display: none;
+  max-width: 14ch;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--black) 60%, transparent);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-wrap: balance;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.step-form__dot.is-current .step-form__name,
+.step-form__dot.is-done .step-form__name {
+  color: var(--black);
+}
+
+.step-form__dot.is-current .step-form__name {
+  font-weight: 700;
+}
+
+@media (min-width: 480px) {
+  .step-form__name {
+    display: -webkit-box;
+  }
+}
+
+.step-form__title {
+  margin-bottom: 24px;
+  font-size: 1.75rem;
+}
+
+.step-form__title:focus {
+  outline: none;
+}
+
+.step-form__fieldset {
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+}
+
+.step-form__fieldset legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 700;
+}
+
+.step-form__check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.step-form__check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--black);
+}
+
+.step-form__summary {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.step-form__summary-group {
+  padding: 20px 24px;
+  border-radius: var(--radius-md);
+  background: var(--off-white);
+}
+
+.step-form__summary-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.step-form__summary-head h3 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.step-form__edit {
+  flex: none;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--black);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.step-form__edit:hover {
+  text-decoration-thickness: 2px;
+}
+
+.step-form__edit:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Soru üstte (küçük, soluk), cevap altında tam genişlikte: uzun sorular cevabı sıkıştırmaz. */
+.step-form__summary-row {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-top: 1px solid color-mix(in srgb, var(--black) 12%, transparent);
+}
+
+.step-form__summary-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.step-form__summary-row:last-child {
+  padding-bottom: 0;
+}
+
+.step-form__summary dt {
+  color: color-mix(in srgb, var(--black) 65%, transparent);
+  font-size: 0.875rem;
+}
+
+.step-form__summary dd {
+  min-width: 0;
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: break-word;
+  white-space: pre-line;
+}
+
+.step-form__submit-error {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 2px solid var(--black);
+  border-radius: var(--radius-sm);
+  background: var(--red-pastel);
+  font-weight: 700;
+}
+
+.step-form__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}

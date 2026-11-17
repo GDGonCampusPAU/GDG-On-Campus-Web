@@ -1,0 +1,134 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--white);
+  border-bottom: 1px solid var(--off-white);
+}
+
+.navbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--nav-h);
+  gap: 16px;
+}
+
+.navbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.navbar__dots {
+  display: flex;
+  gap: 3px;
+}
+
+.navbar__dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+/* Noktalar süzülür: yalnız yukarı-aşağı, sinüs eğrisiyle; aradaki küçük gecikmeler soldan
+   sağa ilerleyen yumuşak bir dalga oluşturur. Ayrı katmanda çizildiği için piksel altı akar. */
+@media (prefers-reduced-motion: no-preference) {
+  .navbar__dots i {
+    will-change: translate;
+    animation: navbar-dot-float 1.6s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+  }
+  .navbar__dots i:nth-child(1) { animation-delay: 0s; }
+  .navbar__dots i:nth-child(2) { animation-delay: -0.3s; }
+  .navbar__dots i:nth-child(3) { animation-delay: -0.6s; }
+  .navbar__dots i:nth-child(4) { animation-delay: -0.9s; }
+}
+
+@keyframes navbar-dot-float {
+  from { translate: 0 2.5px; }
+  to { translate: 0 -2.5px; }
+}
+
+.navbar__menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar__link {
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.navbar__link:hover {
+  background: var(--off-white);
+}
+
+.navbar__link.active {
+  background: var(--yellow-pastel);
+}
+
+.navbar__toggle {
+  display: none;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar__bars,
+.navbar__bars::before,
+.navbar__bars::after {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--black);
+  content: '';
+}
+
+.navbar__bars {
+  position: relative;
+}
+.navbar__bars::before {
+  position: absolute;
+  top: -7px;
+}
+.navbar__bars::after {
+  position: absolute;
+  top: 7px;
+}
+
+@media (max-width: 767px) {
+  .navbar__toggle {
+    display: inline-flex;
+  }
+
+  .navbar__menu {
+    position: absolute;
+    top: var(--nav-h);
+    left: 0;
+    right: 0;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px var(--gutter) 24px;
+    background: var(--white);
+    border-bottom: 1px solid var(--off-white);
+  }
+
+  .navbar__menu.is-open {
+    display: flex;
+  }
+
+  .navbar__link {
+    padding: 14px 16px;
+  }
+}

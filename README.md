@@ -1,1 +1,29 @@
-# GDG-On-Campus-Web
+# GDG On Campus Pamukkale University
+
+React/Vite arayüzleri ve Node.js/Express/MongoDB API projesi. Node 24 kullanılır.
+
+| Dizin | Uygulama | Yerel adres |
+| --- | --- | --- |
+| `frontend/` | Core Team yönetim paneli | http://localhost:5174 |
+| `frontend/hackaton/` | Hackathon etkinlik sitesi (eski `web/`) | http://localhost:5173 |
+| `backend/` | API | http://localhost:5000 |
+
+Yerel geliştirmede Docker ile tüm projeyi başlatmak için `backend/.env` ayarlarını hazırlayıp kökte `docker compose up -d --build --wait` çalıştırın. MongoDB, API ve iki ön yüz birlikte başlar; bilgisayarınızda Node/npm kurulumu gerekmez. Uygulama adresleri yukarıdaki tablodadır. Kaynak değişiklikleri container'lara yansır; paket bağımlılığı değişirse yeniden build gerekir.
+
+Compose kendi MongoDB volume'unu ve kalıcı `backend/uploads` dizinini kullanır. Mevcut MongoDB 27017 portunu kullanıyorsa kökteki `.env` dosyasında `MONGO_PORT` değiştirilebilir; diğer portlar ve tarayıcı API/CORS ayarları için kökteki [.env.example](.env.example) dosyasına bakın. Kök `.env` yalnızca Compose değişkenlerini tutar; backend sırları `backend/.env` içindedir ([backend/.env.example](backend/.env.example)). `docker compose logs -f` logları gösterir; `docker compose down` servisleri durdurur ve veritabanı volume'unu korur. İlk admin için `DEFAULT_ADMIN_PASSWORD` ayarlandıktan sonra `docker compose exec backend npm run seed` çalıştırılır.
+
+Docker olmadan geliştirme için kökte `npm run setup` bağımlılıkları kurar. Proje npm workspaces kullanır: üç paketin (`backend`, `frontend`, `frontend/hackaton`) bağımlılıkları tek bir kök `package-lock.json` ile kökteki `node_modules` altına kurulur; yeni paket eklerken `npm install <paket> --workspace backend` gibi kökten çalıştırın. İlk kurulumda örnek env dosyalarını ilgili dizinlerde `.env` olarak kopyalayıp düzenleyin; mevcut dosyaları ezmeyin. Sadece MongoDB'yi Compose ile çalıştırmak için `docker compose up -d --wait mongo` kullanabilirsiniz.
+
+`npm run dev` üç uygulamayı başlatır. Ayrı çalıştırmak için `dev:api`, `dev:panel`, `dev:hackaton` komutları vardır. `npm run check` üç paketin lint, tip denetimi (`npm run typecheck`: JSDoc + `checkJs`, her pakette `jsconfig.json`), test kontrollerini ve iki üretim build'ini çalıştırır. `npm run setup:browser` ardından `npm run test:e2e` gerçek Chromium akışlarını kontrol eder. Testler geçici veritabanı kullanır.
+
+> **Windows PowerShell Notu:** Windows üzerinde PowerShell'in varsayılan `ExecutionPolicy` politikası nedeniyle `npm.ps1` engeline takılmamak (`PSSecurityException`) için terminal komutlarını **`npm.cmd`** ve **`npx.cmd`** ile çalıştırınız (örn. `npm.cmd run check`, `npm.cmd test`, `npm.cmd run dev`, `npx.cmd playwright test`).
+
+- [Kapsamlı Eksiklikler ve Düzeltme Rehberi (30 Madde)](docs/EKSIKLIKLER_VE_DUZELTME_REHBERI.md)
+- [Mevcut proje durumu ve dokümantasyon haritası](docs/MEVCUT_PROJE_DURUMU.md)
+- [Canlıya çıkış kontrol listesi ve kabul kriterleri](docs/CANLIYA_CIKIS_KONTROL_LISTESI.md)
+- [Katılımcı doğrulaması ve test araçları](docs/KATILIMCI_DOGRULAMA.md)
+- [Backend kurulum ve kullanım](backend/README.md)
+- [API kılavuzu](docs/API.md), [mimari](docs/architecture.md), [veritabanı](docs/DATABASE.md)
+- [Sorunlar ve geliştirme öncelikleri](docs/SORUNLAR.md)
+
+İyileştirme kapsamı ve kontrol sonuçları: [test planı](docs/IYILESTIRME_VE_TEST_PLANI.md). Eski tarihli belgeler tarihsel durum içerir; güncel kurulum için bu README ve uygulama README'lerini kullanın.

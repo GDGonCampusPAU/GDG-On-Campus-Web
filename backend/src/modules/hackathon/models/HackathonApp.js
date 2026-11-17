@@ -2,49 +2,68 @@ const mongoose = require('mongoose');
 
 const hackathonAppSchema = new mongoose.Schema(
   {
-    teamName: {
+    fullName: {
       type: String,
-      required: [true, 'Takım adı zorunludur.'],
-      trim: true,
-      maxlength: [100, 'Takım adı en fazla 100 karakter olabilir.']
-    },
-    leaderName: {
-      type: String,
-      required: [true, 'Takım lideri adı ve soyadı zorunludur.'],
-      trim: true,
-      maxlength: [100, 'Lider adı en fazla 100 karakter olabilir.']
-    },
-    leaderEmail: {
-      type: String,
-      required: [true, 'Takım lideri e-posta adresi zorunludur.'],
-      trim: true,
-      lowercase: true
-    },
-    leaderPhone: {
-      type: String,
-      required: [true, 'Takım lideri telefon numarası zorunludur.'],
+      required: false,
       trim: true
     },
-    memberCount: {
-      type: Number,
-      required: [true, 'Takım üye sayısı zorunludur.'],
-      min: [1, 'Takım üye sayısı en az 1 olmalıdır.'],
-      max: [5, 'Takım üye sayısı en fazla 5 olabilir.']
+    // Legacy field from the removed Team model; kept so old documents stay readable.
+    teamId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false
     },
-    projectIdea: {
+    mailId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VerificationToken',
+      required: false
+    },
+    motivation: {
       type: String,
-      required: [true, 'Proje fikri/özeti zorunludur.'],
+      required: false,
       trim: true
     },
-    resumeUrl: {
-      type: String,
-      trim: true,
-      default: null
-    },
+    // Keep old reference-based records readable while matching the existing API payload.
+    teamName: { type: String, trim: true, required: function () { return !this.teamId; } },
+    leaderName: { type: String, trim: true, required: function () { return !this.teamId; } },
+    leaderEmail: { type: String, lowercase: true, trim: true, required: function () { return !this.teamId; } },
+    leaderPhone: { type: String, trim: true, required: function () { return !this.teamId; } },
+    memberCount: { type: Number, min: 1, max: 5, validate: Number.isInteger },
+    projectIdea: { type: String, trim: true },
+    resumeUrl: { type: String, default: null },
     appliedAt: {
       type: Date,
       default: Date.now,
       index: true
+    },
+    status: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: 'PENDING',
+      index: true
+    },
+    statusNote: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: ''
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    reviewedAt: {
+      type: Date,
+      default: null
+    },
+    lastNotifiedStatus: {
+      type: String,
+      enum: ['APPROVED', 'REJECTED', null],
+      default: null
+    },
+    lastNotifiedAt: {
+      type: Date,
+      default: null
     }
   },
   {
@@ -53,10 +72,5 @@ const hackathonAppSchema = new mongoose.Schema(
   }
 );
 
-hackathonAppSchema.index({ appliedAt: -1 });
-hackathonAppSchema.index({ teamName: 'text', leaderName: 'text', leaderEmail: 'text' });
-
 const HackathonApp = mongoose.model('HackathonApp', hackathonAppSchema);
-
 module.exports = HackathonApp;
-

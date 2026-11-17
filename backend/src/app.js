@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
+const { default: helmet } = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-const rateLimit = require('express-rate-limit');
+const { rateLimit } = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
@@ -12,6 +12,15 @@ const hackathonModule = require('./modules/hackathon');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+const { randomUUID } = require('node:crypto');
+app.use((req, res, next) => {
+  req.requestId = randomUUID();
+  res.setHeader('X-Request-ID', req.requestId);
+  next();
+});
+const proxyHops = Number(process.env.TRUST_PROXY_HOPS || 0);
+if (!Number.isSafeInteger(proxyHops) || proxyHops < 0) throw new Error('TRUST_PROXY_HOPS negatif olmayan tam sayı olmalıdır.');
+if (proxyHops) app.set('trust proxy', proxyHops);
 
 // 1. Security Headers via Helmet
 app.use(
@@ -21,9 +30,14 @@ app.use(
 );
 
 // Frontend'in çalıştığı adrese izin veriyoruz
+if (process.env.NODE_ENV === 'production' && !process.env.CLIENT_URLS && !process.env.CLIENT_URL) throw new Error('Üretimde CLIENT_URLS tanımlanmalıdır (backend/.env).');
+const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:5174')
+  .split(',').map(value => value.trim()).filter(Boolean);
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173', // Frontend adresi
-  credentials: true
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(Object.assign(new Error('Bu origin için erişim izni yok.'), { status: 403 }));
+  }
 }));
 
 // 3. HTTP Request Logging (morgan)
@@ -57,14 +71,39 @@ const authLimiter = rateLimit({
 });
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', authLimiter);
+app.use('/api/v1/auth/send-otp', authLimiter);
+app.use('/api/v1/auth/verify-email', authLimiter);
+app.use('/api/v1/auth/forgot-password', authLimiter);
+app.use('/api/v1/auth/reset-password', authLimiter);
 
 // 6. Body Parsers
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Files travel as multipart (multer has its own limits); JSON/urlencoded bodies stay small.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use((req, res, next) => {
+  if (req.body != null && (typeof req.body !== 'object' || Array.isArray(req.body))) return res.status(400).json({ message: 'İstek gövdesi JSON nesnesi olmalıdır.' });
+  req.body ||= {};
+  next();
+});
 
 // 7. Static File Serving for Uploaded Assets
-const uploadDir = path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadDir));
+const uploadDir = require('./middleware/uploadMiddleware').uploadDir;
+app.use('/uploads/public', express.static(path.join(uploadDir, 'public')));
+app.use('/api/v1/files', require('./routes/fileRoutes'));
+// Preserve previously published cover images without reopening all legacy uploads.
+app.get('/uploads/:filename', async (req, res, next) => {
+  try {
+    const filename = req.params.filename;
+    if (!/^[a-zA-Z0-9_-]+\.(?:png|jpe?g|webp|gif)$/i.test(filename)) return next();
+    const { literalSearch } = require('./utils/query');
+    const suffix = literalSearch(`/uploads/${filename}`).source;
+    const publicCover = await require('./models/Content').exists({ coverImageUrl: new RegExp(`${suffix}$`, 'i') });
+    if (!publicCover) return next();
+    res.sendFile(path.join(uploadDir, filename), error => { if (error) next(error); });
+  } catch (error) { next(error); }
+});
+// Existing private URLs are retained, but now require the same authorization.
+app.use('/uploads', require('./routes/fileRoutes'));
 
 // 8. API Health Check
 app.get('/health', (req, res) => {
@@ -73,6 +112,10 @@ app.get('/health', (req, res) => {
     message: 'GDG On Campus Pamukkale University Backend API is running.',
     timestamp: new Date().toISOString()
   });
+});
+app.get('/ready', (req, res) => {
+  const ready = require('mongoose').connection.readyState === 1;
+  res.status(ready ? 200 : 503).json({ success: ready });
 });
 
 app.get('/api/v1/health', (req, res) => {
@@ -84,9 +127,13 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // 9. API Routes
+app.use('/api/v1/participant-auth', require('./modules/participantAuth/routes/participantAuthRoutes'));
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', require('./routes/userRoutes'));
 app.use('/api/v1/content', contentRoutes);
+app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
+app.use('/api/v1/maintenance', require('./routes/maintenanceRoutes'));
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
 if (hackathonModule.isEnabled()) {
@@ -101,7 +148,7 @@ if (hackathonModule.isEnabled()) {
 }
 
 // 10. 404 Route Not Found Handler
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `İstenen kaynak bulunamadı: ${req.method} ${req.originalUrl}`

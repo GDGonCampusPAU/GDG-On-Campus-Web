@@ -88,3 +88,22 @@ desktop.ini
 !.vscode/extensions.json
 *.swp
 *~
+
+# ==========================================
+# Hackathon web (frontend)
+# ==========================================
+.claude/
+.superpowers/
+.vercel/
+docs/*.pdf
+docs/superpowers/
+
+# Browser test artifacts
+playwright-report/
+test-results/
+
+# TLS private key for nginx (DEF-27); never commit
+nginx/certs/
+
+# Maintenance mode flag + standalone server pid (admin panel > Bakım modu)
+.maintenance/

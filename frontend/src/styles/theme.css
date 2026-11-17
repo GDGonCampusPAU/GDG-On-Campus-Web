@@ -1,0 +1,142 @@
+/* Global tema katmanı: fontlar, marka renk token'ları ve temel sıfırlamalar.
+   Marka kuralları: docs/gdg_guideline_instructions.md
+   Font dosyaları: frontend/public/fonts/ altında Latin + Türkçe alt kümeli .woff2 (kaynak: design folders/fonts). */
+
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans'), url('/fonts/GoogleSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans Medium'), url('/fonts/GoogleSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans Bold'), url('/fonts/GoogleSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Google Sans Mono';
+  src: local('Google Sans Mono'), url('/fonts/GoogleSansMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Google Sans Mono';
+  src: local('Google Sans Mono Medium'), url('/fonts/GoogleSansMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* GDG core */
+  --gdg-blue: #4285f4;
+  --gdg-green: #34a853;
+  --gdg-yellow: #f9ab00;
+  --gdg-red: #ea4335;
+
+  /* GDG halftones */
+  --gdg-blue-halftone: #57caff;
+  --gdg-green-halftone: #5cdb6d;
+  --gdg-yellow-halftone: #ffd427;
+  --gdg-red-halftone: #ff7daf;
+
+  /* GDG pastels */
+  --gdg-blue-pastel: #c3ecf6;
+  --gdg-green-pastel: #ccf6c5;
+  --gdg-yellow-pastel: #ffe7a5;
+  --gdg-red-pastel: #f8d8d8;
+
+  /* Nötr */
+  --gdg-off-white: #f0f0f0;
+  --gdg-black-02: #1e1e1e;
+
+  /* Anlamsal yüzey token'ları — etkinlik sitesiyle aynı açık dil */
+  --page-bg: var(--gdg-off-white);
+  --surface: #ffffff;
+  --surface-sunken: #ffffff;
+  --surface-muted: var(--gdg-off-white);
+  --line: var(--gdg-black-02);
+  --line-soft: color-mix(in srgb, var(--gdg-black-02) 14%, transparent);
+  --text-strong: var(--gdg-black-02);
+  --text-muted: color-mix(in srgb, var(--gdg-black-02) 70%, transparent);
+  --accent: var(--gdg-yellow);
+  --on-accent: var(--gdg-black-02);
+  --focus-ring: var(--gdg-blue);
+  /* Durumlar: renk pastel zeminde, metin siyah kalır (renk tek başına anlam taşımaz). */
+  --danger-text: var(--gdg-black-02);
+  --danger-line: var(--gdg-red);
+  --success-text: var(--gdg-black-02);
+  --success-line: var(--gdg-green);
+
+  /* Tipografi */
+  --font-sans: 'Google Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Google Sans Mono', ui-monospace, Consolas, monospace;
+
+  /* Aralık ve köşe */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-pill: 999px;
+  --radius-card: 16px;
+  --radius-card-sm: 16px;
+
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--text-strong);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Vite şablonundaki #root kısıtlarını kaldırır: sayfa tam genişlikte çalışır. */
+#root {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  text-align: left;
+  display: block;
+  min-height: 100svh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

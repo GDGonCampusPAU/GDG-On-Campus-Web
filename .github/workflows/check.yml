@@ -1,0 +1,52 @@
+name: Checks
+on: [push, pull_request]
+
+# Deploys to the production server after checks pass on the tracked branch.
+# To track main later: set DEPLOY_BRANCH (and the 'dev' in the deploy job's `if`) to main here AND DEPLOY_BRANCH=main in the
+# server's /root/gdg-web/.env (the server refuses any other branch).
+env:
+  DEPLOY_BRANCH: dev
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm run setup
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  deploy:
+    needs: check
+    # Job-level `if` cannot read `env`; keep 'dev' here in sync with DEPLOY_BRANCH above.
+    if: github.event_name == 'push' && github.ref_name == 'dev' && github.repository == 'GDGonCampusPAU/GDG-On-Campus-Web'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$HOST" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::warning::Deploy secrets (DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_KNOWN_HOSTS) are not set; skipping deploy."
+            exit 0
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The server-side key is locked to scripts/deploy.sh; the argument is only the branch name.
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "root@$HOST" "$DEPLOY_BRANCH"

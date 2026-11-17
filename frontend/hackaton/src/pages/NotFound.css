@@ -1,0 +1,220 @@
+.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: 32px 48px;
+  text-align: center;
+}
+
+.not-found__code {
+  padding: 2px 12px;
+  border: 2px solid var(--black);
+  border-radius: var(--radius-pill);
+  background: var(--yellow-pastel);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.not-found__title {
+  margin: 10px 0 8px;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.not-found .laptop {
+  width: min(100%, 820px, calc((100svh - var(--nav-h) - 200px) * 1.28));
+}
+
+/* Phones: the screen should fill the width. The lid sits at the back of the base, so perspective shows it
+   at ~85% of the laptop's width: the laptop is made wider than the phone and the base's sides are clipped. */
+@media (max-width: 640px) {
+  .not-found.container {
+    width: 100%;
+    overflow-x: clip;
+  }
+
+  .not-found .laptop {
+    flex: none;
+    width: 113vw;
+    min-width: 0;
+    padding-inline: 0;
+    /* auto margins would pin an overflowing box to the left; split the overflow evenly instead */
+    margin-inline: calc(50% - 56.5vw);
+  }
+}
+
+/* ---------- On the screen ---------- */
+.not-found__screen > * {
+  position: absolute;
+}
+
+/* While it waits the glass itself is the button: clicks must land on the display, not on what it shows. */
+.not-found__screen.is-waiting {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.not-found__screen.is-waiting > * {
+  pointer-events: none;
+}
+
+.not-found__screen:focus-visible {
+  outline: 3px solid var(--blue-half);
+  outline-offset: 2px;
+}
+
+.not-found__robot {
+  left: 4%;
+  bottom: 4%;
+  width: 50%;
+  height: auto;
+}
+
+.not-found__bubble {
+  top: 10%;
+  right: 5%;
+  width: 42%;
+  padding: 2.2cqw 2.4cqw;
+  border: 2px solid var(--black);
+  border-radius: 2cqw;
+  background: var(--white);
+  color: var(--black);
+  font-size: clamp(0.8125rem, 2.6cqw, 1.3rem);
+  line-height: 1.4;
+  text-align: left;
+  animation: not-found-say 0.35s ease-out;
+}
+
+.not-found__bubble[hidden] {
+  display: none;
+}
+
+/* Tail towards the robot. */
+.not-found__bubble::after {
+  content: '';
+  position: absolute;
+  left: -1.6cqw;
+  bottom: 22%;
+  width: 2.6cqw;
+  height: 2.6cqw;
+  border-left: 2px solid var(--black);
+  border-bottom: 2px solid var(--black);
+  background: var(--white);
+  transform: rotate(45deg);
+}
+
+.not-found__line {
+  margin: 0;
+  font-weight: 700;
+}
+
+.not-found__screen.is-upset .not-found__line {
+  color: #b3261e;
+}
+
+.not-found__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1cqw;
+  margin-top: 1.6cqw;
+}
+
+.not-found__choices .btn {
+  min-height: max(32px, 4.6cqw);
+  padding: 0 max(12px, 1.8cqw);
+  font-size: clamp(0.8125rem, 2.1cqw, 1.05rem);
+}
+
+.not-found__choices .btn:hover {
+  transform: none;
+}
+
+/* ---------- Cracked glass (one knock: it cracks, it does not break) ---------- */
+.not-found__glass {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.not-found__crack,
+.not-found__crack-shadow {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: not-found-crack 0.4s ease-out forwards;
+}
+
+.not-found__crack {
+  stroke: #fff;
+  stroke-opacity: 0.82;
+}
+
+.not-found__crack-shadow {
+  stroke: #000;
+  stroke-opacity: 0.7;
+}
+
+.not-found__impact {
+  animation: not-found-impact 0.6s ease-out forwards;
+}
+
+@keyframes not-found-crack {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes not-found-impact {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}
+
+@keyframes not-found-say {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Narrow screens: the bubble goes across the top, the robot below it. */
+@container (max-width: 560px) {
+  .not-found__bubble {
+    top: 5%;
+    left: 5%;
+    right: 5%;
+    width: auto;
+    padding: 2.6cqw 3cqw;
+  }
+
+  .not-found__bubble::after {
+    left: 30%;
+    bottom: -1.6cqw;
+    transform: rotate(-45deg);
+  }
+
+  .not-found__robot {
+    left: 20%;
+    bottom: 2%;
+    width: 36%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .not-found__crack,
+  .not-found__crack-shadow {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .not-found__bubble,
+  .not-found__impact {
+    animation: none;
+  }
+}

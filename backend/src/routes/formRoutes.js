@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const formParticipantMiddleware = require('../modules/participantAuth/middleware/formParticipantMiddleware');
 const formController = require('../controllers/formController');
+const myApplication = require('../controllers/myApplicationController');
+const teamAdmin = require('../controllers/teamAdminController');
+const permissions = require('../services/formPermissionsService');
 const authMiddleware = require('../middleware/authMiddleware');
 const { requireRoles } = require('../middleware/roleMiddleware');
 const { uploadFormFiles } = require('../middleware/uploadMiddleware');
@@ -9,7 +13,25 @@ const { uploadFormFiles } = require('../middleware/uploadMiddleware');
 // Public Endpoints (Anket/Form Doldurma)
 // ==========================================
 router.get('/public/:slugOrId', formController.getPublicForm);
-router.post('/public/:slugOrId/submit', uploadFormFiles.any(), formController.submitFormResponse);
+router.get('/public/:slugOrId/my-submission', formParticipantMiddleware, formController.getMySubmission);
+router.get('/public/:slugOrId/teams/:code', formParticipantMiddleware, formController.lookupFormTeam);
+
+// "Başvurum": the verified participant's own application and team.
+const mine = '/public/:slugOrId/my-application';
+router.get(mine, formParticipantMiddleware, myApplication.getMyApplication);
+router.put(mine, formParticipantMiddleware, myApplication.updateMyApplication);
+router.post(`${mine}/team/join`, formParticipantMiddleware, myApplication.joinTeam);
+router.post(`${mine}/team/create`, formParticipantMiddleware, myApplication.createTeam);
+router.post(`${mine}/team/transfer/code`, formParticipantMiddleware, myApplication.sendTransferCode);
+router.post(`${mine}/team/transfer`, formParticipantMiddleware, myApplication.transferCaptaincy);
+router.post(`${mine}/team/withdraw`, formParticipantMiddleware, myApplication.withdrawRequest);
+router.post(`${mine}/team/leave`, formParticipantMiddleware, myApplication.leaveTeam);
+router.post(`${mine}/team/requests/:participantId/approve`, formParticipantMiddleware, myApplication.approveRequest);
+router.post(`${mine}/team/requests/:participantId/reject`, formParticipantMiddleware, myApplication.rejectRequest);
+router.post(`${mine}/team/members/:participantId/remove`, formParticipantMiddleware, myApplication.removeMember);
+router.post(`${mine}/team/disband/code`, formParticipantMiddleware, myApplication.sendDisbandCode);
+router.post(`${mine}/team/disband`, formParticipantMiddleware, myApplication.disbandTeam);
+router.post('/public/:slugOrId/submit', formParticipantMiddleware, uploadFormFiles.any(), formController.submitFormResponse);
 
 // ==========================================
 // Protected Endpoints (Admin & Organizatör)
@@ -24,9 +46,23 @@ router.put('/:id', formController.updateForm);
 router.patch('/:id/status', formController.updateFormStatus);
 router.delete('/:id', formController.deleteForm);
 
-// Responses & Export
+// Responses, Status & Export
 router.get('/:id/responses', formController.getFormResponses);
+router.patch('/:id/responses/:responseId/status', formController.updateFormResponseStatus);
 router.get('/:id/responses/export', formController.exportFormResponses);
+
+// Participant permissions (ADMIN only): may participants change teams / edit their answers?
+const respond = (fn) => async (req, res, next) => {
+  try { res.json({ success: true, data: await fn(req) }); } catch (error) { next(error); }
+};
+router.get('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.getPermissions(req.params.id)));
+router.put('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.updatePermissions(req.params.id, req.body)));
+
+// Registration teams (staff): list, remove member, change captain, disband.
+router.get('/:id/teams', teamAdmin.listTeams);
+router.post('/:id/teams/:teamId/members/:participantId/remove', teamAdmin.removeMember);
+router.post('/:id/teams/:teamId/captain', teamAdmin.setCaptain);
+router.delete('/:id/teams/:teamId', teamAdmin.disband);
 
 module.exports = router;
 

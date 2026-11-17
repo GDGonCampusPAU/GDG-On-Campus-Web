@@ -1,0 +1,43 @@
+/* LaptopHero's laptop frozen in its open state (its scroll variables at --p 1). */
+.laptop--static {
+  --cam: 1;
+  --open: 1;
+  --on: 1;
+  --z: 0;
+  --tilt: -5deg;
+  --lid: 17deg;
+  width: min(100%, 760px, calc((100svh - var(--nav-h) - 240px) * 1.28));
+  min-width: min(100%, 300px);
+  margin-inline: auto;
+}
+
+.laptop--static .laptop__view {
+  transform: translateY(4cqw);
+  /* The flat scene box sits in front of the tilted lid and would take every click. */
+  pointer-events: none;
+}
+
+.laptop--static .laptop__display {
+  position: relative;
+  pointer-events: auto;
+  color: #e8eaed;
+}
+
+.laptop--static.is-hit {
+  animation: laptop-knock 0.18s ease-out;
+}
+
+@keyframes laptop-knock {
+  25% {
+    transform: translate(-3px, 2px);
+  }
+  60% {
+    transform: translate(2px, -1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .laptop--static.is-hit {
+    animation: none;
+  }
+}
