@@ -233,7 +233,7 @@ test('[CHALLENGE F19.3] Nginx reverse proxy configuration for dual frontend & ba
   const nginxConf = await fs.readFile(nginxConfPath, 'utf8');
 
   // Dual port listening: 80 (hackathon) and 8080 (panel)
-  assert.match(nginxConf, /listen 80;/);
+  assert.match(nginxConf, /listen 80( default_server)?;/);
   assert.match(nginxConf, /listen 8080;/);
 
   // Backend upstream
@@ -305,7 +305,7 @@ test('[CHALLENGE F19.5] seed.js alignment with server.js & password hardening', 
   assert.equal(createdAdmin.isEmailVerified, true);
 });
 
-test('[CHALLENGE F19.6] HTTPS hosts, Cloudflare real IP and Vite build args are wired (DEF-26/27)', async () => {
+test('[CHALLENGE F19.6] NPM-fronted hosts, trusted real IP and Vite build args are wired (DEF-26/27)', async () => {
   const read = file => fs.readFile(path.join(projectRoot, file), 'utf8');
   const [dockerfile, compose, nginxConf, gitignore] = await Promise.all([
     read('Dockerfile'), read('compose.prod.yaml'), read('nginx/nginx.conf'), read('.gitignore')
@@ -316,17 +316,22 @@ test('[CHALLENGE F19.6] HTTPS hosts, Cloudflare real IP and Vite build args are 
   assert.match(dockerfile, /ENV VITE_GOOGLE_CLIENT_ID=\$\{VITE_GOOGLE_CLIENT_ID\}/);
   assert.match(compose, /VITE_GOOGLE_CLIENT_ID: \$\{VITE_GOOGLE_CLIENT_ID:-\}/);
 
-  // TLS: Cloudflare Origin Certificate mounted read-only, never committed.
-  assert.match(nginxConf, /ssl_certificate \/etc\/nginx\/certs\/origin\.pem;/);
-  assert.match(nginxConf, /listen 443 ssl/);
-  assert.match(compose, /\.\/nginx\/certs:\/etc\/nginx\/certs:ro/);
-  assert.match(compose, /"443:443"/);
+  // TLS ends at Nginx Proxy Manager: web joins the external proxy network and never publishes public ports.
+  assert.doesNotMatch(nginxConf, /listen 443|ssl_certificate/);
+  assert.match(compose, /aliases: \[gdg-web\]/);
+  assert.match(compose, /proxy:\s*\n\s*external: true/);
+  assert.doesNotMatch(compose, /"443:443"|"\$\{WEB_PORT:-80\}:80"/);
+  assert.match(compose, /"127\.0\.0\.1:\$\{WEB_PORT:-8081\}:80"/);
   assert.match(gitignore, /^nginx\/certs\/$/m, 'private keys must never be committed');
 
   // Panel host is never indexed.
   assert.match(nginxConf, /server_name panel\.gdgocpamukkale\.com;[\s\S]*X-Robots-Tag "noindex, nofollow"/);
 
-  // Real client IP only from Cloudflare edges (keeps TRUST_PROXY_HOPS=1 correct).
-  assert.match(nginxConf, /real_ip_header CF-Connecting-IP;/);
+  // Real client IP: X-Forwarded-For walked right-to-left through trusted hops only (NPM + Cloudflare).
+  assert.match(nginxConf, /real_ip_header X-Forwarded-For;/);
+  assert.match(nginxConf, /real_ip_recursive on;/);
+  assert.match(nginxConf, /set_real_ip_from 172\.16\.0\.0\/12;/);
   assert.ok((nginxConf.match(/set_real_ip_from /g) || []).length >= 15);
+  // Backend sees https from NPM, not this hop's plain http.
+  assert.match(nginxConf, /proxy_set_header X-Forwarded-Proto \$forwarded_proto;/);
 });
