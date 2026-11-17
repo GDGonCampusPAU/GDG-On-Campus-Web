@@ -36,7 +36,7 @@ Tüm teknik eksiklikler ve düzeltme tarifleri ayrıntılı olarak [`docs/EKSIKL
 | **E.16** | P2.2 | **P2** | [`Applications.jsx`](../frontend/src/pages/Applications.jsx) eksik telefon/fikir alanlarında bozuk `tel:undefined` ve boş kutu gizlendi; harici `https://` özgeçmiş linkleri güvenli yeni sekmede açıldı; [`api.js`](../frontend/src/lib/api.js) `downloadPrivateFile` geçersiz URL'leri `ApiError` ile sardı. | **TAMAMLANDI** |
 | **E.17** | P2.2 | **P2** | [`Users.jsx`](../frontend/src/pages/Users.jsx) içine rol filtresi (`ALL`, `PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN`), boş durum mesajı ve tek sayfada (`totalPages <= 1`) pager gizleme eklendi. | **TAMAMLANDI** |
 | **F.18** | P3.1 | **P3** | [`scripts/dev.mjs`](../scripts/dev.mjs) ve [`check-layout.mjs`](../frontend/hackaton/scripts/check-layout.mjs) platforma duyarlı `npm.cmd`/`npm` seçer hale getirildi; Windows kapanışında native `taskkill /pid <pid> /T /F` ağaç sonlandırma eklendi. | **TAMAMLANDI** |
-| **F.19** | P0.4 | **P0** | Çok aşamalı üretim [`Dockerfile`](../Dockerfile), Nginx ters proxy'li [`compose.prod.yaml`](../compose.prod.yaml), [`nginx/nginx.conf`](../nginx/nginx.conf), kök [`.env.example`](../.env.example), güncel [`backend/.env.example`](../backend/.env.example) ve `ensureHackathonPage` hizalı [`seed.js`](../backend/src/utils/seed.js) hazırlandı. `VITE_GOOGLE_CLIENT_ID` build arg'ı ve `:443` TLS + alan adı yönlendirmesi eklendi (13 Kasım 2026); canlıda Origin Certificate dosyaları `nginx/certs/` içine konmalı. | **KOD HAZIR / SERTİFİKA BEKLİYOR** |
+| **F.19** | P0.4 | **P0** | Çok aşamalı üretim [`Dockerfile`](../Dockerfile), Nginx ters proxy'li [`compose.prod.yaml`](../compose.prod.yaml), [`nginx/nginx.conf`](../nginx/nginx.conf), kök [`.env.example`](../.env.example), güncel [`backend/.env.example`](../backend/.env.example) ve `ensureHackathonPage` hizalı [`seed.js`](../backend/src/utils/seed.js) hazırlandı. `VITE_GOOGLE_CLIENT_ID` build arg'ı ve alan adı yönlendirmesi eklendi (13 Kasım 2026); TLS 17 Kasım 2026'dan itibaren sunucudaki Nginx Proxy Manager'da biter (bkz. §5.2). | **KOD HAZIR / NPM PROXY HOST BEKLİYOR** |
 | **F.20** | P0.4 | **P0** | `iyilestirme-ve-test` → `dev` merge edildi; `main` (`d218156`) canlı onayına kadar korundu. Canlıya çıkmadan önce Bölüm 3'teki Google OAuth, Brevo DNS/key (`gdgocpamukkale.com`), Cloudflare NS/A kayıtları, yedek/geri yükleme tatbikatı ve kullanıcı `main` merge onayı tamamlanmalıdır. | **DEV MERGE TAMAM / DIŞ KONTROLLER AÇIK** |
 
 *Eklenen Özelliğin Özeti (`b4fbf69` — Başvuru Durum İnceleme ve E-posta Profilleri):* [`applicationStatusService.js`](../backend/src/services/applicationStatusService.js), `PATCH /api/v1/forms/:id/responses/:responseId/status`, `PATCH /api/v1/hackathon/applications/:id/status`, [`emailService.js`](../backend/src/services/emailService.js) profil yönlendirmesi (`default` / `applicationStatus`), rollback koruması ve [`Applications.jsx`](../frontend/src/pages/Applications.jsx) onay/red/bekletme inceleme arayüzü tamamlanıp 350 testlik pakete dahil edildi.
@@ -169,11 +169,24 @@ Proje iki katmanlı test mimarisiyle %100 oranında doğrulanmıştır:
    docker compose -f compose.prod.yaml exec backend npm run seed
    ```
 
-2. **Ters Proxy, Domain & TLS Yönlendirmeleri (Cloudflare + Nginx):**
-   - [`nginx/nginx.conf`](../nginx/nginx.conf) `:443` (HTTP/2) üzerinde `gdgocpamukkale.com` / `www` (Hackathon, varsayılan) ve `panel.gdgocpamukkale.com` (Core Team Panel) adlarını SNI ile ayırır; yerel test için `80` ve `8080` aynen durur. Cloudflare IP aralıklarından gelen `CF-Connecting-IP` gerçek ziyaretçi IP'si olarak alınır, bu yüzden `TRUST_PROXY_HOPS=1` doğru kalır.
-   - Cloudflare > SSL/TLS > Origin Server'dan `gdgocpamukkale.com` + `*.gdgocpamukkale.com` için Origin Certificate oluşturun; sertifikayı sunucuda `nginx/certs/origin.pem`, anahtarı `nginx/certs/origin.key` olarak kaydedin (klasör git dışıdır). Dosyalar yoksa `web` konteyneri başlamaz. SSL modu **Full (strict)**, "Always Use HTTPS" açık olmalıdır.
+2. **Ters Proxy, Domain & TLS Yönlendirmeleri (Cloudflare → Nginx Proxy Manager → Nginx):**
+   - TLS sunucudaki **Nginx Proxy Manager (NPM)** konteynerinde biter. `web` konteyneri yalnız düz HTTP konuşur, 80/443 kullanmaz ve dışarıya port açmaz; NPM'e ortak bir Docker ağı üzerinden bağlanır. Sunucuda bir kez:
+     ```bash
+     docker network create proxy
+     docker network connect proxy <npm-konteyner-adi>   # NPM kendi compose'unda bu ağa eklenirse kalıcı olur
+     ```
+     Ağın adı farklıysa kök `.env` içinde `PROXY_NETWORK=<ad>` verin.
+   - NPM'de iki Proxy Host: `gdgocpamukkale.com` (+ `www`) → `http://gdg-web:80` (Hackathon) ve `panel.gdgocpamukkale.com` → `http://gdg-web:8080` (Core Team Panel). İkisinde de SSL sekmesinde sertifika seçilir (Let's Encrypt DNS challenge veya NPM'e "Custom" olarak yüklenen Cloudflare Origin Certificate), "Force SSL" açılır. Cloudflare SSL modu **Full (strict)**.
+   - Gerçek ziyaretçi IP'si: [`nginx/nginx.conf`](../nginx/nginx.conf) `X-Forwarded-For` başlığını sağdan sola yalnız güvenilen hop'ları (özel Docker ağı = NPM, Cloudflare IP aralıkları) atlayarak okur (`real_ip_recursive on`); Cloudflare'i atlayıp sahte başlık gönderen biri kendi IP'siyle görünür. Backend önünde tek hop kaldığı için `TRUST_PROXY_HOPS=1` doğrudur; `X-Forwarded-Proto` (https) NPM'den backend'e aynen aktarılır.
+   - Sunucu içinden kontrol: `curl -I http://127.0.0.1:8081` (site) ve `curl -I http://127.0.0.1:8082` (panel); bu portlar yalnız `127.0.0.1`'e bağlıdır.
    - Google butonu için kök `.env` içine `VITE_GOOGLE_CLIENT_ID=<backend GOOGLE_CLIENT_ID ile aynı>` yazıp `docker compose -f compose.prod.yaml build --no-cache` çalıştırın; değer build sırasında bundle'a gömülür.
    - Nginx `/api/` (`/api/v1`), `/uploads/`, `/health` ve `/ready` isteklerini `backend:5000` servisine yönlendirir (`TRUST_PROXY_HOPS=1`).
+
+3. **Otomatik Deploy (GitHub Actions → sunucu):**
+   - Sunucuda proje `/root/gdg-web` dizinindedir. `dev` dalına her push'ta `Checks` iş akışındaki `deploy` job'u, kontroller geçerse sunucuya SSH ile bağlanıp [`scripts/deploy.sh`](../scripts/deploy.sh)'ı çalıştırır: dal çekilir (`git reset --hard origin/<dal>`), `docker compose -f compose.prod.yaml up -d --build --wait` ile yeniden derlenir, eski imajlar silinir. `.env` dosyaları ve `backend/uploads` git dışında olduğu için korunur.
+   - Deploy anahtarı sunucuda `authorized_keys` içinde `command="/root/gdg-web/scripts/deploy.sh",restrict` ile kilitlidir; bu anahtar yalnız deploy tetikleyebilir. GitHub secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_KNOWN_HOSTS`.
+   - Sunucu yalnız kök `.env` içindeki `DEPLOY_BRANCH` dalını kabul eder. `main`'e geçmek için: [`check.yml`](../.github/workflows/check.yml) içinde `DEPLOY_BRANCH` ve `deploy` job'unun `if` koşulundaki `'dev'` → `main`, sunucuda `/root/gdg-web/.env` içinde `DEPLOY_BRANCH=main`.
+   - Elle deploy (sunucuda): `/root/gdg-web/scripts/deploy.sh dev`.
 
 ---
 
