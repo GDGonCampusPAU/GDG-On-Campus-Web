@@ -4,9 +4,9 @@
 # Run by GitHub Actions (deploy job in .github/workflows/check.yml) through a dedicated SSH key whose
 # authorized_keys entry forces this script:  command="/root/gdg-web/scripts/deploy.sh",restrict ssh-ed25519 ...
 # The key can only trigger a deploy; the requested branch arrives in SSH_ORIGINAL_COMMAND and
-# must equal DEPLOY_BRANCH from the server's root .env (switch dev -> main there and in check.yml).
+# must equal DEPLOY_BRANCH from the server's root .env (change it there and in check.yml together).
 #
-# Manual run on the server:  /root/gdg-web/scripts/deploy.sh dev
+# Manual run on the server:  /root/gdg-web/scripts/deploy.sh main
 
 # The whole body sits inside { ... } so bash parses it before running: `git reset` below may
 # rewrite this very file mid-run.
@@ -17,7 +17,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
 
 DEPLOY_BRANCH="$(sed -n 's/^DEPLOY_BRANCH=//p' .env 2>/dev/null | tail -n1)"
-DEPLOY_BRANCH="${DEPLOY_BRANCH:-dev}"
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 REQUESTED="${SSH_ORIGINAL_COMMAND:-${1:-$DEPLOY_BRANCH}}"
 
 if [[ ! "$REQUESTED" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$REQUESTED" != "$DEPLOY_BRANCH" ]]; then

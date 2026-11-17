@@ -1,11 +1,11 @@
 name: Checks
 on: [push, pull_request]
 
-# Deploys to the production server after checks pass on the tracked branch.
-# To track main later: set DEPLOY_BRANCH (and the 'dev' in the deploy job's `if`) to main here AND DEPLOY_BRANCH=main in the
+# Deploys to the production server after checks pass on the tracked branch (main).
+# To track another branch: set DEPLOY_BRANCH (and the branch in the deploy job's `if`) here AND DEPLOY_BRANCH in the
 # server's /root/gdg-web/.env (the server refuses any other branch).
 env:
-  DEPLOY_BRANCH: dev
+  DEPLOY_BRANCH: main
 
 jobs:
   check:
@@ -24,8 +24,8 @@ jobs:
 
   deploy:
     needs: check
-    # Job-level `if` cannot read `env`; keep 'dev' here in sync with DEPLOY_BRANCH above.
-    if: github.event_name == 'push' && github.ref_name == 'dev' && github.repository == 'GDGonCampusPAU/GDG-On-Campus-Web'
+    # Job-level `if` cannot read `env`; keep 'main' here in sync with DEPLOY_BRANCH above.
+    if: github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'GDGonCampusPAU/GDG-On-Campus-Web'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
