@@ -65,8 +65,10 @@ function PersonRow({ person, children }) {
  * @param {(code: string) => Promise<any>} [props.lookupTeam]
  * @param {(application: any) => void} props.onChange Her işlemden sonra güncel başvuru.
  * @param {() => void} props.onExpired Oturum süresi dolduğunda (401).
+ * @param {boolean} [props.locked] Yönetici takım değişikliklerini kapattıysa: bilgiler yalnız okunur, işlem düğmesi yok.
+ * @param {() => void} [props.onLocked] Sayfa açıkken kilitlendiği anlaşılırsa (sunucu reddetti); güncel izinleri yükletir.
  */
-export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired }) {
+export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired, locked = false, onLocked }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -84,6 +86,7 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired }
       return true
     } catch (err) {
       if (err?.status === 401) onExpired()
+      else if (err?.code === 'TEAM_CHANGES_LOCKED') { setConfirm(null); onLocked?.() }
       else setError(err?.message || 'İşlem tamamlanamadı. Tekrar dene.')
       return false
     } finally {
@@ -109,12 +112,12 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired }
             </p>
           )}
         </div>
-        {isCaptain && !confirm && (
+        {isCaptain && !locked && !confirm && (
           <Button size="sm" variant="danger" disabled={busy} onClick={() => setConfirm({ kind: 'disband' })}>
             Takımı dağıt
           </Button>
         )}
-        {isCaptain && confirm?.kind === 'disband' && (
+        {isCaptain && !locked && confirm?.kind === 'disband' && (
           <EmailConfirm
             key="disband"
             title="Takımı dağıt"
@@ -126,7 +129,7 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired }
             onClose={() => setConfirm(null)}
           />
         )}
-        {isCaptain && confirm?.kind === 'transfer' && (
+        {isCaptain && !locked && confirm?.kind === 'transfer' && (
           <EmailConfirm
             key={`transfer-${confirm.person.id}`}
             title={`Kaptanlığı ${confirm.person.name} adlı kişiye devret`}
@@ -140,6 +143,11 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired }
         )}
       </div>
 
+      {locked && (
+        <p className="team-panel__locked" role="note">
+          Takım değişiklikleri şu an kapalı. Takım bilgilerini yalnızca görüntüleyebilirsin.
+        </p>
+      )}
       {error && (
         <p className="team-panel__alert" role="alert">
           {error}
@@ -149,24 +157,30 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired }
         {notice}
       </p>
 
-      {!team && <NoTeam api={api} run={run} busy={busy} lookupTeam={lookupTeam} />}
+      {!team && (locked ? (
+        <p className="team-panel__solo" role="note">
+          Şu an bireysel olarak katılacaksın.
+        </p>
+      ) : (
+        <NoTeam api={api} run={run} busy={busy} lookupTeam={lookupTeam} />
+      ))}
 
       {isPending && (
         <div className="team-panel__pending">
           <p>
             <strong>{team.name}</strong> takımına katılma isteğin kaptanın onayını bekliyor.
           </p>
-          <ConfirmButton
+          {!locked && <ConfirmButton
             label="İsteği geri çek"
             confirmLabel="Geri çek"
             disabled={busy}
             onConfirm={() => run(api.withdraw, 'Katılma isteğini geri çektin. Şu an bireysel olarak katılacaksın.')}
-          />
+          />}
         </div>
       )}
 
       {isCaptain && (
-        <CaptainLists team={team} api={api} run={run} busy={busy} onTransfer={(person) => setConfirm({ kind: 'transfer', person })} />
+        <CaptainLists team={team} api={api} run={run} busy={busy} readOnly={locked} onTransfer={(person) => setConfirm({ kind: 'transfer', person })} />
       )}
 
       {isMember && (
@@ -177,21 +191,23 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired }
               <PersonRow key={person.id} person={person} />
             ))}
           </ul>
-          <div className="team-panel__footer">
-            <ConfirmButton
-              label="Takımdan ayrıl"
-              confirmLabel="Ayrıl"
-              disabled={busy}
-              onConfirm={() => run(api.leave, 'Takımdan ayrıldın. Şu an bireysel olarak katılacaksın.')}
-            />
-          </div>
+          {!locked && (
+            <div className="team-panel__footer">
+              <ConfirmButton
+                label="Takımdan ayrıl"
+                confirmLabel="Ayrıl"
+                disabled={busy}
+                onConfirm={() => run(api.leave, 'Takımdan ayrıldın. Şu an bireysel olarak katılacaksın.')}
+              />
+            </div>
+          )}
         </>
       )}
     </section>
   )
 }
 
-function CaptainLists({ team, api, run, busy, onTransfer }) {
+function CaptainLists({ team, api, run, busy, onTransfer, readOnly = false }) {
   const requests = team.requests ?? []
   const [tab, setTab] = useState(requests.length ? 'requests' : 'members')
   const tabs = [
@@ -229,11 +245,14 @@ function CaptainLists({ team, api, run, busy, onTransfer }) {
       <div id={`team-tabpanel-${tab}`} role="tabpanel" aria-labelledby={`team-tab-${tab}`} className="team-panel__tabpanel">
         {tab === 'requests' ? (
           requests.length === 0 ? (
-            <p className="team-panel__empty">Şu an bekleyen katılma isteği yok. Takım kodunu arkadaşlarınla paylaşabilirsin.</p>
+            <p className="team-panel__empty">
+              Şu an bekleyen katılma isteği yok.{readOnly ? '' : ' Takım kodunu arkadaşlarınla paylaşabilirsin.'}
+            </p>
           ) : (
             <ul className="team-panel__list">
               {requests.map((person) => (
                 <PersonRow key={person.id} person={person}>
+                  {!readOnly && <>
                   <Button size="sm" disabled={busy} onClick={() => run(() => api.approve(person.id), `${person.name} takıma katıldı.`)}>
                     Kabul et
                   </Button>
@@ -243,6 +262,7 @@ function CaptainLists({ team, api, run, busy, onTransfer }) {
                     disabled={busy}
                     onConfirm={() => run(() => api.reject(person.id), `${person.name} adlı kişinin isteğini reddettin.`)}
                   />
+                  </>}
                 </PersonRow>
               ))}
             </ul>
@@ -251,7 +271,7 @@ function CaptainLists({ team, api, run, busy, onTransfer }) {
           <ul className="team-panel__list">
             {team.members.map((person) => (
               <PersonRow key={person.id} person={person}>
-                {!person.captain && (
+                {!person.captain && !readOnly && (
                   <>
                     <Button size="sm" variant="ghost" disabled={busy} onClick={() => onTransfer(person)}>
                       Kaptan yap

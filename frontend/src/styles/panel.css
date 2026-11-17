@@ -667,6 +667,43 @@
   margin-top: var(--space-5);
 }
 
+/* Katılımcı izinleri: bakım kartıyla aynı kart, alt alta. Kapalı izin sarı zeminle öne çıkar. */
+.permissions {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Kayıtları kapatırken doldurulan metin ve önizlemesi. */
+.closing-text {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.closing-text__preview {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-4);
+  border: 2px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.closing-text__preview figcaption {
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.closing-text__preview p {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .maintenance-card--on .panel__badge {
   background: var(--surface);
 }

@@ -117,3 +117,24 @@ test('same email verified within 30 minutes skips the OTP on this device', async
   expect(verified).toHaveBeenCalledWith({ ...identity, formVersion: 'v1' })
   expect(api).not.toHaveBeenCalledWith('/participant-auth/email/send-otp', expect.anything())
 })
+
+test('closed registration shows the admin message instead of the verification, with a way back for applicants', async () => {
+  const user = userEvent.setup()
+  const message = 'İlginiz için teşekkür ederiz, kontenjan dolduğu için kaydınızı yapamıyoruz. Görüşmek üzere!'
+  api.mockResolvedValueOnce({ data: { schemaVersion: 'v1', settings: { verificationMethods: ['EMAIL_OTP'] }, registration: { open: false, message } } })
+  const verified = vi.fn()
+  render(<ParticipantVerification slug="test" onVerified={verified} />)
+  expect(await screen.findByText(message)).toBeInTheDocument()
+  expect(screen.queryByLabelText('Doğrulama e-postası')).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Başvuruma bak' }))
+  expect(screen.getByText(/başvururken kullandığın e-posta adresini doğrula/)).toBeInTheDocument()
+  await user.type(screen.getByLabelText('Doğrulama e-postası'), 'person@example.com')
+  api.mockResolvedValueOnce({ resendAfterSeconds: 60 })
+  await user.click(screen.getByRole('button', { name: 'Kod gönder' }))
+  await user.type(screen.getByLabelText('Doğrulama kodu'), '123456')
+  const identity = { token: 'verified', participant: { email: 'person@example.com' } }
+  api.mockResolvedValueOnce(identity)
+  await user.click(screen.getByRole('button', { name: 'Doğrula ve devam et' }))
+  expect(verified).toHaveBeenCalledWith({ ...identity, formVersion: 'v1', registration: { open: false, message } })
+})

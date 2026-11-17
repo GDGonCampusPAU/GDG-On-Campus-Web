@@ -199,3 +199,19 @@ export async function getMaintenance(token) {
 export async function setMaintenance(active, token) {
   return (await request('/maintenance', { method: 'PUT', body: { active }, token })).data
 }
+
+// --- Katılımcı izinleri (yalnızca ADMIN) ------------------------------------------
+// { registration, teamChanges, answerEditing: boolean, closedReason, closedEnding: string } — kapalıyken katılımcı yalnız görüntüler.
+
+const permissionsPath = async () => `/forms/${encodeURIComponent((await request('/event-page/hackathon')).data.formId)}/permissions`
+
+/** @param {string} token */
+export async function getPermissions(token) {
+  return (await request(await permissionsPath(), { token })).data
+}
+
+/** Yalnız gönderilen izinler değişir; kayıtları kapatırken closedReason + closedEnding de gönderilir.
+ * @param {{ teamChanges?: boolean, answerEditing?: boolean, registration?: boolean, closedReason?: string, closedEnding?: string }} changes @param {string} token */
+export async function setPermissions(changes, token) {
+  return (await request(await permissionsPath(), { method: 'PUT', body: changes, token })).data
+}

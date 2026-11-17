@@ -20,6 +20,8 @@ export default function Register({ data: dataProp }) {
   const [identity, setIdentity] = useState(null)
   const [draftValues, setDraftValues] = useState({})
   const [checking, setChecking] = useState(false)
+  /** Kayıtlar kapalıyken başvurusu olmadan doğrulayan kişiye gösterilen metin. */
+  const [closedMessage, setClosedMessage] = useState('')
   const navigate = useNavigate()
   const successHeadingRef = useRef(null)
 
@@ -48,6 +50,10 @@ export default function Register({ data: dataProp }) {
       // Kontrol başarısızsa formu göster; sunucu tekrar başvuruyu zaten 409 ile reddeder.
     } finally {
       setChecking(false)
+    }
+    if (verified.registration?.open === false) {
+      setClosedMessage(verified.registration.message)
+      return
     }
     // Aynı e-postayla son 1 saatte doldurulan bilgiler formu önceden doldurur.
     const draft = loadDraft(verified.participant?.email)
@@ -82,6 +88,16 @@ export default function Register({ data: dataProp }) {
               Programı Gör
             </Button>
           </div>
+        </section>
+      ) : closedMessage ? (
+        <section className="verify verify--closed" role="status">
+          <p className="verify__eyebrow">Kayıtlar kapandı</p>
+          <h2 className="verify__title">Bu adresle bir başvuru bulamadık</h2>
+          <p className="verify__closed-message">{closedMessage}</p>
+          <p className="verify__returning">
+            Başka bir adresle mi başvurmuştun?{' '}
+            <button type="button" className="verify__link" onClick={() => setClosedMessage('')}>Başka bir adres dene</button>
+          </p>
         </section>
       ) : checking ? (
         <p className="register__identity" role="status">Başvuru durumun kontrol ediliyor…</p>

@@ -8,9 +8,10 @@ import base from '../data/base.js'
 import { fillUntilConfirm } from '../test/registrationHelpers.js'
 import { fixtureSteps } from '../test/fixtures.js'
 
+const verification = vi.hoisted(() => ({ registration: undefined }))
 vi.mock('../components/ParticipantVerification.jsx', () => ({
   default: ({ onVerified }) => (
-    <button onClick={() => onVerified({ token: 'participant-token', participant: { email: 'ayse@example.com' } })}>
+    <button onClick={() => onVerified({ token: 'participant-token', participant: { email: 'ayse@example.com' }, registration: verification.registration })}>
       Test doğrula
     </button>
   ),
@@ -22,7 +23,7 @@ beforeEach(() =>
     vi.fn(async () => ({ ok: true, json: async () => ({ success: true, responseId: 'saved-id' }) })),
   ),
 )
-afterEach(() => { vi.unstubAllGlobals(); window.localStorage.clear() })
+afterEach(() => { vi.unstubAllGlobals(); window.localStorage.clear(); verification.registration = undefined })
 
 const renderRegister = (register = { ...base.register, steps: fixtureSteps }) =>
   render(
@@ -32,6 +33,19 @@ const renderRegister = (register = { ...base.register, steps: fixtureSteps }) =>
   )
 
 describe('Register sayfası', () => {
+  it('kayıtlar kapalıyken başvurusu olmayan kişi formu değil kapanış metnini görür', async () => {
+    const user = userEvent.setup()
+    const message = 'İlginiz için teşekkür ederiz, kontenjan dolduğu için kaydınızı yapamıyoruz. Görüşmek üzere!'
+    verification.registration = { open: false, message }
+    globalThis.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: { submitted: false } }) })
+    renderRegister()
+    await user.click(screen.getByRole('button', { name: 'Test doğrula' }))
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Ad soyad')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Başka bir adres dene' }))
+    expect(screen.getByRole('button', { name: 'Test doğrula' })).toBeInTheDocument()
+  })
+
   it('aynı e-postayla 1 saat içinde dönen katılımcının girdiği bilgileri önceden doldurur', async () => {
     const user = userEvent.setup()
     const first = renderRegister()

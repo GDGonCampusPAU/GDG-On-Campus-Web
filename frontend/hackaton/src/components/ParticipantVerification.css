@@ -72,6 +72,38 @@
   margin-bottom: 28px;
 }
 
+.verify__closed-message {
+  margin: 4px 0 24px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: var(--yellow-pastel);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.verify__returning {
+  font-size: 0.9375rem;
+}
+
+/* Metin içi bağlantı görünümlü düğme (sayfa değiştirmez, doğrulamayı açar). */
+.verify__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.verify__link:hover {
+  text-decoration-thickness: 2px;
+}
+
 .verify__status {
   font-weight: 700;
 }
