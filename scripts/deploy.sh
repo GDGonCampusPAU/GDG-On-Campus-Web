@@ -39,8 +39,37 @@ git reset -q --hard "origin/$DEPLOY_BRANCH"
 AFTER="$(git rev-parse --short HEAD)"
 echo "    $BEFORE -> $AFTER"
 
-echo "==> Derleniyor ve başlatılıyor"
-"${COMPOSE[@]}" up -d --build --remove-orphans --wait --wait-timeout 300
+# Build while the old version keeps serving, so maintenance only covers the container swap.
+echo "==> Derleniyor (eski sürüm yayında)"
+"${COMPOSE[@]}" build
+
+# Maintenance mode = flag file that nginx checks on every request (same file as the admin panel's
+# "Bakım modu"). A flag set by an admin is left alone; only a flag this script wrote is removed.
+FLAG_DIR="$APP_DIR/.maintenance"
+FLAG="$FLAG_DIR/active.json"
+OURS=0
+if [[ -e "$FLAG" ]]; then
+  echo "==> Bakım modu zaten açık (elle açılmış); deploy sonrası açık kalacak"
+else
+  mkdir -p "$FLAG_DIR"
+  printf '{\n  "since": "%s",\n  "by": { "id": "deploy", "name": "Otomatik deploy (%s)" }\n}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" "$AFTER" > "$FLAG.tmp" && mv "$FLAG.tmp" "$FLAG"
+  OURS=1
+  echo "==> Bakım modu açıldı"
+fi
+
+echo "==> Yeni sürüm başlatılıyor"
+if ! "${COMPOSE[@]}" up -d --remove-orphans --wait --wait-timeout 300; then
+  "${COMPOSE[@]}" ps --format 'table {{.Service}}\t{{.Status}}' || true
+  echo "!! Başlatma başarısız; site bakım modunda bırakıldı. Düzeltip tekrar deploy edin" >&2
+  echo "   ya da bakım modunu panelden / 'rm $FLAG' ile kapatın." >&2
+  exit 1
+fi
+
+if (( OURS )) && grep -q '"id": "deploy"' "$FLAG" 2>/dev/null; then
+  rm -f "$FLAG"
+  echo "==> Bakım modu kapatıldı"
+fi
 
 echo "==> Eski imajlar temizleniyor"
 docker image prune -f >/dev/null
