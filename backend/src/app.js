@@ -75,7 +75,6 @@ app.use('/api/v1/auth/send-otp', authLimiter);
 app.use('/api/v1/auth/verify-email', authLimiter);
 app.use('/api/v1/auth/forgot-password', authLimiter);
 app.use('/api/v1/auth/reset-password', authLimiter);
-app.use('/api/v1/hackathon/send-verification', authLimiter);
 
 // 6. Body Parsers
 // Files travel as multipart (multer has its own limits); JSON/urlencoded bodies stay small.

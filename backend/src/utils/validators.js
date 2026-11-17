@@ -96,49 +96,11 @@ const validateContentInput = (data, isUpdate = false) => {
   return errors;
 };
 
-/**
- * Validates hackathon application input
- * @param {Object} data
- * @returns {Array<string>} list of validation error messages
- */
-const validateHackathonInput = (data) => {
-  const errors = [];
-  const { teamName, leaderName, leaderEmail, leaderPhone, memberCount, projectIdea } = data || {};
-
-  if (!teamName || typeof teamName !== 'string' || teamName.trim().length === 0) {
-    errors.push('Takım adı zorunludur.');
-  }
-
-  if (!leaderName || typeof leaderName !== 'string' || leaderName.trim().length === 0) {
-    errors.push('Takım lideri adı zorunludur.');
-  }
-
-  if (!leaderEmail || typeof leaderEmail !== 'string' || !isValidEmail(leaderEmail)) {
-    errors.push('Geçerli bir takım lideri e-posta adresi giriniz.');
-  }
-
-  if (!leaderPhone || typeof leaderPhone !== 'string' || leaderPhone.trim().length < 7) {
-    errors.push('Geçerli bir telefon numarası giriniz.');
-  }
-
-  const count = Number(memberCount);
-  if (!Number.isInteger(count) || count < 1 || count > 5) {
-    errors.push('Takım üye sayısı 1 ile 5 arasında olmalıdır.');
-  }
-
-  if (!projectIdea || typeof projectIdea !== 'string' || projectIdea.trim().length < 10) {
-    errors.push('Proje fikri en az 10 karakter uzunluğunda olmalıdır.');
-  }
-
-  return errors;
-};
-
 module.exports = {
   isValidPauOrGmail,
   isValidEmail,
   validateRegisterInput,
   validateLoginInput,
-  validateContentInput,
-  validateHackathonInput
+  validateContentInput
 };
 

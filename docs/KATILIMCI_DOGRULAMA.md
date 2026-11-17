@@ -62,7 +62,7 @@ Form ayarları:
 
 Eski anonim cevapların kimliği geriye dönük bulunamaz; tek başvuru kontrolü doğrulanmış katılımcı ilişkisinden çalışır. `allowMultipleSubmissions` ayarını yanıt alındıktan sonra değiştirmek geçmiş kayıtları dönüştürmez. Form şeması gönderim sırasında değişmişse 409 ile formu yeniden açma istenir.
 
-Dosyalar kimlik doğrulamasından sonra yazılır; controller'ın reddettiği başvurulardaki dosyalar temizlenir. Önceki public `/uploads` erişimi bu çalışmada değiştirilmedi; gerçek CV toplamadan önce private dosya erişimi geliştirilmelidir. Özel `/hackathon/apply` akışı da mevcut lider OTP'sini kullanmaya devam eder; bu yeni doğrulama dinamik form rotalarına uygulanır.
+Dosyalar kimlik doğrulamasından sonra yazılır; controller'ın reddettiği başvurulardaki dosyalar temizlenir. Önceki public `/uploads` erişimi bu çalışmada değiştirilmedi; gerçek CV toplamadan önce private dosya erişimi geliştirilmelidir. Eski herkese açık `/hackathon/apply` ve `/hackathon/send-verification` uçları kaldırıldı (404); tüm yeni başvurular bu doğrulamadan geçen dinamik form rotalarını kullanır.
 
 ## API
 

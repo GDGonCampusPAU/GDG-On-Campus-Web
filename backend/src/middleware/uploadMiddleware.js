@@ -52,6 +52,5 @@ module.exports = {
   uploadDir,
   removeFiles,
   uploadCoverImage: makeUpload('public', ['.jpeg', '.jpg', '.png', '.webp', '.gif'], 5 * 1024 * 1024),
-  uploadResume: makeUpload('private', ['.pdf', '.doc', '.docx'], 10 * 1024 * 1024),
   uploadFormFiles: makeUpload('private', ['.jpeg', '.jpg', '.png', '.webp', '.gif', '.pdf', '.doc', '.docx', '.zip', '.rar', '.txt'], 15 * 1024 * 1024)
 };

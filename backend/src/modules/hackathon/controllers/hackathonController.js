@@ -1,8 +1,5 @@
 const { escapeCsvCell, literalSearch } = require('../../../utils/query');
 const HackathonApp = require('../models/HackathonApp');
-const VerificationToken = require('../../../models/VerificationToken');
-const { validateHackathonInput, isValidEmail } = require('../../../utils/validators');
-const { sendTeamOtp } = require('../../../services/teamOtpService');
 const {
   APPLICATION_STATUSES,
   buildStatusFilter,
@@ -10,144 +7,9 @@ const {
   updateApplicationDecision
 } = require('../../../services/applicationStatusService');
 
-/**
- * Resume URL is only ever derived from a validated upload. Client-supplied URLs are
- * ignored: they would be shown to staff as a download link (phishing vector).
- */
-const resolveResumeUrl = (req) => (req.file ? `/api/v1/files/${req.file.filename}` : null);
-
-/**
- * Helper to escape CSV cell value
- */
-
-
-/**
- * @desc    Send verification code to hackathon team leader email
- * @route   POST /api/v1/hackathon/send-verification
- * @access  Public
- */
-const sendHackathonVerification = async (req, res, next) => {
-  try {
-    const { leaderEmail, leaderName, teamName } = req.body;
-    if ([leaderName, teamName].some(value => value != null && typeof value !== 'string')) return res.status(400).json({ message: 'İsim alanları metin olmalıdır.' });
-
-    if (!leaderEmail || !isValidEmail(leaderEmail)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Lütfen geçerli bir e-posta adresi giriniz.'
-      });
-    }
-
-    const normalizedEmail = leaderEmail.toLowerCase().trim();
-
-    // Generate 6-digit OTP code (10 min TTL)
-    await sendTeamOtp({
-      email: normalizedEmail, purpose: 'HACKATHON_APPLY',
-      leaderName: leaderName ? leaderName.trim() : 'Takım Lideri',
-      teamName: teamName ? teamName.trim() : ''
-      });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Doğrulama kodu takım lideri e-posta adresine gönderildi. Lütfen gelen kutunuzu kontrol ediniz.'
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Submit hackathon application form (requires valid verificationCode)
- * @route   POST /api/v1/hackathon/apply
- * @access  Public
- */
-const applyHackathon = async (req, res, next) => {
-  try {
-    const {
-      teamName,
-      leaderName,
-      leaderEmail,
-      leaderPhone,
-      memberCount,
-      projectIdea,
-      verificationCode,
-      code
-    } = req.body;
-
-    const inputCode = verificationCode || code;
-
-    // 1. Validate Form Fields
-    const errors = validateHackathonInput({
-      teamName,
-      leaderName,
-      leaderEmail,
-      leaderPhone,
-      memberCount,
-      projectIdea
-    });
-
-    if (errors.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: errors.join(' ')
-      });
-    }
-
-    const normalizedEmail = leaderEmail.trim().toLowerCase();
-
-    // 2. Validate Verification Code
-    if (!inputCode) {
-      // If code was not entered, auto-send code and prompt user to enter it
-      await sendTeamOtp({
-        email: normalizedEmail, purpose: 'HACKATHON_APPLY',
-        leaderName: leaderName.trim(),
-        teamName: teamName.trim()
-      });
-
-      return res.status(400).json({
-        success: false,
-        requiresVerification: true,
-        message: 'Başvuruyu tamamlamak için takım lideri e-postasına gönderilen 6 haneli doğrulama kodunu giriniz.'
-      });
-    }
-
-    // Verify OTP
-    const verification = await VerificationToken.verifyOtp(normalizedEmail, inputCode, 'HACKATHON_APPLY');
-    if (!verification.success) {
-      return res.status(400).json({
-        success: false,
-        message: verification.message
-      });
-    }
-
-    // 3. Process Resume / Attachment
-    const resumeUrl = resolveResumeUrl(req);
-
-    // 4. Save Hackathon Application
-    const application = await HackathonApp.create({
-      teamName: teamName.trim(),
-      leaderName: leaderName.trim(),
-      leaderEmail: normalizedEmail,
-      leaderPhone: leaderPhone.trim(),
-      memberCount: Number(memberCount),
-      projectIdea: projectIdea.trim(),
-      resumeUrl
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: 'E-posta adresiniz doğrulandı ve Hackathon başvurunuz başarıyla alındı! Ekibinizle iletişime geçilecektir.',
-      data: {
-        applicationId: application._id,
-        teamName: application.teamName,
-        leaderName: application.leaderName,
-        appliedAt: application.appliedAt
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// The public legacy endpoints (send-verification, apply) were removed: registration runs through
+// /api/v1/forms (participant verification + admin "Kayıtlar" permission). Staff keep read access
+// to applications collected before that.
 
 /**
  * @desc    Get all submitted applications for Core Team
@@ -307,8 +169,6 @@ const exportApplications = async (req, res, next) => {
 };
 
 module.exports = {
-  sendHackathonVerification,
-  applyHackathon,
   getApplications,
   updateApplicationStatus,
   exportApplications

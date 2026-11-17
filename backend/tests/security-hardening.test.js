@@ -111,16 +111,13 @@ test('send-otp and register without code look the same for verified accounts but
   assert.deepEqual(sent.map(m => m.email), ['fresh@pau.edu.tr', 'other@pau.edu.tr']);
 });
 
-test('hackathon apply ignores a client-supplied resumeUrl', async () => {
-  const fields = {
-    teamName: 'Takım', leaderName: 'Lider Adı', leaderEmail: 'lead@example.com', leaderPhone: '+905551112233',
-    memberCount: '3', projectIdea: 'Yeterince uzun ve açıklayıcı bir proje fikri'
-  };
-  await post('/api/v1/hackathon/send-verification', { leaderEmail: fields.leaderEmail });
-  const code = sent.at(-1).code;
-  const res = await post('/api/v1/hackathon/apply', { ...fields, code, resumeUrl: 'https://phishing.example/cv.pdf' });
-  assert.equal(res.status, 201, JSON.stringify(res.body));
-  assert.equal((await HackathonApp.findById(res.body.data.applicationId)).resumeUrl, null);
+test('legacy hackathon apply is closed, so a client-supplied resumeUrl can no longer be stored', async () => {
+  const before = sent.length;
+  const res = await post('/api/v1/hackathon/apply', { teamName: 'Takım', leaderEmail: 'lead@example.com', code: '123456',
+    resumeUrl: 'https://phishing.example/cv.pdf' });
+  assert.equal(res.status, 404);
+  assert.equal(sent.length, before);
+  assert.equal(await HackathonApp.countDocuments(), 0);
 });
 
 test('forms with file fields reject anonymous submissions before anything is written to disk', async () => {
