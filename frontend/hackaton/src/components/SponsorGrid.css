@@ -23,7 +23,9 @@
 .sponsor--main {
   min-height: 128px;
   background: var(--yellow-pastel);
-  cursor: pointer;
+  /* Hotspot on the can's tab. The plain url() line is the fallback for browsers without cursor image-set(). */
+  cursor: url('/cursor-can.png') 17 0, pointer;
+  cursor: image-set(url('/cursor-can.png') 1x, url('/cursor-can@2x.png') 2x) 17 0, pointer;
 }
 
 /* Below the sticky CTA (40) and navbar (50), above neighbouring cards. */
