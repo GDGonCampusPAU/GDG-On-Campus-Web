@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/eventApi.js'
+import { loadIdentity, saveIdentity } from '../lib/registrationCache.js'
 
 export default function ParticipantVerification({ slug, onVerified }) {
   const [form, setForm] = useState(null)
@@ -31,6 +32,9 @@ export default function ParticipantVerification({ slug, onVerified }) {
   function send(event) {
     event.preventDefault()
     return perform(async () => {
+      // Bu cihazda aynı e-posta son 30 dk içinde doğrulandıysa yeni kod istenmez.
+      const cached = loadIdentity(email)
+      if (cached) return onVerified({ ...cached, formVersion: form.schemaVersion })
       const result = await api('/participant-auth/email/send-otp', { method: 'POST', body: { email: email.trim() } })
       setSent(true); setCooldown(result.resendAfterSeconds)
     })
@@ -39,6 +43,7 @@ export default function ParticipantVerification({ slug, onVerified }) {
     event.preventDefault()
     return perform(async () => {
       const identity = await api('/participant-auth/email/verify', { method: 'POST', body: { email: email.trim(), code } })
+      saveIdentity(identity)
       onVerified({ ...identity, formVersion: form.schemaVersion })
     })
   }

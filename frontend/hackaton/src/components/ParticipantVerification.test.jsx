@@ -7,6 +7,7 @@ import { api } from '../lib/eventApi.js'
 vi.mock('../lib/eventApi.js', () => ({ api: vi.fn() }))
 
 beforeEach(() => {
+  window.localStorage.clear()
   vi.resetAllMocks()
   api.mockResolvedValue({ data: { schemaVersion: 'v1', settings: { verificationMethods: ['EMAIL_OTP'] } } })
 })
@@ -94,4 +95,25 @@ test('can change email after OTP step, warns if Google Client ID missing and gua
   api.mockResolvedValueOnce({ data: { settings: { verificationMethods: ['GOOGLE'] } } })
   render(<ParticipantVerification slug="google-only" onVerified={vi.fn()} />)
   expect(await screen.findByText(/Google doğrulaması bu ortamda yapılandırılmamış/)).toBeInTheDocument()
+})
+
+test('same email verified within 30 minutes skips the OTP on this device', async () => {
+  const user = userEvent.setup()
+  const identity = { token: 'verified', expiresAt: new Date(Date.now() + 3600e3).toISOString(), participant: { email: 'person@example.com' } }
+  const first = render(<ParticipantVerification slug="test" onVerified={vi.fn()} />)
+  await user.type(await screen.findByLabelText('Doğrulama e-postası'), 'person@example.com')
+  api.mockResolvedValueOnce({ resendAfterSeconds: 60 })
+  await user.click(screen.getByRole('button', { name: 'Kod gönder' }))
+  await user.type(screen.getByLabelText('Doğrulama kodu'), '123456')
+  api.mockResolvedValueOnce(identity)
+  await user.click(screen.getByRole('button', { name: 'Doğrula ve devam et' }))
+  first.unmount()
+
+  api.mockClear()
+  const verified = vi.fn()
+  render(<ParticipantVerification slug="test" onVerified={verified} />)
+  await user.type(await screen.findByLabelText('Doğrulama e-postası'), 'PERSON@example.com')
+  await user.click(screen.getByRole('button', { name: 'Kod gönder' }))
+  expect(verified).toHaveBeenCalledWith({ ...identity, formVersion: 'v1' })
+  expect(api).not.toHaveBeenCalledWith('/participant-auth/email/send-otp', expect.anything())
 })

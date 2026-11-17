@@ -22,7 +22,7 @@ beforeEach(() =>
     vi.fn(async () => ({ ok: true, json: async () => ({ success: true, responseId: 'saved-id' }) })),
   ),
 )
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); window.localStorage.clear() })
 
 const renderRegister = (register = { ...base.register, steps: fixtureSteps }) =>
   render(
@@ -32,6 +32,30 @@ const renderRegister = (register = { ...base.register, steps: fixtureSteps }) =>
   )
 
 describe('Register sayfası', () => {
+  it('aynı e-postayla 1 saat içinde dönen katılımcının girdiği bilgileri önceden doldurur', async () => {
+    const user = userEvent.setup()
+    const first = renderRegister()
+    await user.click(screen.getByRole('button', { name: 'Test doğrula' }))
+    await user.type(await screen.findByLabelText('Ad soyad'), 'Ayşe Yılmaz')
+    await user.type(screen.getByLabelText('Bölüm'), 'Bilgisayar')
+    first.unmount()
+
+    renderRegister()
+    await user.click(screen.getByRole('button', { name: 'Test doğrula' }))
+    expect(await screen.findByLabelText('Ad soyad')).toHaveValue('Ayşe Yılmaz')
+    expect(screen.getByLabelText('Bölüm')).toHaveValue('Bilgisayar')
+  })
+
+  it('başarılı gönderimden sonra taslağı siler', async () => {
+    const user = userEvent.setup()
+    renderRegister()
+    await user.click(screen.getByRole('button', { name: 'Test doğrula' }))
+    await fillUntilConfirm(user)
+    await user.click(screen.getByRole('button', { name: 'Gönder' }))
+    await screen.findByRole('heading', { name: base.register.successTitle })
+    expect(window.localStorage.getItem('hackaton:register-draft:ayse@example.com')).toBeNull()
+  })
+
   it('h1 ve doğrulama sonrasında formu gösterir', async () => {
     renderRegister()
     expect(screen.getByRole('heading', { level: 1, name: base.register.title })).toBeInTheDocument()

@@ -7,6 +7,7 @@ import ParticipantVerification from '../components/ParticipantVerification.jsx'
 import { API_URL, getMySubmission, lookupTeam } from '../lib/eventApi.js'
 import TeamResult from '../components/TeamResult.jsx'
 import { submitRegistration } from '../lib/registration.js'
+import { clearDraft, clearIdentity, loadDraft, pruneDrafts, saveDraft } from '../lib/registrationCache.js'
 import './Register.css'
 
 /** @param {{ data?: any }} props Testler için isteğe bağlı veri; verilmezse useEvent() kullanılır. */
@@ -26,6 +27,11 @@ export default function Register({ data: dataProp }) {
     if (done) successHeadingRef.current?.focus()
   }, [done])
 
+  useEffect(() => { pruneDrafts() }, [])
+
+  const verifiedEmail = identity?.participant?.email
+  const saveDraftFor = useCallback((values) => { if (verifiedEmail) saveDraft(verifiedEmail, values) }, [verifiedEmail])
+
   // Daha önce başvurmuş katılımcı formu yeniden doldurmaz; başvuru sayfasına yönlenir.
   const showApplication = (verified, submission) =>
     navigate('/basvurum', { replace: true, state: { identity: verified, submission } })
@@ -43,6 +49,9 @@ export default function Register({ data: dataProp }) {
     } finally {
       setChecking(false)
     }
+    // Aynı e-postayla son 1 saatte doldurulan bilgiler formu önceden doldurur.
+    const draft = loadDraft(verified.participant?.email)
+    if (draft) setDraftValues(current => ({ ...draft, ...current }))
     setIdentity(verified)
   }
 
@@ -82,17 +91,18 @@ export default function Register({ data: dataProp }) {
         <>
           <p className="register__identity">Doğrulanan adres: <strong>{identity.participant.email}</strong></p>
           <StepForm steps={register.steps} initialData={{ ...draftValues, email: identity.participant.email }} lockedFields={['email']} lookupTeam={previewTeam}
+            onChange={saveDraftFor}
             onSubmit={async values => {
               setDraftValues(values)
               const result = await submitRegistration(values, { endpoint: `${API_URL}/api/v1/forms/public/${encodeURIComponent(formSlug)}/submit`, token: identity.token, formVersion: identity.formVersion })
-              if (result.status === 401) setIdentity(null)
+              if (result.status === 401) { clearIdentity(); setIdentity(null) }
               // 409 hem "zaten başvurdun" hem "form güncellendi" olabilir; yalnız gerçek başvuruda yönlendir.
               if (result.status === 409) {
                 const submission = await getMySubmission(formSlug, identity.token).catch(() => null)
                 if (submission?.submitted) showApplication(identity, submission)
               }
               return result
-            }} onSuccess={(result) => setDone({ team: result?.team ?? null })} />
+            }} onSuccess={(result) => { clearDraft(identity.participant.email); setDone({ team: result?.team ?? null }) }} />
         </>
       )}
     </div>

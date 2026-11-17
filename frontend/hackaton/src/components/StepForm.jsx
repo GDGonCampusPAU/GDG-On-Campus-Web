@@ -30,8 +30,9 @@ const shownValue = (f, v) => {
  * @param {string[]} [props.lockedFields]
  * @param {(code: string) => Promise<any>} [props.lookupTeam] `team` alanında kod önizlemesi için.
  * @param {{ idle: string, busy: string }} [props.submitLabels] Son adımdaki düğme metni (ör. düzenlemede "Kaydet").
+ * @param {(values: Record<string, any>) => void} [props.onChange] Her değer değişikliğinde ham değerleri alır (ör. taslak kaydı).
  */
-export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [], lookupTeam, submitLabels = DEFAULT_SUBMIT }) {
+export default function StepForm({ steps: configured, onSubmit, onSuccess, initialData = {}, lockedFields = [], lookupTeam, submitLabels = DEFAULT_SUBMIT, onChange }) {
   const steps = [...configured, CONFIRM]
   const [stepIndex, setStepIndex] = useState(0)
   const [values, setValues] = useState(() => ({ ...initialValues(configured), ...initialData }))
@@ -45,6 +46,10 @@ export default function StepForm({ steps: configured, onSubmit, onSuccess, initi
 
   const step = steps[stepIndex]
   const isLast = stepIndex === steps.length - 1
+
+  const onChangeRef = useRef(onChange)
+  useEffect(() => { onChangeRef.current = onChange }, [onChange])
+  useEffect(() => { onChangeRef.current?.(values) }, [values])
 
   useEffect(() => {
     // Compare instead of flagging the first run: StrictMode re-runs the mount effect.
