@@ -35,7 +35,8 @@ export default function Login({ onSuccess, notice }) {
     } catch (error) {
       if (error.data?.requiresVerification) {
         setStep('code') // backend yeni kodu e-postaya gönderdi
-      } else if (error.status === 403) {
+      } else if (error.data?.code === 'ACCOUNT_PENDING') {
+        // Yalnız onay bekleyen hesap; diğer 403'ler (ör. izin verilmeyen alan adı / CORS) kendi mesajını gösterir.
         setStep('form')
         setFormError(PENDING_MESSAGE)
       } else {
