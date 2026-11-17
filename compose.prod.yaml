@@ -7,7 +7,7 @@
 # Services:
 #   - mongo:   MongoDB 8 container with single-node replica set (rs0) for ACID transactions
 #   - backend: Production Node.js API runtime with only production dependencies
-#   - web:     Nginx reverse proxy for static web serving, caching & API proxy
+#   - web:     Nginx for static web serving, caching & API proxy (behind Nginx Proxy Manager)
 # ==============================================================================
 
 services:
@@ -72,18 +72,29 @@ services:
         VITE_API_URL: ${VITE_API_URL:-}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
+    # Public traffic arrives only through Nginx Proxy Manager (TLS ends there) over the shared
+    # proxy network: NPM forwards gdgocpamukkale.com -> gdg-web:80, panel.gdgocpamukkale.com -> gdg-web:8080.
+    # Host ports are bound to 127.0.0.1 for on-server checks (curl) only; they are not reachable from outside.
     ports:
-      - "${WEB_PORT:-80}:80"
-      - "${WEB_PANEL_PORT:-8080}:8080"
-      - "443:443"
+      - "127.0.0.1:${WEB_PORT:-8081}:80"
+      - "127.0.0.1:${WEB_PANEL_PORT:-8082}:8080"
+    networks:
+      default:
+      proxy:
+        aliases: [gdg-web]
     volumes:
-      # origin.pem + origin.key from Cloudflare (SSL/TLS > Origin Server); nginx will not start without them.
-      - ./nginx/certs:/etc/nginx/certs:ro
       # Maintenance flag written by the backend (admin panel > Bakım modu).
       - ./.maintenance:/etc/nginx/maintenance:ro
     depends_on:
       backend:
         condition: service_healthy
+
+networks:
+  # Docker network shared with the Nginx Proxy Manager container. Create once on the server:
+  #   docker network create proxy && docker network connect proxy <npm-container>
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy}
 
 volumes:
   mongo-prod-data:
