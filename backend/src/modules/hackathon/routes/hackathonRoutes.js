@@ -3,18 +3,10 @@ const router = express.Router();
 const hackathonController = require('../controllers/hackathonController');
 const authMiddleware = require('../../../middleware/authMiddleware');
 const { requireRoles } = require('../../../middleware/roleMiddleware');
-const { uploadResume } = require('../../../middleware/uploadMiddleware');
 
-// Public hackathon endpoints
-router.post('/send-verification', hackathonController.sendHackathonVerification);
-
-router.post(
-  '/apply',
-  uploadResume.single('resume'),
-  hackathonController.applyHackathon
-);
-
-// Protected endpoints (Requires ORGANIZER or ADMIN)
+// Legacy applications, staff only (ORGANIZER / ADMIN). The old public endpoints
+// (POST /send-verification, POST /apply) are gone on purpose: they bypassed the admin
+// "Kayıtlar" permission and the auth rate limit. New registrations use /api/v1/forms.
 router.get(
   '/applications',
   authMiddleware,

@@ -127,37 +127,19 @@ test('RBAC boundaries across MEMBER, ORGANIZER and ADMIN routes plus /users vali
   assert.equal((await request(app).patch('/api/v1/users/64b000000000000000000009/role').set('Authorization', `Bearer ${admin.token}`).send({ role: 'MEMBER' })).status, 404);
 });
 
-test('Legacy hackathon apply cleans attached resume on 400, stores private file and protects CSV export formulas', async () => {
-  assert.equal((await request(app).post('/api/v1/hackathon/send-verification').send({ leaderEmail: 'bad-email' })).status, 400);
-  assert.equal((await request(app).post('/api/v1/hackathon/send-verification').send({ leaderEmail: 'lead@example.com', teamName: 42 })).status, 400);
-
-  // Applying without verification code while attaching a file must reject 400 AND delete temp file
-  const missingCode = await request(app).post('/api/v1/hackathon/apply')
-    .field('teamName', '=HYPERLINK("https://evil.example")')
-    .field('leaderName', 'Lider Adı')
-    .field('leaderEmail', 'lead@example.com')
-    .field('leaderPhone', '+905551112233')
-    .field('memberCount', '3')
-    .field('projectIdea', 'Yeterince uzun ve açıklayıcı bir proje fikri')
+test('Legacy hackathon: public apply is closed (no file written), staff still list and export with CSV formula protection', async () => {
+  // The public endpoints are gone; an upload attempt must not leave a file on disk.
+  const closed = await request(app).post('/api/v1/hackathon/apply')
+    .field('teamName', 'Takım').field('leaderEmail', 'lead@example.com')
     .attach('resume', validPdf, 'resume.pdf');
-  assert.equal(missingCode.status, 400);
-  assert.equal(missingCode.body.requiresVerification, true);
-  assert.match(lastCode, /^\d{6}$/);
+  assert.equal(closed.status, 404);
+  assert.equal((await request(app).post('/api/v1/hackathon/send-verification').send({ leaderEmail: 'lead@example.com' })).status, 404);
   assert.equal((await fs.readdir(path.join(process.env.UPLOAD_DIR, 'private'))).length, 0);
 
-  const okApply = await request(app).post('/api/v1/hackathon/apply')
-    .field('teamName', '=HYPERLINK("https://evil.example")')
-    .field('leaderName', 'Lider Adı')
-    .field('leaderEmail', 'lead@example.com')
-    .field('leaderPhone', '+905551112233')
-    .field('memberCount', '3')
-    .field('projectIdea', 'Yeterince uzun ve açıklayıcı bir proje fikri')
-    .field('code', lastCode)
-    .attach('resume', validPdf, 'resume.pdf');
-  assert.equal(okApply.status, 201, JSON.stringify(okApply.body));
-
-  const saved = await HackathonApp.findOne();
-  assert.match(saved.resumeUrl, /^\/api\/v1\/files\/.+\.pdf$/);
+  // Applications collected before the change stay readable for staff.
+  await HackathonApp.create({ teamName: '=HYPERLINK("https://evil.example")', leaderName: 'Lider Adı',
+    leaderEmail: 'lead@example.com', leaderPhone: '+905551112233', memberCount: 3,
+    projectIdea: 'Yeterince uzun ve açıklayıcı bir proje fikri' });
 
   const organizer = await makeUser({ email: 'staff@pau.edu.tr', role: 'ORGANIZER' });
   const searchList = await request(app).get('/api/v1/hackathon/applications?search=HYPERLINK')

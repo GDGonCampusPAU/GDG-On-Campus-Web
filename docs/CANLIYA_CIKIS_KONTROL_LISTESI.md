@@ -84,14 +84,27 @@ Tüm teknik eksiklikler ve düzeltme tarifleri ayrıntılı olarak [`docs/EKSIKL
 2. **Güvenlik Kısıtları:**
    - Private dosyalara doğrudan web sunucusundan erişilemez; indirme işlemi yalnızca `ADMIN` veya `ORGANIZER` JWT token'ı ile `/api/v1/files/:filename` üzerinden yetkilendirilir.
 3. **Senkron Yedekleme & Geri Yükleme Prosedürü (Backup & Restore):**
-   - **Yedek Alma:** Veri tabanı ve dosya dizini aynı bakım penceresinde (mümkünse API yazmaları anlık durdurularak) birlikte yedeklenmelidir:
+   - **Yedek Alma:** Veri tabanı ve dosya dizini aynı bakım penceresinde (mümkünse API yazmaları anlık durdurularak) birlikte yedeklenmelidir. Komutlar proje kök dizininde çalıştırılır:
      ```bash
-     # 1. MongoDB Dump
-     mongodump --uri="mongodb://localhost:27017/gdg_pau?replicaSet=rs0" --archive="backup_$(date +%Y%m%d_%H%M%S).archive" --gzip
-     # 2. Uploads Arşivi
-     tar -czvf "uploads_backup_$(date +%Y%m%d_%H%M%S).tar.gz" backend/uploads/
+     STAMP=$(date +%Y%m%d_%H%M%S)
+     # 1. MongoDB dump — konteynerin İÇİNDEN alınır.
+     docker compose -f compose.prod.yaml exec -T mongo mongodump --db=gdg_pau --archive --gzip > "backup_${STAMP}.archive.gz"
+     # 2. Uploads arşivi (UPLOADS_PATH değiştirildiyse o dizin)
+     tar -czf "uploads_backup_${STAMP}.tar.gz" backend/uploads/
      ```
-   - **Geri Yükleme Doğrulaması:** Canlı sisteme yüklemeden önce izole bir test ortamında `mongorestore` ve dosya açma işlemi gerçekleştirilmeli, kayıt sayıları ve `/api/v1/files` erişimi test edilmelidir.
+     > ⚠️ Sunucudan doğrudan `mongodump --uri="mongodb://localhost:27017/gdg_pau?replicaSet=rs0"` **çalışmaz**: replica set üyesi kendini `mongo:27017` olarak tanıtır, sunucu bu adı çözemez ve komut takılır. Ya yukarıdaki gibi konteyner içinden alın ya da URI'ye `&directConnection=true` ekleyin.
+     >
+     > ⚠️ `docker compose ... down -v` **asla** kullanılmamalıdır: `-v` veritabanı volume'unu (`mongo-prod-data`) kalıcı olarak siler.
+   - **Geri Yükleme Doğrulaması (tatbikat):** Yedeği canlı veritabanına dokunmadan ayrı bir veritabanına açıp kayıt sayılarını karşılaştırın, sonra test veritabanını silin:
+     ```bash
+     docker compose -f compose.prod.yaml exec -T mongo mongorestore --archive --gzip \
+       --nsFrom='gdg_pau.*' --nsTo='gdg_pau_restore_test.*' < "backup_XXXXX.archive.gz"
+     docker compose -f compose.prod.yaml exec -T mongo mongosh --quiet --eval '
+       const a = db.getSiblingDB("gdg_pau"), b = db.getSiblingDB("gdg_pau_restore_test");
+       for (const c of ["forms","formresponses","hackathonteams","users"]) print(c, a[c].countDocuments(), "→", b[c].countDocuments());
+       b.dropDatabase()'
+     ```
+     Bu komutlar 17 Kasım 2026'da yerel ortamda denendi: yedek alındı, ayrı veritabanına açıldı, sayılar birebir tuttu. Dosya tarafında arşivi geçici bir dizine açıp birkaç özel dosyanın `/api/v1/files` üzerinden indirilebildiğini de kontrol edin.
 
 ---
 
@@ -167,9 +180,14 @@ Proje iki katmanlı test mimarisiyle %100 oranında doğrulanmıştır:
 ## 6. Geri Alma (Rollback) Planı
 
 Olası bir canlı ortam kesintisi veya kritik hata durumunda:
-1. `docker compose -f compose.prod.yaml down` ile çalışan üretim servisleri durdurulur.
-2. Veritabanında bozulma şüphesi varsa son geçerli yedekten geri yüklenir:
+1. Yazmaları durdurmak için uygulama servisleri kapatılır; veritabanı **açık kalır** (geri yükleme onun içinde çalışır). `down -v` kullanılmaz:
    ```bash
-   mongorestore --uri="mongodb://localhost:27017/gdg_pau?replicaSet=rs0" --archive="backup_XXXXX.archive" --gzip --drop
+   docker compose -f compose.prod.yaml stop web backend
    ```
-3. Son çalışan kararlı Docker imajı veya Git commit etiketi yeniden dağıtılır.
+2. Veritabanında bozulma şüphesi varsa son geçerli yedekten geri yüklenir (`--drop` mevcut koleksiyonları yedektekiyle değiştirir; önce o anki durumun da yedeğini alın):
+   ```bash
+   docker compose -f compose.prod.yaml exec -T mongo mongodump --db=gdg_pau --archive --gzip > "before_restore_$(date +%Y%m%d_%H%M%S).archive.gz"
+   docker compose -f compose.prod.yaml exec -T mongo mongorestore --archive --gzip --drop < "backup_XXXXX.archive.gz"
+   ```
+   Dosyalar da aynı andaki arşivden geri açılır: `tar -xzf uploads_backup_XXXXX.tar.gz` (proje kök dizininde).
+3. Son çalışan kararlı Docker imajı veya Git commit etiketi yeniden dağıtılır ve servisler başlatılır: `docker compose -f compose.prod.yaml up -d`.

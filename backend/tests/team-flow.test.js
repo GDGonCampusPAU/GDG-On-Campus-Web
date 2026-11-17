@@ -91,12 +91,15 @@ test('user approval rejects anonymous, organizer and self-demotion of the last A
   assert.equal((await request(app).patch(`/api/v1/users/${admin.user.id}/role`)
     .set('Authorization', `Bearer ${admin.token}`).send({ role: 'MEMBER' })).status, 400);
 });
-test('legacy hackathon verification and submission still work', async () => {
+test('legacy public hackathon endpoints are closed: no code is sent and nothing is stored', async () => {
+  // They bypassed the admin "Kayıtlar" permission; registration now goes through /api/v1/forms only.
   const application = { teamName: 'Test Team', leaderName: 'Test Leader', leaderEmail: 'leader@example.com',
     leaderPhone: '+905551112233', memberCount: 2, projectIdea: 'A sufficiently detailed project idea' };
-  assert.equal((await request(app).post('/api/v1/hackathon/send-verification').send(application)).status, 200);
-  assert.equal((await request(app).post('/api/v1/hackathon/apply').send({ ...application, code })).status, 201);
-  assert.equal(await HackathonApp.countDocuments(), 1);
+  code = undefined;
+  assert.equal((await request(app).post('/api/v1/hackathon/send-verification').send(application)).status, 404);
+  assert.equal((await request(app).post('/api/v1/hackathon/apply').send({ ...application, code: '123456' })).status, 404);
+  assert.equal(code, undefined, 'no verification e-mail may be sent');
+  assert.equal(await HackathonApp.countDocuments(), 0);
 });
 test('seed creates a verified admin and is idempotent without exposing or replacing its password', async () => {
   const { ensureAdmin } = require('../src/services/seedAdminService');

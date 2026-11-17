@@ -133,8 +133,8 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 33 | GET | `/forms/:id/responses` | Ekip | Path `id`; `page,limit,status,search` |
 | 34 | PATCH | `/forms/:id/responses/:responseId/status` | Ekip | `{status, note, notify}`; başvuru durum inceleme ve bildirim e-postası |
 | 35 | GET | `/forms/:id/responses/export` | Ekip | Path `id`; `format,status,search`; CSV veya JSON export |
-| 36 | POST | `/hackathon/send-verification` | Public | `leaderEmail`, opsiyonel lider/takım adı |
-| 37 | POST | `/hackathon/apply` | Public | Başvuru alanları, OTP, opsiyonel `resume` CV dosyası |
+| 36 | ~~POST~~ | ~~`/hackathon/send-verification`~~ | **Kaldırıldı** | 404 döner; bkz. aşağıdaki not |
+| 37 | ~~POST~~ | ~~`/hackathon/apply`~~ | **Kaldırıldı** | 404 döner; bkz. aşağıdaki not |
 | 38 | GET | `/hackathon/applications` | Ekip | `page,limit,search,status` |
 | 39 | PATCH | `/hackathon/applications/:id/status` | Ekip | `{status, note, notify}`; hackathon başvuru durum inceleme ve bildirim e-postası |
 | 40 | GET | `/hackathon/applications/export` | Ekip | `format,search,status`; CSV veya JSON export |
@@ -618,47 +618,9 @@ curl -X PATCH "$API_BASE/forms/$FORM_ID/responses/$RESPONSE_ID/status" \
 
 ## Hackathon API'si
 
-### Lider e-postasına kod gönderme
+### Herkese açık eski başvuru uçları kaldırıldı
 
-```bash
-curl -X POST "$API_BASE/hackathon/send-verification" \
-  -H 'Content-Type: application/json' \
-  -d '{"leaderEmail":"lider@example.com","leaderName":"Ayşe Yılmaz","teamName":"Kod Takımı"}'
-```
-
-`leaderEmail` zorunlu, diğer iki alan isteğe bağlıdır. Auth kaydının aksine genel e-posta formatı kabul edilir. Başarı `200`. OTP amacı `HACKATHON_APPLY` olduğu için REGISTER kodu burada kullanılamaz.
-
-### Başvuru POST alanları
-
-| Alan | Zorunlu | Kural |
-| --- | --- | --- |
-| `teamName` | Evet | Boş olmayan metin, en fazla 100 karakter |
-| `leaderName` | Evet | Boş olmayan metin, en fazla 100 karakter |
-| `leaderEmail` | Evet | Genel e-posta formatı |
-| `leaderPhone` | Evet | Metin, trim sonrası en az 7 karakter; kapsamlı telefon doğrulaması yok |
-| `memberCount` | Evet | 1–5 arasında sayı; tam sayı şartı yok |
-| `projectIdea` | Evet | Trim sonrası en az 10 karakter |
-| `verificationCode` | Tamamlamak için evet | Gerçek OTP; alternatif `code` da kabul edilir |
-| `resume` | Hayır | Multipart dosya alanı |
-| `resumeUrl` | Hayır | Dosya gönderilmezse URL metni |
-
-```bash
-curl -X POST "$API_BASE/hackathon/apply" \
-  -H 'Content-Type: application/json' \
-  -d '{"teamName":"Kod Takımı","leaderName":"Ayşe Yılmaz","leaderEmail":"lider@example.com","leaderPhone":"05551234567","memberCount":3,"projectIdea":"Kampüs için erişilebilir bir etkinlik platformu.","verificationCode":"123456"}'
-```
-
-Dosyalı sürüm:
-
-```bash
-curl -X POST "$API_BASE/hackathon/apply" \
-  -F 'teamName=Kod Takımı' -F 'leaderName=Ayşe Yılmaz' \
-  -F 'leaderEmail=lider@example.com' -F 'leaderPhone=05551234567' \
-  -F 'memberCount=3' -F 'projectIdea=Kampüs için erişilebilir etkinlik platformu.' \
-  -F 'verificationCode=123456' -F 'resume=@/yerel/yol/cv.pdf'
-```
-
-Başarı `201`, `data` içinde `applicationId,teamName,leaderName,appliedAt` (veritabanı varsayılan `status:"PENDING"`). Kod yoksa valid temel alanlardan sonra OTP gönderilir, başvuru kaydedilmez ve **`400`, `requiresVerification:true`** döner. Eksik/geçersiz alan veya OTP `400`.
+`POST /hackathon/send-verification` ve `POST /hackathon/apply` artık yok (404). Bu uçlar admin panelindeki **Kayıtlar** iznini (kayıtları kapatma) atlatıyor ve kimlik doğrulama hız sınırının dışında e-posta gönderebiliyordu. Yeni başvurular yalnızca dinamik form akışından alınır: katılımcı doğrulaması (`/participant-auth/*`) + `POST /forms/public/:slug/submit`. Daha önce `HackathonApp` koleksiyonuna kaydedilmiş başvurular aşağıdaki personel uçlarıyla görüntülenmeye, durumları güncellenmeye ve dışa aktarılmaya devam eder.
 
 ### Listeleme ve export GET değişkenleri
 
@@ -725,4 +687,4 @@ Sistemde giden e-postaların kimden gittiğini ve yanıt adresini modüler olara
 
 ### İki farklı hackathon veri akışı
 
-Seed'in dinamik hackathon formuna gönderilen başvuru **FormResponse** koleksiyonuna gider. `/hackathon/apply` başvurusu **HackathonApp** koleksiyonuna gider. Dinamik formun `category:HACKATHON` olması onu hackathon modülüne bağlamaz; iki kayıt havuzu otomatik birleşmez, aynı OTP kuralları uygulanmaz. Hackathon modülünü kapatmak yayınlanmış dinamik hackathon formunu kapatmaz.
+Seed'in dinamik hackathon formuna gönderilen başvuru **FormResponse** koleksiyonuna gider. **HackathonApp** koleksiyonu yalnızca kaldırılan `/hackathon/apply` ucunun eski kayıtlarını tutar; yeni kayıt eklenmez. Dinamik formun `category:HACKATHON` olması onu hackathon modülüne bağlamaz; iki kayıt havuzu otomatik birleşmez, aynı OTP kuralları uygulanmaz. Hackathon modülünü kapatmak yayınlanmış dinamik hackathon formunu kapatmaz.
