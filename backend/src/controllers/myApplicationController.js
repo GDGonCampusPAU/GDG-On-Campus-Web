@@ -38,8 +38,10 @@ module.exports = {
   transferCaptaincy: action((form, participant, req) => service.transferCaptaincy(form, participant, req.body?.participantId, req.body?.code), 'team'),
   withdrawRequest: action((form, participant) => service.withdrawRequest(form, participant), 'team'),
   leaveTeam: action((form, participant) => service.leaveTeam(form, participant), 'team'),
-  approveRequest: action((form, participant, req) => service.approveRequest(form, participant, req.params.participantId), 'team'),
-  rejectRequest: action((form, participant, req) => service.rejectRequest(form, participant, req.params.participantId), 'team'),
+  // Kept open while team changes are locked: new registrants can still send join requests
+  // from the registration form, and captains must be able to answer them.
+  approveRequest: action((form, participant, req) => service.approveRequest(form, participant, req.params.participantId)),
+  rejectRequest: action((form, participant, req) => service.rejectRequest(form, participant, req.params.participantId)),
   removeMember: action((form, participant, req) => service.removeMember(form, participant, req.params.participantId), 'team'),
   sendDisbandCode: action((form, participant) => service.sendDisbandCode(form, participant), 'team'),
   disbandTeam: action((form, participant, req) => service.disbandTeam(form, participant, req.body?.code), 'team')

@@ -140,7 +140,8 @@ const formSchema = new mongoose.Schema(
         default: false
       },
       // Admin izinleri ("Başvurum" sayfası). Kapalıyken katılımcı yalnız görüntüler:
-      // teamChangesEnabled → takım kurma/katılma/ayrılma, istek onayı, üye çıkarma, kaptanlık devri, dağıtma;
+      // teamChangesEnabled → takım kurma/katılma/ayrılma, üye çıkarma, kaptanlık devri, dağıtma (kayıt formundan
+      //   takım kurma/katılma isteği ve kaptanın istekleri kabul/reddi kilitliyken de açıktır);
       // answerEditingEnabled → başvuru bilgilerini güncelleme. Personelin takım araçları etkilenmez.
       teamChangesEnabled: {
         type: Boolean,

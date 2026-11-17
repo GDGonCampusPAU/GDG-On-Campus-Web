@@ -86,13 +86,16 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired, 
       return true
     } catch (err) {
       if (err?.status === 401) onExpired()
-      else if (err?.code === 'TEAM_CHANGES_LOCKED') { setConfirm(null); onLocked?.() }
+      else if (err?.code === 'TEAM_CHANGES_LOCKED') lockedNow()
       else setError(err?.message || 'İşlem tamamlanamadı. Tekrar dene.')
       return false
     } finally {
       setBusy(false)
     }
   }
+
+  /** Sunucu "takım kilitli" dediğinde: açık onay penceresini kapat, güncel izinleri yükle. */
+  const lockedNow = () => { setConfirm(null); onLocked?.() }
 
   const isCaptain = team?.role === 'CAPTAIN'
   const isMember = team?.role === 'MEMBER' && team.status === 'APPROVED'
@@ -125,6 +128,7 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired, 
             confirmLabel="Takımı dağıt"
             busy={busy}
             onSend={api.sendDisbandCode}
+            onLocked={lockedNow}
             onConfirm={(code) => run(() => api.disband(code), 'Takımı dağıttın. Şu an bireysel olarak katılacaksın.')}
             onClose={() => setConfirm(null)}
           />
@@ -137,6 +141,7 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired, 
             confirmLabel="Kaptanlığı devret"
             busy={busy}
             onSend={api.sendTransferCode}
+            onLocked={lockedNow}
             onConfirm={(code) => run(() => api.transfer(confirm.person.id, code), `Kaptanlık ${confirm.person.name} adlı kişiye geçti.`)}
             onClose={() => setConfirm(null)}
           />
@@ -145,7 +150,9 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired, 
 
       {locked && (
         <p className="team-panel__locked" role="note">
-          Takım değişiklikleri şu an kapalı. Takım bilgilerini yalnızca görüntüleyebilirsin.
+          {isCaptain
+            ? 'Takım değişiklikleri şu an kapalı. Yalnızca gelen katılma isteklerini kabul edip reddedebilirsin.'
+            : 'Takım değişiklikleri şu an kapalı. Takım bilgilerini yalnızca görüntüleyebilirsin.'}
         </p>
       )}
       {error && (
@@ -207,6 +214,7 @@ export default function TeamPanel({ team, api, lookupTeam, onChange, onExpired, 
   )
 }
 
+/** readOnly: takım değişiklikleri kapalı; istekler yine yanıtlanır, üye işlemleri gizlenir. */
 function CaptainLists({ team, api, run, busy, onTransfer, readOnly = false }) {
   const requests = team.requests ?? []
   const [tab, setTab] = useState(requests.length ? 'requests' : 'members')
@@ -245,14 +253,11 @@ function CaptainLists({ team, api, run, busy, onTransfer, readOnly = false }) {
       <div id={`team-tabpanel-${tab}`} role="tabpanel" aria-labelledby={`team-tab-${tab}`} className="team-panel__tabpanel">
         {tab === 'requests' ? (
           requests.length === 0 ? (
-            <p className="team-panel__empty">
-              Şu an bekleyen katılma isteği yok.{readOnly ? '' : ' Takım kodunu arkadaşlarınla paylaşabilirsin.'}
-            </p>
+            <p className="team-panel__empty">Şu an bekleyen katılma isteği yok. Takım kodunu arkadaşlarınla paylaşabilirsin.</p>
           ) : (
             <ul className="team-panel__list">
               {requests.map((person) => (
                 <PersonRow key={person.id} person={person}>
-                  {!readOnly && <>
                   <Button size="sm" disabled={busy} onClick={() => run(() => api.approve(person.id), `${person.name} takıma katıldı.`)}>
                     Kabul et
                   </Button>
@@ -262,7 +267,6 @@ function CaptainLists({ team, api, run, busy, onTransfer, readOnly = false }) {
                     disabled={busy}
                     onConfirm={() => run(() => api.reject(person.id), `${person.name} adlı kişinin isteğini reddettin.`)}
                   />
-                  </>}
                 </PersonRow>
               ))}
             </ul>
@@ -370,8 +374,9 @@ function NoTeam({ api, run, busy, lookupTeam }) {
  * @param {() => Promise<any>} props.onSend Kodu e-postaya gönderir.
  * @param {(code: string) => Promise<boolean>} props.onConfirm Kodla işlemi yapar; başarılıysa true.
  * @param {() => void} props.onClose
+ * @param {() => void} [props.onLocked] Kod istenirken yönetici takım değişikliklerini kapatmışsa.
  */
-function EmailConfirm({ title, description, confirmLabel, busy, onSend, onConfirm, onClose }) {
+function EmailConfirm({ title, description, confirmLabel, busy, onSend, onConfirm, onClose, onLocked }) {
   const [step, setStep] = useState(/** @type {'explain' | 'code'} */ ('explain'))
   const [code, setCode] = useState('')
   const [sendError, setSendError] = useState('')
@@ -384,6 +389,7 @@ function EmailConfirm({ title, description, confirmLabel, busy, onSend, onConfir
       await onSend()
       setStep('code')
     } catch (err) {
+      if (err?.code === 'TEAM_CHANGES_LOCKED' && onLocked) return onLocked()
       setSendError(err?.message || 'Kod gönderilemedi. Tekrar dene.')
     } finally {
       setSending(false)

@@ -88,7 +88,7 @@ test('only admins read or change permissions; bad input is rejected and partial 
   assert.deepEqual((await permissionsCall(admin, 'put', { teamChanges: true })).body.data, perms({ answerEditing: false }));
 });
 
-test('closed team changes: captain and members can only read; every team action is refused and sends no code', async () => {
+test('closed team changes: members can only read; captains only answer requests; other team actions are refused and send no code', async () => {
   const kaptan = await person('Kaptan Kişi', { mode: 'create', name: 'Kod Kurtları' });
   const code = kaptan.submitted.team.code;
   const uye = await person('Üye Kişi', { mode: 'join', code });
@@ -107,7 +107,6 @@ test('closed team changes: captain and members can only read; every team action 
   assert.deepEqual(view.permissions, perms({ teamChanges: false }));
 
   const refused = [
-    kaptan.post(`/team/requests/${bekleyen.id}/approve`), kaptan.post(`/team/requests/${bekleyen.id}/reject`),
     kaptan.post(`/team/members/${uye.id}/remove`), kaptan.post('/team/transfer/code'),
     kaptan.post('/team/transfer', { participantId: uye.id, code: '123456' }),
     kaptan.post('/team/disband/code'), kaptan.post('/team/disband', { code: '123456' }),
@@ -125,8 +124,26 @@ test('closed team changes: captain and members can only read; every team action 
   // Answer editing is a separate permission and stays open.
   assert.equal((await uye.put({ fullName: 'Üye Yeni Ad' })).status, 200);
 
+  // Captains still answer join requests while locked.
+  const approved = await kaptan.post(`/team/requests/${bekleyen.id}/approve`);
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+  assert.equal(approved.body.data.team.members.length, 3);
+  const ikinci = await person('İkinci Bekleyen', { mode: 'join', code });
+  assert.equal((await kaptan.post(`/team/requests/${ikinci.id}/reject`)).status, 200);
+
   await permissionsCall(admin, 'put', { teamChanges: true });
-  assert.equal((await kaptan.post(`/team/requests/${bekleyen.id}/approve`)).status, 200);
+  assert.equal((await uye.post('/team/leave')).status, 200);
+});
+
+test('closed team changes: new registrants still create teams or send join requests from the registration form', async () => {
+  await permissionsCall(admin, 'put', { teamChanges: false });
+  const kaptan = await person('Yeni Kaptan', { mode: 'create', name: 'Geç Gelenler' });
+  assert.equal(kaptan.submitted.team.role, 'CAPTAIN');
+  const katilan = await person('Yeni Katılan', { mode: 'join', code: kaptan.submitted.team.code });
+  assert.equal(katilan.submitted.team.status, 'PENDING');
+  assert.equal((await kaptan.view()).team.requests.length, 1);
+  assert.equal((await kaptan.post(`/team/requests/${katilan.id}/approve`)).status, 200);
+  assert.equal((await katilan.view()).team.status, 'APPROVED');
 });
 
 test('closed answer editing: answers are readable but updates are refused and nothing changes', async () => {
