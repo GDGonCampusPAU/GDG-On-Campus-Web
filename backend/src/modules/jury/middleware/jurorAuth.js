@@ -19,12 +19,10 @@ const jurorAuth = async (req, res, next) => {
   try {
     const token = /^Bearer (\S+)$/.exec(req.headers.authorization || '')?.[1];
     if (!token || !TOKEN_PATTERN.test(token)) return await rejectToken(req, res, next);
-    const juror = await Juror.findOneAndUpdate(
-      { tokenHash: hashToken(token), active: true },
-      { $set: { lastSeenAt: new Date() } },
-      { returnDocument: 'after', timestamps: false }
-    );
+    // A plain indexed read first: a flood of made-up tokens must not cost writes.
+    const juror = await Juror.findOne({ tokenHash: hashToken(token), active: true });
     if (!juror) return await rejectToken(req, res, next);
+    await Juror.updateOne({ _id: juror._id }, { $set: { lastSeenAt: new Date() } }, { timestamps: false });
     req.juror = juror;
     next();
   } catch (error) {

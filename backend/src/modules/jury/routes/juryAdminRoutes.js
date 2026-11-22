@@ -1,12 +1,13 @@
 const express = require('express');
 const auth = require('../../../middleware/authMiddleware');
 const { requireRoles } = require('../../../middleware/roleMiddleware');
-const { staffLimiter } = require('../middleware/limits');
+const { staffGate } = require('../middleware/limits');
+const { parseBody, notFound } = require('../middleware/body');
 const { noStore } = require('../controllers/respond');
 const controller = require('../controllers/juryAdminController');
 
 const router = express.Router();
-router.use(noStore, auth, requireRoles('ORGANIZER', 'ADMIN'), staffLimiter);
+router.use(noStore, staffGate, auth, requireRoles('ORGANIZER', 'ADMIN'), parseBody);
 
 router.get('/config', controller.getConfig);
 router.put('/config', controller.saveConfig);
@@ -20,5 +21,6 @@ router.put('/lock', controller.setLock);
 router.post('/scorecards/reset', requireRoles('ADMIN'), controller.resetScorecards);
 router.get('/results', controller.getResults);
 router.get('/results.csv', controller.exportResults);
+router.use(notFound);
 
 module.exports = router;

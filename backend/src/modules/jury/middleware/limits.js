@@ -1,13 +1,13 @@
-// The jury routes do not use the general limit (200 requests / 15 min per IP): the whole hall
-// shares one Wi-Fi IP, and autosave plus the results refresh would exhaust it during scoring.
-//   1. a high ceiling per IP,
-//   2. a limit per juror / per staff user once they are authenticated,
-//   3. a strict limit on failed token checks only, so it can never block a valid juror.
+// The hall shares one Wi-Fi IP, so no jury limit that a valid person has to pass is keyed by IP:
+//   1. a limit per juror / per staff login,
+//   2. a strict limit per IP that only failed credential checks ever reach.
+// There is deliberately no IP ceiling in front of authentication. One client could use it up for
+// every juror. The routers authenticate before they parse a body, so a rejected request stays cheap.
 const { rateLimit } = require('express-rate-limit');
+const { verifyToken } = require('../../../utils/jwt');
 
 const WINDOW_MS = 15 * 60 * 1000;
-const LIMITS = { ip: 6000, juror: 900, staff: 2000, invalidToken: 30 };
-const PATHS = ['/api/v1/jury', '/api/v1/jury-admin'];
+const LIMITS = { juror: 900, staff: 2000, invalidToken: 30 };
 
 /**
  * @param {number} limit
@@ -22,18 +22,33 @@ const limiter = (limit, options = {}) => rateLimit({
   ...options
 });
 
-const ipLimiter = limiter(LIMITS.ip);
-// Remembers that this request really matched a jury mount. Comparing path strings in `skip`
-// instead would have to repeat Express' own matching rules (case, slashes, encoding).
-const markJuryRequest = (req, _res, next) => {
-  req.juryRequest = true;
-  next();
-};
-
 const jurorLimiter = limiter(LIMITS.juror, { keyGenerator: req => String(req.juror._id) });
-const staffLimiter = limiter(LIMITS.staff, { keyGenerator: req => String(req.user._id) });
+// Only a failed check gets here, so the code still says "invalid link": the screen must not retry it.
 const invalidTokenLimiter = limiter(LIMITS.invalidToken, {
-  message: { success: false, code: 'RATE_LIMITED', message: 'Çok fazla geçersiz jüri linki denemesi yapıldı. Organizasyon ekibiyle iletişime geçin.' }
+  message: { success: false, code: 'JURY_LINK_INVALID', message: 'Bu jüri linki geçersiz, organizasyon ekibiyle iletişime geçin.' }
 });
 
-module.exports = { LIMITS, PATHS, ipLimiter, markJuryRequest, jurorLimiter, staffLimiter, invalidTokenLimiter };
+const staffLimiter = limiter(LIMITS.staff, { keyGenerator: req => req.staffKey });
+const invalidStaffLimiter = limiter(LIMITS.invalidToken);
+
+/**
+ * Runs before authMiddleware. A correctly signed token is counted per login, everything else per IP;
+ * authMiddleware then does the real check (user, role, revocation).
+ * @type {import('express').RequestHandler}
+ */
+const staffGate = (req, res, next) => {
+  const token = /^Bearer (\S+)$/.exec(req.headers.authorization || '')?.[1];
+  if (token) {
+    try {
+      /** @type {any} */
+      const claims = verifyToken(token);
+      if (claims.id && claims.type !== 'participant') {
+        req.staffKey = `${claims.id}:${claims.tokenVersion ?? 0}`;
+        return staffLimiter(req, res, next);
+      }
+    } catch { /* not a team token */ }
+  }
+  return invalidStaffLimiter(req, res, next);
+};
+
+module.exports = { LIMITS, jurorLimiter, invalidTokenLimiter, staffGate };

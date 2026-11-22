@@ -46,12 +46,15 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
 
+// Jury routes come before the shared limiter and the body parsers on purpose: they authenticate
+// first, then count per person (modules/jury/middleware/limits.js).
+app.use('/api/v1/jury', juryModule.juryRoutes);
+app.use('/api/v1/jury-admin', juryModule.juryAdminRoutes);
+
 // 4. Rate Limiting for general API
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200, // Limit each IP to 200 requests per windowMs
-  // Jury routes have their own limits (modules/jury/middleware/limits.js).
-  skip: req => Boolean(req.juryRequest),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -59,8 +62,6 @@ const generalLimiter = rateLimit({
     message: 'Çok fazla istek gönderildi. Lütfen 15 dakika sonra tekrar deneyiniz.'
   }
 });
-// The hall shares one IP: jury requests get a high IP ceiling plus per-person limits instead.
-app.use(juryModule.limits.PATHS, juryModule.limits.ipLimiter, juryModule.limits.markJuryRequest);
 app.use('/api/', generalLimiter);
 
 // 5. Stricter Rate Limiting for Auth Endpoints
@@ -139,8 +140,6 @@ app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
 app.use('/api/v1/maintenance', require('./routes/maintenanceRoutes'));
-app.use('/api/v1/jury', juryModule.juryRoutes);
-app.use('/api/v1/jury-admin', juryModule.juryAdminRoutes);
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
 if (hackathonModule.isEnabled()) {

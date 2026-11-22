@@ -15,8 +15,8 @@ declare global {
       submissionSaved?: boolean;
       /** Active juror behind a jury link (modules/jury jurorAuth). */
       juror?: HydratedDocument<any>;
-      /** The request matched a jury mount and uses that module's rate limits. */
-      juryRequest?: boolean;
+      /** Signed team login, the key of the jury admin limit (modules/jury/middleware/limits.js). */
+      staffKey?: string;
     }
   }
 }
