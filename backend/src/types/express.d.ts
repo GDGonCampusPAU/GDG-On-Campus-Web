@@ -13,6 +13,8 @@ declare global {
       participantVerification?: { sub: string; method: 'GOOGLE' | 'EMAIL_OTP'; verifiedAt: string };
       submissionForm?: HydratedDocument<any>;
       submissionSaved?: boolean;
+      /** Limited by its own route limiter instead of the general one (middleware/rateLimits.js). */
+      ownLimit?: boolean;
     }
   }
 }
