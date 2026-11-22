@@ -28,6 +28,25 @@ Ekip ve hackathon OTP akışları `node:crypto` `randomInt` ve HMAC-SHA256 hash'
 
 `GET /forms/:id/responses`, `GET /forms/:id/responses/export`, `GET /hackathon/applications` ve `GET /hackathon/applications/export` uç noktaları `status` ve `search` ile regex/literal filtreleme yapabilir. JSON/CSV export akış (streaming) halinde üretilir. Form alanları, seçenekler ve durum/tarih aralıkları sunucuda doğrulanır. Özel eski `/uploads/:filename` linkleri yetkilendirme ister; public kapak görselleri `/uploads/public/` altındadır. Sunucu istek/hata yanıtlarında `X-Request-ID` sağlar.
 
+**Hız sınırları (15 dakika):** Salon gibi tek IP'den çıkan kalabalıklarda bir kişinin diğerlerini kilitlememesi için sayaçlar mümkün olduğunca kişiye bağlıdır.
+
+| İstek | Sınır | Anahtar |
+| --- | --- | --- |
+| Genel API, geçerli imzalı ekip veya katılımcı token'ıyla | 600 | Kişi |
+| Genel API, token'sız veya geçersiz token'la | 200 | IP |
+| Ekip girişi | 30 başarısız deneme | Hesap + IP |
+| Ekip kod kontrolü (kodlu kayıt, e-posta doğrulama, şifre sıfırlama) | 30 başarısız deneme | Hesap + IP |
+| Ekip kod e-postası (send-otp, kodsuz kayıt, forgot-password) | 30 | IP |
+| Katılımcı kod kontrolü | 15 başarısız deneme | Adres + IP |
+| Katılımcı kod e-postası, daha önce doğrulanmamış adres | 100 | IP |
+| Katılımcı kod e-postası, daha önce doğrulanmış adres | 60 sn'de 1 | Adres |
+| Google doğrulaması | 300 başarısız deneme | IP |
+| `GET /event-page/hackathon`, `GET /forms/public/:slugOrId` | Uygulama sınırı yok | Girişten önce gerekli okumalar |
+
+Giriş ve kod uçlarının gövdesi en fazla 16 KB'dir (aşılırsa 413). Uygulama sınırları hacimsel saldırıya karşı koruma değildir; o koruma Cloudflare tarafında yapılır.
+
+**Kayıtları açma ve kapatma yalnız ADMIN:** Yayındaki etkinlik formunda durum, tarih aralığı, kota, slug, `successMessage` dışındaki `settings` alanları, silme ve `event.register.status` değişikliği ORGANIZER için 403 döner. ORGANIZER içerik ve soruları düzenleyebilir; yayını form durumunu değiştirmez.
+
 ---
 
 # API kullanım kılavuzu
@@ -195,7 +214,7 @@ curl -X POST "$API_BASE/auth/send-otp" \
   -d '{"email":"aday@gmail.com","fullName":"Ayşe Yılmaz"}'
 ```
 
-`email` zorunlu; `fullName` isteğe bağlıdır. Başarı `200`; geçersiz e-posta `400`; zaten doğrulanmış hesap `409`.
+`email` zorunlu; `fullName` isteğe bağlıdır. Başarı `200`; geçersiz e-posta `400`. Zaten doğrulanmış hesap da aynı `200` yanıtını alır ama e-posta gönderilmez.
 
 ```bash
 curl -X POST "$API_BASE/auth/register" \
@@ -203,7 +222,7 @@ curl -X POST "$API_BASE/auth/register" \
   -d '{"fullName":"Ayşe Yılmaz","email":"aday@gmail.com","password":"OrnekGucluParola!","code":"123456"}'
 ```
 
-`fullName` 2–100 karakter, `password` en az 6 karakter. Kod örnektir, gerçek OTP kullanılmalıdır. Kod verilmezse hesap oluşturulmaz; OTP gönderilir ve `200`, `requiresVerification: true` döner. Aynı ad/e-posta/parola ile kod eklenerek tekrar POST yapılır. Kodlu başarı `201` ve `user` döndürür; JWT verilmez. Kullanıcı `PENDING` ve `isEmailVerified: true` olur.
+`fullName` 2–100 karakter, `password` en az 8 karakter. Kod örnektir, gerçek OTP kullanılmalıdır. Kod verilmezse hesap oluşturulmaz; OTP gönderilir ve `200`, `requiresVerification: true` döner. Aynı ad/e-posta/parola ile kod eklenerek tekrar POST yapılır. Kodlu başarı `201` ve `user` döndürür; JWT verilmez. Kullanıcı `PENDING` ve `isEmailVerified: true` olur.
 
 ### Var olan hesabın e-postasını doğrulama
 
@@ -213,7 +232,7 @@ curl -X POST "$API_BASE/auth/verify-email" \
   -d '{"email":"aday@gmail.com","code":"123456"}'
 ```
 
-Mevcut hesabı doğrulamak içindir. Yeni kayıt akışında `/register` için alınan kodu burada tüketmeyin; bu rota hesap oluşturmaz. İstek önce kullanıcıyı arar; kullanıcı yoksa OTP'yi yakmadan `404 Not Found` döner, e-posta zaten doğrulanmışsa OTP tüketilmeden `200` mesajı döner.
+Mevcut hesabı doğrulamak içindir. Yeni kayıt akışında `/register` için alınan kodu burada tüketmeyin; bu rota hesap oluşturmaz. Kullanıcı yoksa veya e-postası zaten doğrulanmışsa OTP tüketilmeden, yanlış kodla aynı `400` yanıtı döner.
 
 ### Giriş ve profil
 
@@ -252,8 +271,8 @@ curl -X POST "$API_BASE/auth/forgot-password" \
 ```
 
 - Girdi: `email` (zorunlu, geçerli PAU veya Gmail adresi).
-- Başarı: `200 OK`, `{ "success": true, "message": "Şifre sıfırlama kodu e-posta adresinize gönderildi." }`.
-- Hata: Kullanıcı bulunamazsa `404 Not Found`, e-posta gönderilemezse `502 Bad Gateway` (kod atomik olarak geçersiz kılınır).
+- Başarı: `200 OK`, `{ "success": true, "message": "Bu e-posta adresi ile kayıtlı bir hesap varsa şifre sıfırlama kodu gönderildi." }`.
+- Hata: E-posta gönderilemezse `502 Bad Gateway` (kod atomik olarak geçersiz kılınır). Kullanıcı bulunmasa da aynı `200` yanıtı döner.
 
 ```bash
 # 2. OTP kodu ile yeni şifreyi belirleme
@@ -523,7 +542,7 @@ curl -X POST "$API_BASE/forms/public/atolye-kayit/submit" \
   -F 'resumeFile=@/yerel/yol/cv.pdf'
 ```
 
-Metinleri ayrı `-F 'fullName=...'` alanlarıyla da gönderebilirsiniz. Çoklu seçim için JSON metni içindeki dizi daha nettir. File sorusuna dosya yerine URL metni de verilebilir; URL'nin geçerliliği kontrol edilmez. Böyle bir URL `answers` içinde bulunur, yerel yükleme olmadığı için `uploadedFiles` içine eklenmez.
+Metinleri ayrı `-F 'fullName=...'` alanlarıyla da gönderebilirsiniz. Çoklu seçim için JSON metni içindeki dizi daha nettir. File sorusu yalnız yüklenen dosyayı kabul eder; dosya yerine gönderilen metin veya URL yok sayılır.
 
 Submit'in uyguladığı kurallar:
 
@@ -568,7 +587,7 @@ Desteklenen Form Alan Türleri (10 Tür):
 - `number`: Sayısal değer (min/max doğrulamalı).
 - `date`: Tarih seçici (ISO 8601).
 
-CSV sütunları (`formController.js`): `Yanıt ID`, `Tarih`, `Başvuru Durumu`, `Değerlendirme Notu`, `IP Adresi`, `Doğrulanmış E-posta`, `Doğrulama Yöntemi`, güncel/tarihsel soru etiketleri (`fields`), `Eklenen Dosyalar`. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Export `status` ve `search` filtrelerini destekler; format belirtilmezse varsayılan CSV'dir.
+CSV sütunları (`formController.js`): `Yanıt ID`, `Tarih`, `Başvuru Durumu`, `Değerlendirme Notu`, `IP Adresi`, `Doğrulanmış E-posta`, `Doğrulama Yöntemi`, güncel/tarihsel soru etiketleri (`fields`), `Eklenen Dosyalar`. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Dosya `,`, `;` veya sekmeyle bölünse de formül başlatabilecek parçaların başına `'` konur. Export `status` ve `search` filtrelerini destekler; format belirtilmezse varsayılan CSV'dir.
 
 DELETE `/forms/:id` body almadan formu, bütün yanıtlarını ve ekli özel dosyaları (`/uploads/private/`) atomik transaction sonrasında diskten siler; başarı `200` döner. Form yayındaki bir `EventPage`'e bağlıysa silme yerine kapatma isteyerek `409 Conflict` döndürür.
 
