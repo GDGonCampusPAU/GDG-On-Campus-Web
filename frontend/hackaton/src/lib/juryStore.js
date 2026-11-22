@@ -6,6 +6,9 @@
 //   base:   formun dayandığı kart sürümü
 // form != server ise değişiklik var demektir; ayrıca base != server.version ise kart başka bir yerde de değişmiştir.
 // Gönderilmiş kart kendiliğinden kaydedilmez: değişiklik cihazda bekler, "Yeniden gönder" ile geçerli olur.
+//
+// Aynı linkin sekmeleri cihazdaki tek taslağı paylaşır. Her sekme taslağın son gördüğü hâlini tutar (seen);
+// cihazdaki ondan farklıysa başka sekme yazmıştır: üstüne yazılmaz, silinmez, önce o hâl alınır (follow).
 import * as cache from './juryCache.js'
 import { formOf, payloadOf, sameForm } from './juryForm.js'
 
@@ -13,6 +16,8 @@ export const AUTOSAVE_MS = 1000
 export const RETRY_MS = 5000
 export const RATE_LIMIT_RETRY_MS = 30000
 export const POLL_MS = 20000
+// Başka sekmenin taslağını, o sekme kapanmışsa kaydetmek için bekleme.
+export const MIRROR_SAVE_MS = 8000
 
 /**
  * @typedef {object} TeamState
@@ -34,6 +39,7 @@ const BLANK = { entry: null, known: false, server: null, form: formOf(null), bas
 // Ağ hatası (status yok), zaman aşımı, hız limiti, sunucu hatası ve deploy sırasındaki 502 geçicidir.
 const isTemporary = (error) => !error.status || error.status === 408 || error.status === 429 || error.status >= 500
 const versionOf = (card) => card?.version ?? 0
+const isInvalidLink = (error) => error.status === 401 || error.code === 'JURY_LINK_INVALID'
 
 /**
  * Görünümde kullanılan türetilmiş bilgiler.
@@ -47,7 +53,8 @@ export function describeTeam(criteria, team, listed = 'NONE') {
     dirty,
     submitted,
     unsent: submitted && dirty,
-    conflict: dirty && team.base !== versionOf(team.server),
+    // base daha büyükse başka sekme kaydetmiş, bu sekme henüz tazelenmemiştir: çakışma değildir.
+    conflict: dirty && team.base < versionOf(team.server),
     status: submitted ? 'SUBMITTED' : team.server || dirty ? 'DRAFT' : 'NONE',
   }
 }
@@ -65,6 +72,8 @@ export function createJuryStore(token, client) {
   const listeners = new Set()
   const timers = new Map()
   const queues = new Map()
+  /** @type {Map<string, string | null>} */
+  const seen = new Map()
 
   const set = (changes) => {
     state = { ...state, ...changes }
@@ -77,15 +86,39 @@ export function createJuryStore(token, client) {
     let next = { ...team(id), ...changes }
     if (state.me && next.known) {
       const { juror, round, criteria } = state.me
-      if (sameForm(criteria, next.form, formOf(next.server))) {
-        cache.clearDraft(juror.id, round, id)
-        next = { ...next, stored: true }
-      } else {
-        next = { ...next, stored: cache.saveDraft(juror.id, round, id, { form: next.form, base: next.base }) }
+      const clean = sameForm(criteria, next.form, formOf(next.server))
+      // Taslağı son gördüğümüzden beri başka sekme yazdıysa yedek onundur.
+      if (cache.draftText(juror.id, round, id) === (seen.get(id) ?? null)) {
+        if (clean) {
+          cache.clearDraft(juror.id, round, id)
+          seen.set(id, null)
+          next = { ...next, stored: true }
+        } else {
+          const text = cache.saveDraft(juror.id, round, id, { form: next.form, base: next.base })
+          if (text !== null) seen.set(id, text)
+          next = { ...next, stored: text !== null }
+        }
       }
     }
     set({ teams: { ...state.teams, [id]: next } })
   }
+
+  /** Başka sekmenin yazdığı taslağı alır; cihaza hiçbir şey yazmaz. */
+  function follow(id) {
+    const current = team(id)
+    if (!state.me || !current.known) return
+    const text = cache.draftText(state.me.juror.id, state.me.round, id)
+    if (text === (seen.get(id) ?? null)) return
+    seen.set(id, text)
+    const draft = cache.parseDraft(text)
+    const form = draft?.form ?? formOf(current.server)
+    const base = draft?.base ?? versionOf(current.server)
+    set({ teams: { ...state.teams, [id]: { ...current, form, base, stored: true, saveError: '', submitError: '' } } })
+    schedule(id, MIRROR_SAVE_MS)
+    // Taslak kalktıysa ya da daha yeni bir karta dayanıyorsa o sekme sunucuya kaydetmiştir.
+    if (!draft || base > versionOf(current.server)) void loadTeam(id)
+  }
+  const followAll = () => Object.keys(state.teams).forEach(follow)
 
   function remember() {
     if (!state.me) return
@@ -109,7 +142,9 @@ export function createJuryStore(token, client) {
     const version = versionOf(card)
     let { form, base } = current
     if (!current.known) {
-      const draft = cache.loadDraft(juror.id, round, id)
+      const text = cache.draftText(juror.id, round, id)
+      seen.set(id, text)
+      const draft = cache.parseDraft(text)
       form = draft?.form ?? formOf(card)
       base = draft?.base ?? version
     } else {
@@ -148,6 +183,7 @@ export function createJuryStore(token, client) {
 
   async function send(id, submit) {
     if (!state.me || state.phase !== 'ready' || !team(id).known) return false
+    follow(id)
     const before = info(id)
     if (state.me.locked || before.conflict) return false
     if (!submit && (!before.dirty || before.submitted)) return false
@@ -172,7 +208,7 @@ export function createJuryStore(token, client) {
 
   async function recover(id, error, submit, sent) {
     update(id, { saving: false, saveError: error.message, ...(submit ? { submitError: error.message } : {}) })
-    if (error.status === 401) return invalidate()
+    if (isInvalidLink(error)) return invalidate()
     if (error.code === 'JURY_LOCKED') return set({ me: { ...state.me, locked: true } })
     if (error.code === 'JURY_RESET') return refresh()
     if (error.code === 'SCORECARD_CONFLICT' || error.code === 'SCORECARD_SUBMITTED') {
@@ -209,7 +245,7 @@ export function createJuryStore(token, client) {
       remember()
       schedule(id)
     } catch (error) {
-      if (error.status === 401) invalidate()
+      if (isInvalidLink(error)) invalidate()
     }
   }
 
@@ -218,6 +254,7 @@ export function createJuryStore(token, client) {
     if (previous && me.round < previous.round) return
     const reset = Boolean(previous && me.round > previous.round)
     if (reset) {
+      seen.clear()
       timers.forEach(clearTimeout)
       timers.clear()
     }
@@ -260,7 +297,7 @@ export function createJuryStore(token, client) {
       try {
         await applyOverview(await client.me())
       } catch (error) {
-        if (error.status === 401) invalidate()
+        if (isInvalidLink(error)) invalidate()
         else if (state.phase === 'ready') set({ offline: true })
         else if (!isTemporary(error) || !openCachedView()) set({ phase: 'error', error: error.message })
       } finally {
@@ -271,7 +308,12 @@ export function createJuryStore(token, client) {
   }
 
   const onVisible = () => {
-    if (document.visibilityState === 'visible') void refresh()
+    if (document.visibilityState !== 'visible') return
+    followAll()
+    void refresh()
+  }
+  const onStorage = (event) => {
+    if (cache.isDraftKey(event.key)) followAll()
   }
   const onOnline = () => {
     void refresh()
@@ -301,6 +343,7 @@ export function createJuryStore(token, client) {
       poll = setInterval(onVisible, POLL_MS)
       document.addEventListener('visibilitychange', onVisible)
       window.addEventListener('online', onOnline)
+      window.addEventListener('storage', onStorage)
       window.addEventListener('beforeunload', onBeforeUnload)
       resume()
     },
@@ -311,12 +354,14 @@ export function createJuryStore(token, client) {
       timers.clear()
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', onOnline)
+      window.removeEventListener('storage', onStorage)
       window.removeEventListener('beforeunload', onBeforeUnload)
     },
     refresh,
     loadTeam,
     /** @param {string} id @param {(form: import('./juryForm.js').JuryForm) => import('./juryForm.js').JuryForm} change */
     edit(id, change) {
+      follow(id)
       const current = team(id)
       if (!state.me || state.me.locked || !current.known || current.submitting) return
       const form = change(current.form)
@@ -338,10 +383,12 @@ export function createJuryStore(token, client) {
       }
     },
     keepMine(id) {
+      follow(id)
       update(id, { base: versionOf(team(id).server), submitError: '', saveError: '' })
       schedule(id)
     },
     useServer(id) {
+      follow(id)
       const { server } = team(id)
       update(id, { form: formOf(server), base: versionOf(server), submitError: '', saveError: '' })
       schedule(id)

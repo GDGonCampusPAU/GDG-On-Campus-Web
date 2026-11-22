@@ -267,6 +267,112 @@ describe('çakışma', () => {
   })
 })
 
+describe('aynı link iki sekmede', () => {
+  const KEY = 'hackaton:jury-draft:j1:1:t1'
+  /** Tarayıcı bu olayı yazan sekme dışındaki sekmelere gönderir. */
+  const notify = () => window.dispatchEvent(new StorageEvent('storage', { key: KEY }))
+
+  describe('gönderilmiş kart', () => {
+    beforeEach(() => {
+      server.cards.t1 = makeCard(3, { status: 'SUBMITTED' })
+    })
+
+    it('takımı yalnızca açan sekme diğerinin yedeğini silmez', async () => {
+      const a = await open()
+      const b = await open()
+      score(a, 5)
+      await b.loadTeam('t1')
+      expect(window.localStorage.getItem(KEY)).toContain('"value":5')
+      close(a)
+      close(b)
+      expect(shown(await open())).toBe(5)
+    })
+
+    it('arka plandaki yoklama yedeği silmez', async () => {
+      const a = await open()
+      await open()
+      score(a, 5)
+      await wait(POLL_MS * 2)
+      expect(window.localStorage.getItem(KEY)).toContain('"value":5')
+    })
+
+    it('diğer sekmede yapılan düzenleme ilkinin değişikliğini ezmez', async () => {
+      const a = await open()
+      const b = await open()
+      score(a, 5)
+      score(b, 1, 't1', 'demo')
+      const reloaded = await open()
+      expect(shown(reloaded)).toBe(5)
+      expect(shown(reloaded, 't1', 'demo')).toBe(1)
+    })
+
+    it('değişiklik diğer sekmede de uyarıyla görünür', async () => {
+      const a = await open()
+      const b = await open()
+      score(a, 5)
+      notify()
+      expect(shown(b)).toBe(5)
+      expect(info(b)).toMatchObject({ unsent: true, conflict: false })
+    })
+
+    it('diğer sekme gönderince uyarı ve değişiklik birlikte kapanır', async () => {
+      const a = await open()
+      const b = await open()
+      score(a, 5)
+      notify()
+      await a.submit('t1')
+      notify()
+      await wait(0)
+      expect(shown(b)).toBe(5)
+      expect(info(b)).toMatchObject({ unsent: false, conflict: false })
+    })
+
+    it('diğer sekme geri alınca değişiklik diriltilmez', async () => {
+      const a = await open()
+      const b = await open()
+      score(a, 5)
+      notify()
+      a.useServer('t1')
+      notify()
+      await wait(0)
+      expect(shown(b)).toBe(3)
+      expect(window.localStorage.getItem(KEY)).toBeNull()
+    })
+
+    it('gönderirken cihazdaki en güncel değişiklik gider', async () => {
+      const a = await open()
+      const b = await open()
+      score(b, 2, 't1', 'demo')
+      score(a, 5)
+      expect(await b.submit('t1')).toBe(true)
+      expect([saved(), saved('t1', 'demo')]).toEqual([5, 2])
+    })
+  })
+
+  it('taslağı yazan sekme kaydeder, çakışma çıkmaz', async () => {
+    const a = await open()
+    const b = await open()
+    score(a, 4)
+    notify()
+    await wait()
+    notify()
+    await wait(POLL_MS)
+    expect(server.client.save).toHaveBeenCalledTimes(1)
+    expect(info(a)).toMatchObject({ dirty: false, conflict: false })
+    expect(info(b)).toMatchObject({ dirty: false, conflict: false })
+  })
+
+  it('yazan sekme kapanırsa diğeri kaydeder', async () => {
+    const a = await open()
+    await open()
+    score(a, 4)
+    notify()
+    close(a)
+    await wait(POLL_MS)
+    expect(saved()).toBe(4)
+  })
+})
+
 describe('kilit, sıfırlama, geçersiz link', () => {
   it('kilit açıkken kaydetmez, açılınca bekleyen taslağı kaydeder', async () => {
     const store = await open()
@@ -305,6 +411,12 @@ describe('kilit, sıfırlama, geçersiz link', () => {
     expect(shown(second)).toBeUndefined()
     await wait(POLL_MS)
     expect(server.cards).toEqual({})
+  })
+
+  it('deneme sınırına takılan geçersiz link de geçersiz sayılır', async () => {
+    close(await open())
+    server.client.me.mockRejectedValueOnce(failure(429, 'JURY_LINK_INVALID'))
+    expect((await open()).getState().phase).toBe('invalid')
   })
 
   it('geçersiz link kayıtlı görünümü göstermez', async () => {

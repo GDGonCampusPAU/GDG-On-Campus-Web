@@ -1,26 +1,38 @@
 // Jüri ekranının cihazda tuttuğu veriler:
 // - Taslak: jüri + tur + takım başına. Link yenilense de aynı jüri taslağını bulur; admin sıfırlayınca eski tur silinir.
+//   Aynı linkin bütün sekmeleri bu tek taslağı paylaşır (bkz. juryStore.js follow).
 // - Son görünüm: sunucuya ulaşılamadığında sayfa bununla açılır.
 // Token depolamaya yazılmaz. Depolama kapalı olabilir; her erişim try/catch içindedir.
 
 const DRAFT_PREFIX = 'hackaton:jury-draft:'
 const VIEW_PREFIX = 'hackaton:jury-view:'
 
-function read(key) {
+function readText(key) {
   try {
-    return JSON.parse(window.localStorage.getItem(key) ?? 'null')
+    return window.localStorage.getItem(key)
   } catch {
     return null
   }
 }
 
-/** @returns {boolean} saklanabildi mi */
+function parse(text) {
+  try {
+    return JSON.parse(text ?? 'null')
+  } catch {
+    return null
+  }
+}
+
+const read = (key) => parse(readText(key))
+
+/** @returns {string | null} yazılan metin; saklanamadıysa null */
 function write(key, value) {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value))
-    return true
+    const text = JSON.stringify(value)
+    window.localStorage.setItem(key, text)
+    return text
   } catch {
-    return false
+    return null
   }
 }
 
@@ -41,12 +53,16 @@ function viewKey(token) {
   return VIEW_PREFIX + (hash >>> 0).toString(36)
 }
 
+export const isDraftKey = (key) => Boolean(key?.startsWith(DRAFT_PREFIX))
+/** Taslağın ham metni: "başka sekme değiştirdi mi" karşılaştırması bununla yapılır. */
+export const draftText = (juror, round, team) => readText(draftKey(juror, round, team))
+
 /**
- * @param {string} juror @param {number} round @param {string} team
+ * @param {string | null} text
  * @returns {{ form: import('./juryForm.js').JuryForm, base: number } | null}
  */
-export function loadDraft(juror, round, team) {
-  const draft = read(draftKey(juror, round, team))
+export function parseDraft(text) {
+  const draft = parse(text)
   const form = draft?.form
   const valid = Number.isInteger(draft?.base) && form?.scores && typeof form.scores === 'object'
     && Array.isArray(form.nominations) && typeof form.generalComment === 'string'
