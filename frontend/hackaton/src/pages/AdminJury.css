@@ -32,6 +32,15 @@
   gap: 8px 12px;
 }
 
+.jury-admin__actions > p {
+  margin: 0;
+}
+
+.jury-admin__taken {
+  margin-top: 8px;
+  font-size: 0.875rem;
+}
+
 .jury-admin__actions > h2,
 .jury-admin__actions > h3,
 .jury-admin__juror {
@@ -240,6 +249,8 @@
 
 .jury-admin__table tbody th {
   min-width: 130px;
+  max-width: 220px;
+  overflow-wrap: anywhere;
 }
 
 .jury-admin__overall {
@@ -251,7 +262,9 @@
 }
 
 .jury-admin__expand {
+  max-width: 100%;
   padding: 4px 0;
+  overflow-wrap: anywhere;
   border: 0;
   background: none;
   color: var(--black);
@@ -315,4 +328,24 @@
 
 .jury-admin__danger form > p {
   margin-bottom: 12px;
+}
+
+/* Telefonda sabit başlık ekranın yarısını kaplamasın; yalnız kaydet çubuğu görünür kalır. */
+@media (max-width: 640px) {
+  .jury-admin .admin__bar {
+    position: static;
+  }
+
+  .jury-admin__save {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    border-radius: 0;
+  }
+
+  .jury-admin {
+    padding-bottom: 160px;
+  }
 }

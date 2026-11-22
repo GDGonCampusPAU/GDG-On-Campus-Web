@@ -319,10 +319,9 @@ export function createJuryStore(token, client) {
     edit(id, change) {
       const current = team(id)
       if (!state.me || state.me.locked || !current.known || current.submitting) return
-      const { conflict } = info(id)
       const form = change(current.form)
-      // Değişiklik geri alındıysa form yine sunucudaki sürüme dayanır.
-      const clean = !conflict && sameForm(state.me.criteria, form, formOf(current.server))
+      // Form sunucudakiyle aynı olduysa (geri alma, çakışmada aynı değerler) artık o sürüme dayanır.
+      const clean = sameForm(state.me.criteria, form, formOf(current.server))
       update(id, { form, submitError: '', ...(clean ? { base: versionOf(current.server), saveError: '' } : {}) })
       schedule(id)
     },

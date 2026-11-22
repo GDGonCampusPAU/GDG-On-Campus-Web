@@ -74,8 +74,9 @@ const summarize = (criteria, entry, cards) => {
  * - Without ranking criteria (e.g. Dream Team): nominations only. No nomination means no suggestion
  *   and the jury decides (organizer decision, overrides the fallback in spec §4.5).
  * @param {Category} category @param {Criterion[]} criteria @param {ReturnType<typeof summarize>[]} available
+ * @param {string[]} awardedNominees nominees left out because they already have an award
  */
-const suggest = (category, criteria, available) => {
+const suggest = (category, criteria, available, awardedNominees) => {
   const ranked = criteria.filter(criterion => category.criterionKeys.includes(criterion.key));
   const candidates = available.map(team => ({
     team: team.team,
@@ -86,7 +87,7 @@ const suggest = (category, criteria, available) => {
     technical: team.technical
   }));
   const nominated = candidates.filter(candidate => candidate.nominationCount > 0);
-  const base = { key: category.key, name: category.name, icon: category.icon ?? '', priority: category.priority, criterionKeys: category.criterionKeys };
+  const base = { key: category.key, name: category.name, icon: category.icon ?? '', priority: category.priority, criterionKeys: category.criterionKeys, awardedNominees };
   const none = reason => ({ ...base, winner: null, reason, basis: null, tie: false, top: [] });
 
   if (!ranked.length && !nominated.length) return none('NO_NOMINATION');
@@ -136,7 +137,9 @@ const computeResults = (config, entries, scorecards) => {
     .filter(category => category.active)
     .sort((a, b) => a.priority - b.priority)
     .map(category => {
-      const result = suggest(category, criteria, teams.filter(team => team.judgeCount && !awarded.has(team.team)));
+      const scored = teams.filter(team => team.judgeCount);
+      const awardedNominees = scored.filter(team => awarded.has(team.team) && team.nominations.has(category.key)).map(team => team.team);
+      const result = suggest(category, criteria, scored.filter(team => !awarded.has(team.team)), awardedNominees);
       if (result.winner) awarded.add(result.winner);
       return result;
     });

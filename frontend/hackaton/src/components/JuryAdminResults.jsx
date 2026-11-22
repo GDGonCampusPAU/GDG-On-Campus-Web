@@ -5,6 +5,8 @@ import { formatScore } from '../lib/juryForm.js'
 const timeFormat = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Istanbul' })
 
 function Suggestion({ category, teamName }) {
+  // "Aday yok" tek başına yanıltıcı olur: aday vardır ama üst öncelikli bir ödül almıştır.
+  const taken = category.awardedNominees.map(teamName).join(', ')
   return (
     <li className="jury-admin__card">
       <h4>
@@ -16,7 +18,9 @@ function Suggestion({ category, teamName }) {
             <span>Öneri:</span> <strong>{teamName(category.winner)}</strong>
           </p>
           {category.tie && <p className="jury-admin__warning">Tam eşitlik var, jüri karar versin.</p>}
-          {category.basis === 'ALL_SCORED' && <p className="jury-admin__hint">Aday yok, puana göre sıralandı.</p>}
+          {category.basis === 'ALL_SCORED' && (
+            <p className="jury-admin__hint">{taken ? 'Adaylar başka ödül aldı, puana göre sıralandı.' : 'Aday yok, puana göre sıralandı.'}</p>
+          )}
           <ol className="jury-admin__top">
             {category.top.map((candidate) => (
               <li key={candidate.team}>
@@ -34,6 +38,7 @@ function Suggestion({ category, teamName }) {
           {category.reason === 'NO_NOMINATION' ? 'Aday yok, jüri karar versin' : 'Önerilecek puanlanmış takım yok'}
         </p>
       )}
+      {taken && <p className="jury-admin__taken">{`Aday gösterilen ama başka ödül önerilen: ${taken}`}</p>}
     </li>
   )
 }

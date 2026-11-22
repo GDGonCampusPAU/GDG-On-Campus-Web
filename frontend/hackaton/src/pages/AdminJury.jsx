@@ -47,6 +47,7 @@ function Dashboard({ session, onExpire, onExit }) {
   const [saving, setSaving] = useState(false)
   const [conflict, setConflict] = useState(false)
   const latest = useRef(0)
+  const pending = useRef(0)
 
   const report = useCallback((error) => {
     if (error.status === 401) onExpire()
@@ -55,6 +56,7 @@ function Dashboard({ session, onExpire, onExit }) {
 
   const refresh = useCallback(async () => {
     const request = ++latest.current
+    pending.current += 1
     try {
       const [config, list] = await Promise.all([client.config(), tab === 'results' ? client.results() : tab === 'jurors' ? client.jurors() : null])
       // Geç gelen eski yanıt yeni veriyi ezmesin.
@@ -67,6 +69,8 @@ function Dashboard({ session, onExpire, onExit }) {
       if (request !== latest.current) return
       if (error.status === 401) onExpire()
       else setStale(true)
+    } finally {
+      pending.current -= 1
     }
   }, [client, tab, onExpire])
 
@@ -75,7 +79,10 @@ function Dashboard({ session, onExpire, onExit }) {
     const whenVisible = () => {
       if (document.visibilityState === 'visible') void refresh()
     }
-    const timer = setInterval(whenVisible, REFRESH_MS)
+    // Yavaş bağlantıda yeni tur öncekini iptal etmesin; yoksa ekran hiç güncellenmez.
+    const timer = setInterval(() => {
+      if (!pending.current) whenVisible()
+    }, REFRESH_MS)
     document.addEventListener('visibilitychange', whenVisible)
     return () => {
       clearInterval(timer)
@@ -94,7 +101,19 @@ function Dashboard({ session, onExpire, onExit }) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
-  const edit = (key) => (value) => setSetup((current) => ({ ...current, draft: { ...current.draft, [key]: value } }))
+  const edit = (key) => (value) => {
+    // Temiz hâlden başlayan düzenleme güncel revision'a dayanır.
+    if (!dirty) setConflict(false)
+    setNote(null)
+    setSetup((current) => ({ ...current, draft: { ...current.draft, [key]: value } }))
+  }
+  const openTab = (key) => {
+    setTab(key)
+    setNote(null)
+  }
+  const exit = () => {
+    if (!dirty || window.confirm('Kaydedilmemiş değişikliklerin silinecek. Çıkılsın mı?')) onExit()
+  }
   const problem = dirty ? setupProblem(setup.draft) : ''
 
   const save = async () => {
@@ -190,7 +209,7 @@ function Dashboard({ session, onExpire, onExit }) {
             </>
           )}
           <Button variant="ghost" href="/admin">İçerik paneli</Button>
-          <Button variant="ghost" onClick={onExit}>Çıkış</Button>
+          <Button variant="ghost" onClick={exit}>Çıkış</Button>
         </div>
         {dirty && (
           <div className="jury-admin__save">
@@ -213,7 +232,7 @@ function Dashboard({ session, onExpire, onExit }) {
 
       <div className="admin__tabs" role="group" aria-label="Bölümler">
         {TABS.map(([key, label]) => (
-          <button key={key} type="button" className="admin__tab" aria-pressed={tab === key} onClick={() => setTab(key)}>
+          <button key={key} type="button" className="admin__tab" aria-pressed={tab === key} onClick={() => openTab(key)}>
             {label}
           </button>
         ))}

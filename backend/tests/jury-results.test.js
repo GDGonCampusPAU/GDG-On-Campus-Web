@@ -112,6 +112,7 @@ test('the pool is also empty when every nominee already has an award', () => {
   const result = computeResults(only('campusHero', 'wow'), entries('a', 'b'), [card('a', 5, { nominations: ['campusHero', 'wow'] }), card('b', 2)]);
   assert.deepEqual(winners(result), { campusHero: 'a', wow: 'b' });
   assert.equal(result.categories[1].basis, 'ALL_SCORED');
+  assert.deepEqual(result.categories[1].awardedNominees, ['a']);
 });
 
 test('tie break 1: category score beats nomination count', () => {
@@ -172,6 +173,7 @@ test('categories without criteria give no suggestion when nobody is nominated', 
 test('categories without criteria give no suggestion when the only nominee already has an award', () => {
   const result = computeResults(only('wow', 'dreamTeam'), entries('a', 'b'), [card('a', 5, { nominations: ['wow', 'dreamTeam'] }), card('b', 4)]);
   assert.deepEqual(winners(result), { wow: 'a', dreamTeam: null });
+  assert.deepEqual(result.categories[1].awardedNominees, ['a']);
 });
 
 test('inactive categories neither appear nor consume an award', () => {

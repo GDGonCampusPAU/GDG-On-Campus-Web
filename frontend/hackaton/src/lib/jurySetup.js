@@ -23,7 +23,15 @@ export const LINK_FIELDS = [['repoUrl', 'Repo linki'], ['demoUrl', 'Demo linki']
 
 export const isValidLink = (value) => {
   const url = value.trim()
-  return !url || (/^https?:\/\/\S+$/i.test(url) && URL.canParse(url))
+  if (!url) return true
+  if (!/^https?:\/\/\S+$/i.test(url)) return false
+  // URL.canParse eski iOS Safari'de yok.
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
