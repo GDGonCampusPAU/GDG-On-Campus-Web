@@ -1,4 +1,4 @@
-const { registrationOf } = require('../services/formPermissionsService');
+const { registrationOf, ADMIN_ONLY_MESSAGE, mayChangeRegistration, changesRegistration } = require('../services/formPermissionsService');
 const mongoose = require('mongoose');
 const { answerError } = require('../utils/formValidation');
 const { escapeCsvCell, literalSearch } = require('../utils/query');
@@ -261,6 +261,11 @@ const updateForm = async (req, res, next) => {
       }
     }
 
+    // Checked before any field is touched.
+    if (changesRegistration(form, req.body) && !(await mayChangeRegistration(req.user, form))) {
+      return res.status(403).json({ success: false, message: ADMIN_ONLY_MESSAGE });
+    }
+
     if (title !== undefined) {
       if (title.trim().length === 0) {
         return res.status(400).json({
@@ -335,6 +340,9 @@ const updateFormStatus = async (req, res, next) => {
     }
 
     const form = await Form.findById(req.params.id);
+    if (form && form.status !== status && !(await mayChangeRegistration(req.user, form))) {
+      return res.status(403).json({ success: false, message: ADMIN_ONLY_MESSAGE });
+    }
     if (form) { form.status = status; await form.save(); }
     if (!form) {
       return res.status(404).json({
@@ -368,6 +376,7 @@ const deleteForm = async (req, res, next) => {
       });
     }
 
+    if (!(await mayChangeRegistration(req.user, form))) return res.status(403).json({ success: false, message: ADMIN_ONLY_MESSAGE });
     if (form.eventKey && await require('../models/EventPage').exists({ formSlug: form.slug })) return res.status(409).json({ message: 'Yayınlanan etkinliğin formunu silmek yerine kapatın.' });
     let files = [];
     await mongoose.connection.transaction(async session => {
