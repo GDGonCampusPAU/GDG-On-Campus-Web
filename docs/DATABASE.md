@@ -6,7 +6,7 @@ User rol listesinde `PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN` tanımlıdır; eş
 
 > Güncelleme: 11 Kasım 2026 — `iyilestirme-ve-test` çalışma dalı (Commit: `b4fbf69`). Başvuru durum alanları, şifre sıfırlama token'ları ve güvenli indeksler dahil.
 
-Varsayılan veritabanı `gdg_pau`; toplam dokuz model (`User`, `Form`, `FormResponse`, `EventPage`, `Content`, `HackathonApp`, `VerificationToken`, `Participant`, `ParticipantOtp`) vardır (eski `Team` modeli kaldırıldı; koleksiyondaki eski veriler silinmez). Bunlara ek olarak `HackathonTeam` ve jüri modülünün üç modeli (`JudgingConfig`, `Juror`, `Scorecard`) bulunur. Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
+Varsayılan veritabanı `gdg_pau`; toplam dokuz model (`User`, `Form`, `FormResponse`, `EventPage`, `Content`, `HackathonApp`, `VerificationToken`, `Participant`, `ParticipantOtp`) vardır (eski `Team` modeli kaldırıldı; koleksiyondaki eski veriler silinmez). Bunlara ek olarak `HackathonTeam` ve jüri modülünün dört modeli (`JudgingConfig`, `Juror`, `Scorecard`, `JuryAuditLog`) bulunur. Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
 
 ```mermaid
 erDiagram
@@ -151,7 +151,7 @@ Jüri modülünün tek dokümanı (`_id: 'hackathon'`). İlk açılışta spec't
 | `criteria[]` | `{key, label, description, weight}`; ağırlık tam sayı, toplam 100 |
 | `categories[]` | `{key, name, icon, criterionKeys[], priority, active}` |
 | `entries[]` | `{team → HackathonTeam, teamName, order, projectName, repoUrl, demoUrl, presentationUrl}`; `teamName` kopyadır, takım dağıtılsa da kalır; proje adı ve linkler boş olabilir |
-| `locked` | Boolean; true iken puan yazılamaz |
+| `locked` | Boolean; true iken puan, ayar, sıfırlama ve kart iptali yazılamaz |
 | `revision` | Ayar kaydında artar; eski sürümle kayıt 409 |
 | `round` | Sıfırlamada artar; önceki turun taslakları kabul edilmez |
 | `writeSeq` | Her puan kaydının transaction içinde artırdığı sayaç (aşağıya bakın) |
@@ -169,9 +169,22 @@ Jüri modülünün tek dokümanı (`_id: 'hackathon'`). İlk açılışta spec't
 | `scores[]` | `{criterion, value: 1-5 veya null, comment (≤1000)}` |
 | `nominations[]` | Kategori anahtarları |
 | `generalComment` | En fazla 2000 karakter |
-| `status` | `DRAFT` / `SUBMITTED`; yalnız `SUBMITTED` hesaba girer, taslağa geri dönmez |
+| `status` | `DRAFT` / `SUBMITTED`; yalnız `SUBMITTED` hesaba girer. Taslağa yalnız ADMIN iptaliyle döner |
+| `voidedAt` | İptal zamanı veya null; jüri yeniden gönderince null olur |
 | `submittedAt` | Son gönderim zamanı |
 | `version` | Her kayıtta artar; eski sekmenin yeni puanı ezmesini engeller |
+
+### JuryAuditLog → `juryauditlogs`
+
+Jüri yönetiminin işlem kaydı; yalnız eklenir, sıfırlamada silinmez.
+
+| Alan | Yapı |
+| --- | --- |
+| `action` | İşlem türü (enum, bkz. API.md) |
+| `actor` | `{id → User, name, email, role}`; o anki kopya |
+| `target` | Etkilenen jüri veya kartın okunur adı |
+| `details` | İşleme özel: ayar farkı, eski/yeni ad, iptal gerekçesi ve iptal edilen puanlar. Token veya hash yazılmaz |
+| `createdAt` | Zaman; `updatedAt` yoktur |
 
 ### HackathonApp → `hackathonapps`
 
@@ -228,7 +241,8 @@ Hackathon araması controller katmanında `teamName`, `leaderName` ve `leaderEma
 - Aynı katılımcının aynı tek başvurulu forma eşzamanlı gönderiminde yalnız bir kayıt oluştuğu test edildi. Partial unique indeks ek DB korumasıdır.
 - Form `updatedAt` değeri upload sırasında değişirse submit 409 verir.
 - Katılımcı OTP tüketimi atomiktir (`findOneAndDelete`). Ekip şifre sıfırlama OTP'si `verifyOtp` ile doğrulanıp atomik olarak silinir.
-- Jüri puan kaydı, transaction içinde önce `JudgingConfig.writeSeq` değerini artırır. Böylece kilit, ayar değişikliği ve sıfırlama ile sıraya girer: kilit onaylandıktan sonra puan yazılamaz, ilk kart oluşurken kriter silinemez, sıfırlamanın ardından eski turun kartı geri gelmez.
+- Jüri puan kaydı, transaction içinde önce `JudgingConfig.writeSeq` değerini artırır. Böylece kilit, ayar değişikliği ve sıfırlama ile sıraya girer: kilit onaylandıktan sonra puan yazılamaz ve ayar değişemez, ilk kart oluşurken kriter silinemez, sıfırlamanın ardından eski turun kartı geri gelmez.
+- Jüri yönetimindeki her değişiklik ve `JuryAuditLog` kaydı aynı transaction'dadır: kaydı yazılamayan işlem uygulanmaz.
 - Rol güncellemeleri transaction içinde aktörün `roleChangeVersion` değerini artırarak eşzamanlı admin kaybını engeller.
 - Dosya sistemi ile DB arasında transaction yoktur. Submit controller’ının reddettiği dosyalar `unlink` ile silinir.
 - Başlangıçta Participant, ParticipantOtp ve FormResponse indekslerinin init işlemi beklenir. Canlı ortamın tüm indeksleri ve performansı ayrıca incelenmelidir.
