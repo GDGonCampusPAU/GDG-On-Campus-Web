@@ -6,7 +6,7 @@
 const { rateLimit } = require('express-rate-limit');
 
 const WINDOW_MS = 15 * 60 * 1000;
-const LIMITS = { ip: 6000, juror: 900, staff: 900, invalidToken: 30 };
+const LIMITS = { ip: 6000, juror: 900, staff: 2000, invalidToken: 30 };
 const PATHS = ['/api/v1/jury', '/api/v1/jury-admin'];
 
 /**
