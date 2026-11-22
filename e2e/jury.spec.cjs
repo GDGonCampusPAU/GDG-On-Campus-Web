@@ -140,6 +140,8 @@ test('jury scoring from setup to locked results', async ({ browser, request }) =
   await table.getByRole('row').nth(1).getByRole('button').click();
   await expect(admin.getByText('Canlı demoda çalıştı')).toBeVisible();
   await expect(admin.getByText('Aday yok, jüri karar versin')).toBeVisible();
+  // Three categories with criteria got no nomination: nothing is suggested for them
+  await expect(admin.getByText('Uygun aday kalmadı, jüri karar versin')).toHaveCount(3);
   await checkLayout(admin, 'admin results');
   await admin.setViewportSize({ width: 1280, height: 900 });
   const pending = admin.waitForEvent('download');

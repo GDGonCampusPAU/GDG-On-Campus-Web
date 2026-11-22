@@ -701,7 +701,8 @@ Kaynak: [jüri spec'i](JURI_PUANLAMA_SPEC.md), kod: `backend/src/modules/jury`. 
 | Aynı link, iki sekme | Sekmeler cihazdaki tek taslağı paylaşır; bir sekme diğerinin yedeğini silmez veya ezmez. |
 | Link gizliliği | Nginx logunda `/juri/` sonrasındaki token biçimli parça (24+ base64url karakter) gizlenir, isteğin geri kalanı okunur kalır. Cloudflare, Nginx Proxy Manager ve nginx hata kaydı linki tam görebilir. |
 | Gönderilmiş kart | `submit:false` ile değişmez (409). Değişiklik yalnız yeniden `submit:true` ile geçerli olur; ekranda o ana kadar uyarı görünür. |
-| Kriteri boş kategori | Ödül almamış aday yoksa öneri verilmez (`reason: "NO_NOMINATION"`, ekranda "Aday yok, jüri karar versin"). Spec §4.5'teki genel puana düşme bu kategorilere uygulanmaz. |
+| Ödül önerisi | Yalnız ödül almamış adaylar arasından yapılır. Spec §4.5'teki puana düşme hiçbir kategoride uygulanmaz. Uygun aday yoksa `reason: "NO_ELIGIBLE_NOMINEE"`, ekranda "Uygun aday kalmadı, jüri karar versin". |
+| Kriteri boş kategori | Adaylık sayısına göre sıralanır. Hiç aday gösterilmediyse `reason: "NO_NOMINATION"`, ekranda "Aday yok, jüri karar versin". |
 | Puan kartı varken | Kriter eklenemez, silinemez, anahtarı değişemez. Kategori silinemez, pasifleştirilir. |
 | Pasif kategori | Eski adaylık kaydı bozmaz ve hesaba girmez. |
 | Pasif jüri | Linki çalışmaz. Gönderdiği kartlar hesapta kalır; gerekirse tek tek iptal edilir. |
@@ -782,7 +783,7 @@ Ekip JWT'si ve `ORGANIZER`/`ADMIN` rolü gerekir; link oluşturma/yenileme, kili
   - `action`: `JUROR_CREATED`, `LINK_REGENERATED`, `JUROR_RENAMED`, `JUROR_ACTIVATED`, `JUROR_DEACTIVATED`, `CONFIG_UPDATED`, `LOCKED`, `UNLOCKED`, `SCORECARDS_RESET`, `SCORECARD_VOIDED`.
 - `GET /jury-admin/results`:
   - `ranking[]`: `rank, overall, judgeCount, criterionAverages, nominationCounts, missingJurors, cards` (jüri bazında puan ve gerekçeler).
-  - `categories[]`: `winner, top` (en fazla 3), `reason, basis, tie, awardedNominees`. Bunlar öneridir.
+  - `categories[]`: `winner, top` (en fazla 3), `reason, tie, awardedNominees`. Bunlar öneridir. `reason` öneri yoksa `NO_NOMINATION`, `NO_ELIGIBLE_NOMINEE` veya `NO_TEAM` (gönderilmiş kart yok) olur.
   - Puanlar yuvarlanmadan döner.
 - `GET /jury-admin/results.csv`: yalnız gönderilmiş kartlar; takım × kriter × jüri. UTF-8 BOM, `;` ayırıcı ve ondalık virgül kullanır (Türkçe Excel). Dosya `,`, `;` veya sekmeyle bölünse de formül başlatabilecek parçaların başına `'` konur.
 

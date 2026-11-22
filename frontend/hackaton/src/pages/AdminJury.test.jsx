@@ -57,8 +57,9 @@ const makeResults = () => ({
     },
   ],
   categories: [
-    { key: 'demoGod', name: 'Demo Tanrısı', icon: '🎤', winner: 't1', reason: null, basis: 'NOMINATIONS', tie: false, awardedNominees: [], top: [{ team: 't1', score: 80, nominationCount: 1, overall: 86.5 }] },
-    { key: 'dreamTeam', name: 'Dream Team', icon: '⚙️', winner: null, reason: 'NO_NOMINATION', basis: null, tie: false, awardedNominees: ['t1'], top: [] },
+    { key: 'demoGod', name: 'Demo Tanrısı', icon: '🎤', winner: 't1', reason: null, tie: false, awardedNominees: [], top: [{ team: 't1', score: 80, nominationCount: 1, overall: 86.5 }] },
+    { key: 'dreamTeam', name: 'Dream Team', icon: '⚙️', winner: null, reason: 'NO_NOMINATION', tie: false, awardedNominees: [], top: [] },
+    { key: 'pilot', name: 'Pilotun Kendisi', icon: '🤖', winner: null, reason: 'NO_ELIGIBLE_NOMINEE', tie: false, awardedNominees: ['t1'], top: [] },
   ],
 })
 
@@ -155,7 +156,14 @@ describe('sonuçlar', () => {
     const dream = screen.getByRole('heading', { name: /Dream Team/ }).closest('li')
     expect(dream).toHaveTextContent('Aday yok, jüri karar versin')
     expect(dream).not.toHaveTextContent('Öneri:')
-    expect(dream).toHaveTextContent('Aday gösterilen ama başka ödül önerilen: Çılgın Kodcular')
+  })
+
+  it('uygun adayı kalmayan ödülde öneri göstermez', async () => {
+    show()
+    const pilot = (await screen.findByRole('heading', { name: /Pilotun Kendisi/ })).closest('li')
+    expect(pilot).toHaveTextContent('Uygun aday kalmadı, jüri karar versin')
+    expect(pilot).not.toHaveTextContent('Öneri:')
+    expect(pilot).toHaveTextContent('Aday gösterilen ama başka ödül önerilen: Çılgın Kodcular')
   })
 
   it('takıma tıklayınca jüri puanlarını ve gerekçeleri açar', async () => {

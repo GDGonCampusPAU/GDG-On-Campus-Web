@@ -74,7 +74,7 @@ test('equal averages from different juror counts are exact ties', () => {
 });
 
 test('category score is weighted over its criteria and normalized to 100', () => {
-  const result = computeResults(only('campusHero'), entries('a'), [card('a', 1, { values: { problemFit: 5, impact: 3 } })]);
+  const result = computeResults(only('campusHero'), entries('a'), [card('a', 1, { values: { problemFit: 5, impact: 3 }, nominations: ['campusHero'] })]);
   // (15×5 + 10×3) / (25×5) × 100
   assert.equal(result.categories[0].top[0].score, 84);
 });
@@ -83,36 +83,44 @@ test('categories follow priority, not array order', () => {
   const categories = [...DEFAULT_CATEGORIES].reverse();
   const result = computeResults({ ...config, categories }, entries('a'), [card('a', 5)]);
   assert.deepEqual(result.categories.map(category => category.priority), [1, 2, 3, 4, 5]);
-  assert.equal(result.categories[0].winner, 'a');
+  const nominated = computeResults({ ...config, categories }, entries('a'), [card('a', 5, { nominations: ['pilot', 'campusHero'] })]);
+  assert.deepEqual([nominated.categories[0].key, nominated.categories[0].winner], ['campusHero', 'a']);
 });
 
 test('a team gets at most one award', () => {
   const all = DEFAULT_CATEGORIES.map(category => category.key);
-  const result = computeResults(config, entries('a', 'b', 'c'), [card('a', 5, { nominations: all }), card('b', 4), card('c', 3)]);
+  const result = computeResults(config, entries('a', 'b', 'c'), [card('a', 5, { nominations: all }), card('b', 4, { nominations: all }), card('c', 3, { nominations: all })]);
   assert.deepEqual(winners(result), { campusHero: 'a', wow: 'b', demoGod: 'c', pilot: null, dreamTeam: null });
-  assert.equal(result.categories[3].reason, 'NO_TEAM');
-  assert.equal(result.categories[4].reason, 'NO_NOMINATION');
+  assert.equal(result.categories[3].reason, 'NO_ELIGIBLE_NOMINEE');
+  assert.equal(result.categories[4].reason, 'NO_ELIGIBLE_NOMINEE');
 });
 
 test('nominated teams beat a higher scored team without nomination', () => {
   const [wow] = computeResults(only('wow'), entries('a', 'b'), [card('a', 5), card('b', 2, { nominations: ['wow'] })]).categories;
   assert.equal(wow.winner, 'b');
-  assert.equal(wow.basis, 'NOMINATIONS');
   assert.equal(wow.top.length, 1);
 });
 
-test('an empty pool falls back to every scored team', () => {
-  const [wow] = computeResults(only('wow'), entries('a', 'b', 'c'), [card('a', 3), card('b', 4)]).categories;
-  assert.equal(wow.winner, 'b');
-  assert.equal(wow.basis, 'ALL_SCORED');
-  assert.deepEqual(wow.top.map(candidate => candidate.team), ['b', 'a']);
+test('categories with criteria give no suggestion when nobody is nominated', () => {
+  const result = computeResults(config, entries('a', 'b', 'c'), [card('a', 3), card('b', 4)]);
+  for (const category of result.categories.filter(item => item.criterionKeys.length)) {
+    assert.equal(category.winner, null);
+    assert.equal(category.reason, 'NO_ELIGIBLE_NOMINEE');
+    assert.deepEqual(category.top, []);
+  }
 });
 
-test('the pool is also empty when every nominee already has an award', () => {
+test('a team without nomination never replaces nominees that already have an award', () => {
   const result = computeResults(only('campusHero', 'wow'), entries('a', 'b'), [card('a', 5, { nominations: ['campusHero', 'wow'] }), card('b', 2)]);
-  assert.deepEqual(winners(result), { campusHero: 'a', wow: 'b' });
-  assert.equal(result.categories[1].basis, 'ALL_SCORED');
+  assert.deepEqual(winners(result), { campusHero: 'a', wow: null });
+  assert.equal(result.categories[1].reason, 'NO_ELIGIBLE_NOMINEE');
+  assert.deepEqual(result.categories[1].top, []);
   assert.deepEqual(result.categories[1].awardedNominees, ['a']);
+});
+
+test('without any submitted card the reason is that no team is scored', () => {
+  const [draft] = computeResults(only('wow'), entries('a'), [card('a', 5, { status: 'DRAFT', nominations: ['wow'] })]).categories;
+  assert.deepEqual([draft.winner, draft.reason], [null, 'NO_TEAM']);
 });
 
 test('tie break 1: category score beats nomination count', () => {
@@ -130,26 +138,27 @@ test('tie break 2: nomination count beats overall score', () => {
 
 test('tie break 3: overall score', () => {
   const values = { originality: 4 };
-  const cards = [card('a', 2, { values }), card('b', 3, { values })];
+  const cards = [card('a', 2, { values, nominations: ['wow'] }), card('b', 3, { values, nominations: ['wow'] })];
   assert.equal(computeResults(only('wow'), entries('a', 'b'), cards).categories[0].winner, 'b');
 });
 
 test('tie break 4: technical score', () => {
-  const cards = [card('a', 4), card('b', 4, { values: { technical: 5, demo: 3, aiMastery: 3 } })];
+  const nominations = ['wow'];
+  const cards = [card('a', 4, { nominations }), card('b', 4, { nominations, values: { technical: 5, demo: 3, aiMastery: 3 } })];
   const [wow] = computeResults(only('wow'), entries('a', 'b'), cards).categories;
   assert.equal(wow.winner, 'b');
   assert.equal(wow.tie, false);
 });
 
 test('a full tie is flagged and listed in presentation order', () => {
-  const [wow] = computeResults(only('wow'), entries('a', 'b'), [card('b', 4), card('a', 4)]).categories;
+  const [wow] = computeResults(only('wow'), entries('a', 'b'), [card('b', 4, { nominations: ['wow'] }), card('a', 4, { nominations: ['wow'] })]).categories;
   assert.equal(wow.winner, 'a');
   assert.equal(wow.tie, true);
 });
 
 test('at most three candidates are returned', () => {
   const teams = ['a', 'b', 'c', 'd', 'e'];
-  assert.equal(computeResults(only('wow'), entries(...teams), teams.map(team => card(team, 3))).categories[0].top.length, 3);
+  assert.equal(computeResults(only('wow'), entries(...teams), teams.map(team => card(team, 3, { nominations: ['wow'] }))).categories[0].top.length, 3);
 });
 
 test('Dream Team ranks by nominations, then overall score', () => {
@@ -173,12 +182,13 @@ test('categories without criteria give no suggestion when nobody is nominated', 
 test('categories without criteria give no suggestion when the only nominee already has an award', () => {
   const result = computeResults(only('wow', 'dreamTeam'), entries('a', 'b'), [card('a', 5, { nominations: ['wow', 'dreamTeam'] }), card('b', 4)]);
   assert.deepEqual(winners(result), { wow: 'a', dreamTeam: null });
+  assert.equal(result.categories[1].reason, 'NO_ELIGIBLE_NOMINEE');
   assert.deepEqual(result.categories[1].awardedNominees, ['a']);
 });
 
 test('inactive categories neither appear nor consume an award', () => {
   const categories = DEFAULT_CATEGORIES.map(category => ({ ...category, active: category.key !== 'campusHero' }));
-  const result = computeResults({ ...config, categories }, entries('a'), [card('a', 5, { nominations: ['campusHero'] })]);
+  const result = computeResults({ ...config, categories }, entries('a'), [card('a', 5, { nominations: ['campusHero', 'wow'] })]);
   assert.equal(result.categories.length, 4);
   assert.equal(result.categories[0].winner, 'a');
 });

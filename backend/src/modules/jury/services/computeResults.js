@@ -70,13 +70,15 @@ const summarize = (criteria, entry, cards) => {
 
 /**
  * Suggests a winner for one category among the teams that have no award yet.
- * - With ranking criteria: nominated teams compete; without any nomination, every scored team does.
- * - Without ranking criteria (e.g. Dream Team): nominations only. No nomination means no suggestion
- *   and the jury decides (organizer decision, overrides the fallback in spec §4.5).
+ * - Only nominated teams compete. Without an eligible nominee there is no suggestion and the jury
+ *   decides (organizer decision, overrides the fallback in spec §4.5).
+ * - With ranking criteria the category score ranks the nominees; without (e.g. Dream Team) the
+ *   number of nominations does.
  * @param {Category} category @param {Criterion[]} criteria @param {ReturnType<typeof summarize>[]} available
  * @param {string[]} awardedNominees nominees left out because they already have an award
+ * @param {boolean} anyScored whether any team has a submitted card
  */
-const suggest = (category, criteria, available, awardedNominees) => {
+const suggest = (category, criteria, available, awardedNominees, anyScored) => {
   const ranked = criteria.filter(criterion => category.criterionKeys.includes(criterion.key));
   const candidates = available.map(team => ({
     team: team.team,
@@ -88,21 +90,22 @@ const suggest = (category, criteria, available, awardedNominees) => {
   }));
   const nominated = candidates.filter(candidate => candidate.nominationCount > 0);
   const base = { key: category.key, name: category.name, icon: category.icon ?? '', priority: category.priority, criterionKeys: category.criterionKeys, awardedNominees };
-  const none = reason => ({ ...base, winner: null, reason, basis: null, tie: false, top: [] });
+  const none = reason => ({ ...base, winner: null, reason, tie: false, top: [] });
 
-  if (!ranked.length && !nominated.length) return none('NO_NOMINATION');
-  if (!candidates.length) return none('NO_TEAM');
+  if (!nominated.length) {
+    if (!ranked.length && !awardedNominees.length) return none('NO_NOMINATION');
+    return none(anyScored ? 'NO_ELIGIBLE_NOMINEE' : 'NO_TEAM');
+  }
 
   const compare = ranked.length
     ? chain((a, b) => desc(a.score, b.score), (a, b) => b.nominationCount - a.nominationCount, (a, b) => desc(a.overall, b.overall), (a, b) => desc(a.technical, b.technical))
     : chain((a, b) => b.nominationCount - a.nominationCount, (a, b) => desc(a.overall, b.overall));
-  const pool = (nominated.length ? nominated : candidates).sort(chain(compare, (a, b) => a.order - b.order));
+  const pool = nominated.sort(chain(compare, (a, b) => a.order - b.order));
 
   return {
     ...base,
     winner: pool[0].team,
     reason: null,
-    basis: nominated.length ? 'NOMINATIONS' : 'ALL_SCORED',
     // A full tie is listed in presentation order, and the screen asks the jury to decide.
     tie: pool.length > 1 && compare(pool[0], pool[1]) === 0,
     top: pool.slice(0, TOP_COUNT)
@@ -139,7 +142,7 @@ const computeResults = (config, entries, scorecards) => {
     .map(category => {
       const scored = teams.filter(team => team.judgeCount);
       const awardedNominees = scored.filter(team => awarded.has(team.team) && team.nominations.has(category.key)).map(team => team.team);
-      const result = suggest(category, criteria, scored.filter(team => !awarded.has(team.team)), awardedNominees);
+      const result = suggest(category, criteria, scored.filter(team => !awarded.has(team.team)), awardedNominees, scored.length > 0);
       if (result.winner) awarded.add(result.winner);
       return result;
     });
