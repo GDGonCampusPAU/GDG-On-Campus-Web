@@ -6,9 +6,9 @@ const CONFIRMATION = 'SIFIRLA'
 
 /**
  * Yalnız ADMIN'e gösterilir; sunucu da ayrıca denetler.
- * @param {{ count: number, onReset: (confirmation: string) => Promise<boolean> }} props
+ * @param {{ count: number, locked: boolean, onReset: (confirmation: string) => Promise<boolean> }} props
  */
-export default function JuryResetPanel({ count, onReset }) {
+export default function JuryResetPanel({ count, locked, onReset }) {
   const [asking, setAsking] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -29,8 +29,9 @@ export default function JuryResetPanel({ count, onReset }) {
   return (
     <section className="jury-admin__danger" aria-labelledby="reset-title">
       <h2 id="reset-title">Prova verisini temizle</h2>
-      {!asking ? (
-        <Button variant="danger" onClick={() => setAsking(true)}>Puan kartlarını sıfırla</Button>
+      {locked && <p className="jury-admin__hint">Puanlama kilitliyken sıfırlanamaz.</p>}
+      {!asking || locked ? (
+        <Button variant="danger" disabled={locked} onClick={() => setAsking(true)}>Puan kartlarını sıfırla</Button>
       ) : (
         <form onSubmit={submit}>
           <p>

@@ -46,7 +46,7 @@ const makeResults = () => ({
       team: 't1', rank: 1, teamName: 'Çılgın Kodcular', projectName: 'Asistan', overall: 86.5, judgeCount: 2, teamMissing: false,
       criterionAverages: { technical: 4.5, demo: 4 },
       missingJurors: [],
-      cards: [{ juror: { id: 'j1', name: 'Ayşe', active: true }, total: 92, generalComment: 'Çok iyi sunum', nominations: ['demoGod'],
+      cards: [{ juror: { id: 'j1', name: 'Ayşe', active: true }, version: 3, total: 92, generalComment: 'Çok iyi sunum', nominations: ['demoGod'],
         scores: [{ criterion: 'technical', value: 5, comment: 'Canlıda çalıştı' }, { criterion: 'demo', value: 4, comment: '' }] }],
     },
     {
@@ -77,6 +77,15 @@ beforeEach(() => {
     setLock: vi.fn(async (locked) => makeConfig({ locked })),
     reset: vi.fn(async () => ({ deleted: 5, config: makeConfig({ round: 2, scorecardCount: 0 }) })),
     csv: vi.fn(async () => new Blob(['csv'])),
+    voidCard: vi.fn(async () => ({ voided: true })),
+    log: vi.fn(async () => ({ next: null, items: [
+      { id: 'l3', at: '2026-11-27T18:00:00.000Z', action: 'SCORECARD_VOIDED', target: 'Ayşe · Çılgın Kodcular',
+        actor: { name: 'Ada', email: 'ada@pau.edu.tr', role: 'ADMIN' }, details: { reason: 'Yanlış takım', card: { total: 92, scores: [] } } },
+      { id: 'l2', at: '2026-11-27T17:00:00.000Z', action: 'CONFIG_UPDATED', target: '',
+        actor: { name: 'Oya', email: 'oya@pau.edu.tr', role: 'ORGANIZER' }, details: { changes: { criteria: { added: [], removed: [], edited: [{ name: 'Teknik', fields: { weight: [25, 30] } }] } } } },
+      { id: 'l1', at: '2026-11-27T16:00:00.000Z', action: 'LINK_REGENERATED', target: 'Burak',
+        actor: { name: 'Ada', email: 'ada@pau.edu.tr', role: 'ADMIN' }, details: {} },
+    ] })),
   }
   vi.mocked(juryAdminApi).mockImplementation(() => client)
 })
@@ -273,7 +282,82 @@ describe('ayarlar', () => {
   })
 })
 
+describe('işlem kaydı', () => {
+  it.each(['ADMIN', 'ORGANIZER'])('%s kaydı kişi, işlem ve gerekçeyle görür', async (role) => {
+    const user = show(role)
+    await openTab(user, 'İşlem kaydı')
+    const [voided, config, link] = within(await screen.findByRole('list', { name: 'İşlem kaydı' })).getAllByRole('article')
+    expect(voided).toHaveTextContent('Puan kartı iptal edildi')
+    expect(voided).toHaveTextContent('Ayşe · Çılgın Kodcular')
+    expect(voided).toHaveTextContent('Gerekçe: Yanlış takım')
+    expect(voided).toHaveTextContent('ada@pau.edu.tr')
+    expect(config).toHaveTextContent('Ağırlık: 25 → 30')
+    expect(link).toHaveTextContent('Jüri linki yenilendi')
+  })
+})
+
+describe('tek kart iptali', () => {
+  const openCard = async (user) => {
+    await user.click(within(await screen.findByRole('table')).getByRole('button', { name: 'Çılgın Kodcular' }))
+  }
+
+  it('ORGANIZER iptal düğmesini görmez', async () => {
+    const user = show('ORGANIZER')
+    await openCard(user)
+    expect(screen.queryByRole('button', { name: /kartını iptal et/ })).toBeNull()
+  })
+
+  it('kilitliyken iptal düğmesi yok', async () => {
+    client.config.mockImplementation(async () => makeConfig({ locked: true }))
+    const user = show()
+    await openCard(user)
+    expect(screen.queryByRole('button', { name: /kartını iptal et/ })).toBeNull()
+  })
+
+  it('ADMIN gerekçesiz iptal edemez, gerekçe ve sürümle iptal eder', async () => {
+    const user = show()
+    await openCard(user)
+    await user.click(screen.getByRole('button', { name: 'Ayşe kartını iptal et' }))
+    const confirm = screen.getByRole('button', { name: 'Kartı iptal et' })
+    expect(confirm).toBeDisabled()
+    const reason = screen.getByLabelText('İptal gerekçesi')
+    await user.type(reason, '   ')
+    expect(confirm).toBeDisabled()
+    await user.type(reason, 'Yanlış takım')
+    await user.click(confirm)
+    expect(client.voidCard).toHaveBeenCalledWith('j1', 't1', { reason: 'Yanlış takım', version: 3 })
+    expect(await screen.findByText('Puan kartı iptal edildi.')).toBeInTheDocument()
+  })
+})
+
+describe('kilitliyken', () => {
+  beforeEach(() => {
+    client.config.mockImplementation(async () => makeConfig({ locked: true }))
+  })
+
+  it.each(['Kriterler', 'Kategoriler', 'Yarışan takımlar'])('%s düzenlenemez', async (name) => {
+    const user = show()
+    await user.click(await screen.findByRole('button', { name }))
+    await screen.findByText('Puanlama kilitli: ayarlar değiştirilemez.')
+    screen.getAllByRole('textbox').forEach((box) => expect(box).toBeDisabled())
+  })
+
+  it('sıfırlanamaz', async () => {
+    show()
+    expect(await screen.findByRole('button', { name: 'Puan kartlarını sıfırla' })).toBeDisabled()
+  })
+})
+
 describe('jüriler', () => {
+  it('ORGANIZER link oluşturamaz ve yenileyemez', async () => {
+    const user = show('ORGANIZER')
+    await openTab(user, 'Jüriler')
+    await screen.findByRole('button', { name: 'Ayşe adını değiştir' })
+    expect(screen.queryByLabelText('Jüri adı')).toBeNull()
+    expect(screen.queryByRole('button', { name: /linkini yenile/ })).toBeNull()
+    expect(screen.getByText('Link oluşturma ve yenileme yalnız ADMIN yetkisindedir.')).toBeInTheDocument()
+  })
+
   it('3 jüri oluşturup linklerini kopyalar', async () => {
     const user = show()
     const copy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue()

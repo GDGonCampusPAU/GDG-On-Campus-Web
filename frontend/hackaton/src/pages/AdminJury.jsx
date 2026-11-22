@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AdminGate from '../components/AdminGate.jsx'
 import Button from '../components/Button.jsx'
 import JuryAdminJurors from '../components/JuryAdminJurors.jsx'
+import JuryAdminLog from '../components/JuryAdminLog.jsx'
 import JuryAdminResults from '../components/JuryAdminResults.jsx'
 import { CategoriesEditor, CriteriaEditor, EntriesEditor } from '../components/JuryAdminSetup.jsx'
 import JuryResetPanel from '../components/JuryResetPanel.jsx'
@@ -20,6 +21,7 @@ const TABS = [
   ['categories', 'Kategoriler'],
   ['entries', 'Yarışan takımlar'],
   ['jurors', 'Jüriler'],
+  ['log', 'İşlem kaydı'],
 ]
 
 /**
@@ -34,6 +36,13 @@ function mergeConfig(setup, fresh) {
   return { ...setup, config: { ...setup.config, locked, round, scorecardCount } }
 }
 
+/** Yoklama ilk sayfayı getirir; "daha eski" ile açılmış sayfalar korunur. */
+function mergeLog(current, page) {
+  if (!current) return page
+  const known = new Set(current.items.map((entry) => entry.id))
+  return { items: [...page.items.filter((entry) => !known.has(entry.id)), ...current.items], next: current.next }
+}
+
 /** @param {{ session: any, onExpire: () => void, onExit: () => void }} props */
 function Dashboard({ session, onExpire, onExit }) {
   const client = useMemo(() => juryAdminApi(session.token), [session.token])
@@ -41,6 +50,7 @@ function Dashboard({ session, onExpire, onExit }) {
   const [setup, setSetup] = useState(null)
   const [results, setResults] = useState(null)
   const [jurors, setJurors] = useState(null)
+  const [log, setLog] = useState(null)
   const [links, setLinks] = useState([])
   const [stale, setStale] = useState(false)
   const [note, setNote] = useState(null)
@@ -48,6 +58,7 @@ function Dashboard({ session, onExpire, onExit }) {
   const [conflict, setConflict] = useState(false)
   const latest = useRef(0)
   const pending = useRef(0)
+  const isAdmin = session.user?.role === 'ADMIN'
 
   const report = useCallback((error) => {
     if (error.status === 401) onExpire()
@@ -58,12 +69,13 @@ function Dashboard({ session, onExpire, onExit }) {
     const request = ++latest.current
     pending.current += 1
     try {
-      const [config, list] = await Promise.all([client.config(), tab === 'results' ? client.results() : tab === 'jurors' ? client.jurors() : null])
+      const [config, list] = await Promise.all([client.config(), tab === 'results' ? client.results() : tab === 'jurors' ? client.jurors() : tab === 'log' ? client.log() : null])
       // Geç gelen eski yanıt yeni veriyi ezmesin.
       if (request !== latest.current) return
       setSetup((current) => mergeConfig(current, config))
       if (tab === 'results') setResults(list)
       if (tab === 'jurors') setJurors(list)
+      if (tab === 'log') setLog((current) => mergeLog(current, list))
       setStale(false)
     } catch (error) {
       if (request !== latest.current) return
@@ -114,7 +126,8 @@ function Dashboard({ session, onExpire, onExit }) {
   const exit = () => {
     if (!dirty || window.confirm('Kaydedilmemiş değişikliklerin silinecek. Çıkılsın mı?')) onExit()
   }
-  const problem = dirty ? setupProblem(setup.draft) : ''
+  const locked = Boolean(setup?.config.locked)
+  const problem = !dirty ? '' : locked ? 'Puanlama kilitli, bu değişiklik kaydedilemez.' : setupProblem(setup.draft)
 
   const save = async () => {
     setSaving(true)
@@ -173,6 +186,27 @@ function Dashboard({ session, onExpire, onExit }) {
     } catch (error) {
       report(error)
       return false
+    }
+  }
+
+  const voidCard = async (juror, team, body) => {
+    try {
+      await client.voidCard(juror, team, body)
+      setNote({ text: 'Puan kartı iptal edildi.' })
+      void refresh()
+      return true
+    } catch (error) {
+      report(error)
+      return false
+    }
+  }
+
+  const moreLog = async () => {
+    try {
+      const page = await client.log(log.next)
+      setLog((current) => ({ items: [...current.items, ...page.items], next: page.next }))
+    } catch (error) {
+      report(error)
     }
   }
 
@@ -242,11 +276,15 @@ function Dashboard({ session, onExpire, onExit }) {
         <p>{stale ? 'Jüri ayarları alınamadı, yeniden deneniyor…' : 'Yükleniyor…'}</p>
       ) : (
         <>
-          {tab === 'results' && <JuryAdminResults results={results} stale={stale} onDownload={download} />}
-          {tab === 'results' && session.user?.role === 'ADMIN' && <JuryResetPanel count={setup.config.scorecardCount} onReset={reset} />}
-          {tab === 'jurors' && <JuryAdminJurors jurors={jurors} links={links} client={client} onIssued={addLink} onChanged={refresh} onError={report} />}
+          {tab === 'results' && <JuryAdminResults results={results} stale={stale} onDownload={download} onVoid={isAdmin && !locked ? voidCard : undefined} />}
+          {tab === 'results' && isAdmin && <JuryResetPanel count={setup.config.scorecardCount} locked={locked} onReset={reset} />}
+          {tab === 'jurors' && <JuryAdminJurors jurors={jurors} links={links} client={client} canIssueLinks={isAdmin} onIssued={addLink} onChanged={refresh} onError={report} />}
+          {tab === 'log' && <JuryAdminLog log={log} criteria={setup.config.criteria} stale={stale} onMore={moreLog} />}
+          {['criteria', 'categories', 'entries'].includes(tab) && locked && (
+            <p className="jury-admin__warning">Puanlama kilitli: ayarlar değiştirilemez.</p>
+          )}
           {['criteria', 'categories', 'entries'].includes(tab) && (
-            <fieldset className="jury-admin__editor" disabled={saving}>
+            <fieldset className="jury-admin__editor" disabled={saving || locked}>
               {tab === 'criteria' && <CriteriaEditor criteria={setup.draft.criteria} hasCards={setup.config.scorecardCount > 0} onChange={edit('criteria')} />}
               {tab === 'categories' && (
                 <CategoriesEditor

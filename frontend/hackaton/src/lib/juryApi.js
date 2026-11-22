@@ -31,6 +31,9 @@ export function juryAdminApi(token) {
     setLock: (locked) => call('/lock', { method: 'PUT', body: { locked } }),
     reset: (confirm) => call('/scorecards/reset', { method: 'POST', body: { confirm } }),
     results: () => call('/results'),
+    log: (before) => call(before ? `/log?before=${encodeURIComponent(before)}` : '/log'),
+    voidCard: (juror, team, body) =>
+      call(`/jurors/${encodeURIComponent(juror)}/scorecards/${encodeURIComponent(team)}/void`, { method: 'POST', body }),
     /** api() JSON bekler; dosya için yanıt gövdesi olduğu gibi alınır. @returns {Promise<Blob>} */
     async csv() {
       let response

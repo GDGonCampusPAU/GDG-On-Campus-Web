@@ -5,6 +5,7 @@ const BADGES = {
   DRAFT: ['✏️', 'Taslak'],
   NONE: ['⏳', 'Bekliyor'],
   UNSENT: ['⚠️', 'Gönderilmemiş değişiklik'],
+  VOIDED: ['🚫', 'İptal edildi'],
 }
 
 /** @param {{ me: any, teams: Record<string, import('../lib/juryStore.js').TeamState>, onOpen: (team: string) => void }} props */
@@ -38,7 +39,8 @@ export default function JuryTeamList({ me, teams, onOpen }) {
       ) : (
         <ol className="jury__list">
           {rows.map(({ entry, status, unsent: changed }) => {
-            const [icon, label] = BADGES[changed ? 'UNSENT' : status]
+            const voided = status !== 'SUBMITTED' && teams[entry.team]?.server?.voidedAt
+            const [icon, label] = BADGES[changed ? 'UNSENT' : voided ? 'VOIDED' : status]
             return (
               <li key={entry.team}>
                 <button type="button" className={`jury__row${changed ? ' jury__row--unsent' : ''}`} onClick={() => onOpen(entry.team)}>

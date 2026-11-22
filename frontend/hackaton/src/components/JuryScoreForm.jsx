@@ -126,6 +126,13 @@ export default function JuryScoreForm({ me, summary, team, store, previous, next
         entry && <p className="jury__notice">Bu takımın bağlantısı eklenmemiş. Puanlamaya devam edebilirsin.</p>
       )}
 
+      {team.server?.voidedAt && !submitted && (
+        <div className="jury__warning" role="alert">
+          <strong>Puan kartın yönetim tarafından iptal edildi.</strong>
+          <p>{me.locked ? 'Bu puan hesaba girmiyor. Nedenini organizasyona sorabilirsin.' : 'Hesaba girmesi için tekrar puanlayıp gönder. Nedenini organizasyona sorabilirsin.'}</p>
+        </div>
+      )}
+
       {conflict && !me.locked && (
         <div className="jury__warning" role="alert">
           <strong>Bu puan kartı başka bir sekmede veya cihazda değişti.</strong>

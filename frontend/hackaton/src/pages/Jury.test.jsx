@@ -188,6 +188,17 @@ describe('gönderilmemiş değişiklik', () => {
   })
 })
 
+describe('iptal edilen kart', () => {
+  it('listede ve takımda iptali söyler', async () => {
+    server.cards.t1 = makeCard(null, { version: 2, voidedAt: '2026-11-27T18:00:00.000Z' })
+    const user = show()
+    const row = await screen.findByRole('button', { name: /Kampüs Asistanı/ })
+    await waitFor(() => expect(row).toHaveTextContent('İptal edildi'))
+    await user.click(row)
+    expect(screen.getByRole('alert')).toHaveTextContent('Puan kartın yönetim tarafından iptal edildi')
+  })
+})
+
 describe('kilitli mod', () => {
   it('bütün alanlar salt okunur', async () => {
     server.locked = true

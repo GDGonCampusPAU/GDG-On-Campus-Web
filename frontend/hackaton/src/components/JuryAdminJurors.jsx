@@ -29,10 +29,10 @@ function IssuedLink({ name, url }) {
 }
 
 /**
- * @param {{ jurors: any[] | null, links: { id: string, name: string, url: string }[], client: any,
+ * @param {{ jurors: any[] | null, links: { id: string, name: string, url: string }[], client: any, canIssueLinks: boolean,
  *   onIssued: (result: { juror: any, token: string }) => void, onChanged: () => void, onError: (error: any) => void }} props
  */
-export default function JuryAdminJurors({ jurors, links, client, onIssued, onChanged, onError }) {
+export default function JuryAdminJurors({ jurors, links, client, canIssueLinks, onIssued, onChanged, onError }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -76,14 +76,18 @@ export default function JuryAdminJurors({ jurors, links, client, onIssued, onCha
   return (
     <section aria-labelledby="jurors-title">
       <h2 id="jurors-title">Jüriler</h2>
-      <form className="jury-admin__actions jury-admin__add" onSubmit={create}>
-        <Field id="juror-name" label="Jüri adı">
-          <input id="juror-name" type="text" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <Button type="submit" variant="secondary" disabled={busy || !name.trim()}>Jüri ekle</Button>
-      </form>
+      {canIssueLinks ? (
+        <form className="jury-admin__actions jury-admin__add" onSubmit={create}>
+          <Field id="juror-name" label="Jüri adı">
+            <input id="juror-name" type="text" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Button type="submit" variant="secondary" disabled={busy || !name.trim()}>Jüri ekle</Button>
+        </form>
+      ) : (
+        <p className="jury-admin__hint">Link oluşturma ve yenileme yalnız ADMIN yetkisindedir.</p>
+      )}
 
-      {links.length > 0 && (
+      {canIssueLinks && links.length > 0 && (
         <div className="jury-admin__issued">
           <p>
             <strong>Linkler yalnızca bir kez gösterilir.</strong> Şimdi kopyala. Sayfadan ayrılınca bir daha görünmez, ancak yenisi oluşturulabilir.
@@ -117,9 +121,11 @@ export default function JuryAdminJurors({ jurors, links, client, onIssued, onCha
             <Button variant="ghost" size="sm" disabled={busy} aria-label={`${juror.name} adını değiştir`} onClick={() => setEditing({ id: juror.id, name: juror.name })}>
               Adı değiştir
             </Button>
-            <Button variant="ghost" size="sm" disabled={busy} aria-label={`${juror.name} linkini yenile`} onClick={() => regenerate(juror)}>
-              Linki yenile
-            </Button>
+            {canIssueLinks && (
+              <Button variant="ghost" size="sm" disabled={busy} aria-label={`${juror.name} linkini yenile`} onClick={() => regenerate(juror)}>
+                Linki yenile
+              </Button>
+            )}
             <Button variant="ghost" size="sm" disabled={busy} aria-label={`${juror.name} ${juror.active ? 'pasifleştir' : 'aktifleştir'}`} onClick={() => toggle(juror)}>
               {juror.active ? 'Pasifleştir' : 'Aktifleştir'}
             </Button>
