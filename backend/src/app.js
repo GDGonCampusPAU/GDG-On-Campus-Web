@@ -45,7 +45,8 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
 
-// 4. Rate limiting (middleware/rateLimits.js): per person when signed in, per IP otherwise.
+// 4. Rate Limiting for general API
+// Per person when signed in, per IP otherwise (middleware/rateLimits.js).
 // 5. The sign-in endpoints have their own limits inside their routers.
 rateLimits.mountSignIn(app);
 app.use('/api/', rateLimits.general);
