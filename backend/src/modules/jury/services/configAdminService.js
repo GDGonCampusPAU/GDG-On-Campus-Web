@@ -58,6 +58,8 @@ const saveConfig = async (body, userId) => {
   const form = await eventForm();
   await mongoose.connection.transaction(async session => {
     const config = await JudgingConfig.findById(CONFIG_ID).session(session);
+    // Every setting here shapes the result, so a lock freezes all of them (ADMIN included).
+    if (config?.locked) throw juryError(423, 'Puanlama kilitliyken jüri ayarları değiştirilemez.', 'CONFIG_LOCKED');
     if (!config || config.revision !== input.revision) {
       throw juryError(409, 'Jüri ayarları başka bir oturumda güncellendi. Güncel hâli yükleyip tekrar deneyin.', 'CONFIG_CONFLICT');
     }
@@ -122,7 +124,8 @@ const resetScorecards = async (confirmation, userId) => {
   await loadConfig();
   let deleted = 0;
   await mongoose.connection.transaction(async session => {
-    await JudgingConfig.updateOne({ _id: CONFIG_ID }, { $inc: { round: 1 }, $set: { updatedBy: userId } }, { session });
+    const config = await JudgingConfig.findOneAndUpdate({ _id: CONFIG_ID }, { $inc: { round: 1 }, $set: { updatedBy: userId } }, { session, returnDocument: 'after' }).lean();
+    if (config?.locked) throw juryError(423, 'Puanlama kilitliyken puan kartları sıfırlanamaz.', 'CONFIG_LOCKED');
     deleted = (await Scorecard.deleteMany({}, { session })).deletedCount;
   });
   console.warn(`[Jüri] ${deleted} puan kartı sıfırlandı (kullanıcı ${userId}).`);
