@@ -1,4 +1,5 @@
 const juryRoutes = require('./routes/juryRoutes');
+const juryAdminRoutes = require('./routes/juryAdminRoutes');
 const limits = require('./middleware/limits');
 const { loadConfig } = require('./services/configService');
 
@@ -11,4 +12,4 @@ const init = async () => {
   await loadConfig();
 };
 
-module.exports = { juryRoutes, limits, init };
+module.exports = { juryRoutes, juryAdminRoutes, limits, init };

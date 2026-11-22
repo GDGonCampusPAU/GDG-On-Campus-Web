@@ -140,6 +140,7 @@ app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
 app.use('/api/v1/maintenance', require('./routes/maintenanceRoutes'));
 app.use('/api/v1/jury', juryModule.juryRoutes);
+app.use('/api/v1/jury-admin', juryModule.juryAdminRoutes);
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
 if (hackathonModule.isEnabled()) {
