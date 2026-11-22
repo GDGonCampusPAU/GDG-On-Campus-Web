@@ -270,7 +270,7 @@ test('locking stops jurors and does not bump the revision', async () => {
   const res = await request(app).put(`/api/v1/jury/entries/${teamA._id}/scorecard`).set('Authorization', `Bearer ${token}`)
     .send({ submit: false, scores: [], nominations: [], round: 1, version: 0 });
   assert.equal(res.status, 423);
-  assert.equal((await call('put', '/lock', { locked: false })).body.data.locked, false);
+  assert.equal((await call('put', '/lock', { locked: false }, admin)).body.data.locked, false);
   await score(token, teamA, 2);
 });
 

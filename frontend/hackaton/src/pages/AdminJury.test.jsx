@@ -296,6 +296,31 @@ describe('işlem kaydı', () => {
   })
 })
 
+describe('kilit açma', () => {
+  it('ORGANIZER açamaz, nedenini görür', async () => {
+    client.config.mockImplementation(async () => makeConfig({ locked: true }))
+    show('ORGANIZER')
+    expect(await screen.findByText('Kilidi yalnız ADMIN açabilir.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Puanlamayı aç' })).toBeNull()
+  })
+
+  it('ADMIN açabilir', async () => {
+    client.config.mockImplementation(async () => makeConfig({ locked: true }))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = show()
+    await user.click(await screen.findByRole('button', { name: 'Puanlamayı aç' }))
+    expect(client.setLock).toHaveBeenCalledWith(false)
+  })
+
+  it('ORGANIZER kilitlerken geri açamayacağını onayda görür', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = show('ORGANIZER')
+    await user.click(await screen.findByRole('button', { name: 'Puanlamayı kilitle' }))
+    expect(confirm.mock.calls[0][0]).toContain('Kilidi yalnız ADMIN açabilir')
+    expect(client.setLock).toHaveBeenCalledWith(true)
+  })
+})
+
 describe('tek kart iptali', () => {
   const openCard = async (user) => {
     await user.click(within(await screen.findByRole('table')).getByRole('button', { name: 'Çılgın Kodcular' }))

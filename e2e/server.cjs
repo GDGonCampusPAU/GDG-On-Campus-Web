@@ -29,6 +29,8 @@ async function start() {
   await require('../backend/src/modules/jury').init();
   await User.create({ fullName: 'E2E Admin', email: 'admin@pau.edu.tr', role: 'ADMIN', isEmailVerified: true,
     passwordHash: await bcrypt.hash('e2e-admin-password', 4) });
+  await User.create({ fullName: 'E2E Organizer', email: 'organizer@pau.edu.tr', role: 'ORGANIZER', isEmailVerified: true,
+    passwordHash: await bcrypt.hash('e2e-admin-password', 4) });
   const harness = express();
   harness.get('/__test__/otp', (req, res) => res.json({ code: codes.get(req.query.email) }));
   harness.get('/__test__/state', async (_req, res) => res.json({ responses: await Response.countDocuments() }));

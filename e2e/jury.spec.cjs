@@ -159,6 +159,18 @@ test('jury scoring from setup to locked results', async ({ browser, request }) =
   await expect(phone.getByRole('button', { name: /gönder/i })).toHaveCount(0);
   await checkLayout(phone, 'locked');
 
+  // An ORGANIZER sees the lock but has no way to open it
+  const organizerContext = await browser.newContext({ viewport: PHONE });
+  const organizer = await organizerContext.newPage();
+  await organizer.goto(`${site}/admin/juri`);
+  await organizer.getByLabel('E-posta', { exact: true }).fill('organizer@pau.edu.tr');
+  await organizer.getByLabel('Şifre', { exact: true }).fill('e2e-admin-password');
+  await organizer.getByRole('button', { name: 'Giriş', exact: true }).click();
+  await expect(organizer.getByText('Kilidi yalnız ADMIN açabilir.')).toBeVisible();
+  await expect(organizer.getByRole('button', { name: 'Puanlamayı aç' })).toHaveCount(0);
+  await checkLayout(organizer, 'organizer locked');
+  await organizerContext.close();
+
   // A lock also freezes settings and the reset
   await expect(admin.getByRole('button', { name: 'Puan kartlarını sıfırla' })).toBeDisabled();
   await admin.getByRole('button', { name: 'Kriterler', exact: true }).click();

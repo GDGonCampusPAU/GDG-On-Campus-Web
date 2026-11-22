@@ -151,7 +151,7 @@ Jüri modülünün tek dokümanı (`_id: 'hackathon'`). İlk açılışta spec't
 | `criteria[]` | `{key, label, description, weight}`; ağırlık tam sayı, toplam 100 |
 | `categories[]` | `{key, name, icon, criterionKeys[], priority, active}` |
 | `entries[]` | `{team → HackathonTeam, teamName, order, projectName, repoUrl, demoUrl, presentationUrl}`; `teamName` kopyadır, takım dağıtılsa da kalır; proje adı ve linkler boş olabilir |
-| `locked` | Boolean; true iken puan, ayar, sıfırlama ve kart iptali yazılamaz |
+| `locked` | Boolean; true iken puan, ayar, sıfırlama ve kart iptali yazılamaz; yalnız ADMIN false yapabilir |
 | `revision` | Ayar kaydında artar; eski sürümle kayıt 409 |
 | `round` | Sıfırlamada artar; önceki turun taslakları kabul edilmez |
 | `writeSeq` | Her puan kaydının transaction içinde artırdığı sayaç (aşağıya bakın) |

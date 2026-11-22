@@ -110,7 +110,7 @@ test('every other staff change is recorded with the acting person', async () => 
   await call('patch', `/jurors/${bob.id}`, { active: false }, organizer);
   await call('patch', `/jurors/${bob.id}`, { active: true }, organizer);
   await call('put', '/lock', { locked: true }, organizer);
-  await call('put', '/lock', { locked: false }, organizer);
+  await call('put', '/lock', { locked: false });
   await call('post', '/scorecards/reset', { confirm: 'SIFIRLA' });
 
   const items = (await log()).reverse();
@@ -120,7 +120,7 @@ test('every other staff change is recorded with the acting person', async () => 
   assert.deepEqual(changes.criteria.edited[0], { name: DEFAULT_CRITERIA[0].label, fields: { weight: [25, 30] } });
   assert.deepEqual(changes.entries.removed, ['Kod Kervanı']);
   assert.deepEqual(items[1].details, { from: 'Burak', to: 'Burak Şahin' });
-  assert.deepEqual(items.slice(0, 6).map(item => item.actor.role), Array(6).fill('ORGANIZER'));
+  assert.deepEqual(items.slice(0, 6).map(item => item.actor.role), [...Array(5).fill('ORGANIZER'), 'ADMIN']);
   assert.deepEqual(items[6].details, { deleted: 0, round: 2 });
 });
 
@@ -148,6 +148,52 @@ test('an action that cannot be recorded does not happen', async () => {
   assert.equal((await asJuror(alice, 'get', '/me')).status, 200);
   assert.equal((await JudgingConfig.findById('hackathon')).locked, false);
   assert.equal(await Juror.countDocuments(), 2);
+});
+
+test('an ORGANIZER can lock but never unlock', async () => {
+  assert.equal((await call('put', '/lock', { locked: true }, organizer)).status, 200);
+  for (const token of [organizer, forgedRole]) {
+    const res = await call('put', '/lock', { locked: false }, token);
+    assert.equal(res.status, 403);
+    assert.equal(res.body.code, 'UNLOCK_ADMIN_ONLY');
+  }
+  assert.equal((await JudgingConfig.findById('hackathon')).locked, true);
+  assert.deepEqual((await log()).map(item => item.action), ['LOCKED']);
+});
+
+test('unlock, edit and lock again is no longer possible for an ORGANIZER', async () => {
+  await save(alice, { value: 3 });
+  const { data: config } = (await call('get', '/config', undefined, organizer)).body;
+  await call('put', '/lock', { locked: true });
+  await call('put', '/lock', { locked: false }, organizer);
+  const criteria = config.criteria.map((item, i) => ({ ...item, weight: i ? 1 : 94 }));
+  assert.equal((await call('put', '/config', { ...config, criteria }, organizer)).status, 423);
+  assert.equal((await JudgingConfig.findById('hackathon')).criteria[0].weight, 25);
+});
+
+test('no other request can clear the lock', async () => {
+  const { data: config } = (await call('get', '/config', undefined, organizer)).body;
+  await call('put', '/lock', { locked: true });
+  await call('put', '/config', { ...config, locked: false }, organizer);
+  await call('patch', `/jurors/${bob.id}`, { active: false, locked: false }, organizer);
+  await call('post', '/scorecards/reset', { confirm: 'SIFIRLA', locked: false });
+  for (const body of [{ locked: 0 }, { locked: null }, { locked: 'false' }, { locked: [false] }, {}]) {
+    assert.ok((await call('put', '/lock', body, organizer)).status >= 400, JSON.stringify(body));
+  }
+  assert.equal((await JudgingConfig.findById('hackathon')).locked, true);
+});
+
+test('an unlock is refused also when it races an ADMIN lock', async () => {
+  const [locked, unlocked] = await Promise.all([call('put', '/lock', { locked: true }), call('put', '/lock', { locked: false }, organizer)]);
+  assert.deepEqual([locked.status, unlocked.status], [200, 403]);
+  assert.equal((await JudgingConfig.findById('hackathon')).locked, true);
+});
+
+test('an ADMIN can unlock and it is recorded', async () => {
+  await call('put', '/lock', { locked: true }, organizer);
+  assert.equal((await call('put', '/lock', { locked: false })).status, 200);
+  const [entry] = await log();
+  assert.deepEqual([entry.action, entry.actor.role], ['UNLOCKED', 'ADMIN']);
 });
 
 test('the log has no way to edit or delete and needs staff', async () => {

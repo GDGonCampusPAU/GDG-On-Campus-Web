@@ -108,9 +108,13 @@ const saveConfig = async (body, user) => {
   return getConfig();
 };
 
-/** @param {unknown} locked @param {any} user */
+/**
+ * Staff may lock, only an ADMIN may unlock: otherwise unlock + edit + lock would get around the freeze.
+ * @param {unknown} locked @param {any} user role as read from the database by authMiddleware
+ */
 const setLock = async (locked, user) => {
   if (typeof locked !== 'boolean') throw juryError(400, 'locked alanı true veya false olmalıdır.', 'INVALID_INPUT');
+  if (!locked && user.role !== 'ADMIN') throw juryError(403, 'Kilidi yalnız ADMIN açabilir.', 'UNLOCK_ADMIN_ONLY');
   await loadConfig();
   await mongoose.connection.transaction(async session => {
     const before = await JudgingConfig.findById(CONFIG_ID).session(session).lean();

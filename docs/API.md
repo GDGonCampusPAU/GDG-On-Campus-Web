@@ -150,7 +150,7 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 50 | POST | `/jury-admin/jurors` | ADMIN | `{name}`; 201 ve bir kereye mahsus `token` |
 | 51 | POST | `/jury-admin/jurors/:id/regenerate` | ADMIN | Yeni token; eski link geçersiz |
 | 52 | PATCH | `/jury-admin/jurors/:id` | Ekip | `{name?,active?}` |
-| 53 | PUT | `/jury-admin/lock` | Ekip | `{locked:boolean}` |
+| 53 | PUT | `/jury-admin/lock` | Ekip | `{locked:boolean}`; `false` (kilit açma) yalnız ADMIN |
 | 54 | POST | `/jury-admin/scorecards/reset` | ADMIN | `{confirm:"SIFIRLA"}`; bütün puan kartlarını siler, kilitliyken 423 |
 | 55 | GET | `/jury-admin/results` | Ekip | Sıralama, kategori önerileri, jüri bazında puan ve gerekçeler |
 | 56 | GET | `/jury-admin/results.csv` | Ekip | Excel uyumlu döküm |
@@ -694,7 +694,7 @@ Kaynak: [jüri spec'i](JURI_PUANLAMA_SPEC.md), kod: `backend/src/modules/jury`. 
 | Konu | Davranış |
 | --- | --- |
 | Hız limiti | Jüri rotaları genel limite girmez ve geçerli jüri veya personelin önünde IP'ye bağlı sınır yoktur. Jüri başına 900, personel oturumu başına 2000 istek (15 dk). IP başına 30 sınırı yalnız **başarısız** kimlik kontrollerine uygulanır. Gövde, kimlik doğrulanmadan okunmaz. Hacimsel saldırıya karşı koruma uygulamada değil Cloudflare'dedir. |
-| Kilit | Puanların yanında kriter, kategori, takım, sıra, linkler, sıfırlama ve kart iptali de donar (ADMIN dahil, 423). Kilidi ORGANIZER da açabilir; açma ve sonraki her değişiklik işlem kaydına düşer. |
+| Kilit | Puanların yanında kriter, kategori, takım, sıra, linkler, sıfırlama ve kart iptali de donar (ADMIN dahil, 423). ORGANIZER kilitleyebilir ama açamaz: kilidi yalnız ADMIN açar. Kilitleme ve açma işlem kaydına düşer. |
 | Link yetkisi | Jüri linkini yalnız ADMIN oluşturur ve yeniler. Linke sahip olan o jüri adına puan verebilir. |
 | Kart iptali | Yalnız ADMIN, gerekçe zorunlu. Kart boş taslağa döner ve hesaptan çıkar; jüri iptali görür, gerekçeyi görmez. Eski puanlar işlem kaydında kalır. |
 | İşlem kaydı | Yönetim tarafındaki her değişiklik, işlemle aynı transaction'da yazılır. Düzenleme veya silme ucu yoktur. Veritabanına erişebilen kişiye karşı kanıt niteliği taşımaz. |
@@ -766,14 +766,14 @@ Biçim hataları (tür, uzunluk, aralık) `code` alanı olmadan 400 döner.
 
 ### Yönetim uçları
 
-Ekip JWT'si ve `ORGANIZER`/`ADMIN` rolü gerekir; link oluşturma/yenileme, sıfırlama ve kart iptali yalnız `ADMIN`. Rol token'dan değil veritabanından okunur. Arayüz: `/admin/juri`.
+Ekip JWT'si ve `ORGANIZER`/`ADMIN` rolü gerekir; link oluşturma/yenileme, kilit açma, sıfırlama ve kart iptali yalnız `ADMIN`. Rol token'dan değil veritabanından okunur. Arayüz: `/admin/juri`.
 
 - `GET /jury-admin/config`: `{revision, locked, round, criteria, categories, entries, scorecardCount}`. Her `entries` öğesinde ayrıca `teamMissing` ve `scorecardCount` bulunur.
 - `PUT /jury-admin/config`: `{revision, criteria, categories, entries}` ayarın tamamını değiştirir.
   - Ağırlıklar tam sayıdır ve toplamı 100'dür; kategori öncelikleri ve sunum sıraları benzersizdir; linkler `http(s)://` ile başlar.
   - `teamName` sunucuda belirlenir.
   - Çakışma ve koruma kodları: `CONFIG_CONFLICT`, `CRITERIA_FROZEN`, `CATEGORY_IN_USE`, `ENTRY_HAS_SCORES` (hepsi 409). Kilitliyken `CONFIG_LOCKED` (423).
-- `PUT /jury-admin/lock`: `{locked}`. `revision` değerini artırmaz. Kilitliyken ayar kaydı 423 döner; kilit açılınca açık düzenleme aynı `revision` ile kaydedilebilir.
+- `PUT /jury-admin/lock`: `{locked}`. `false` yalnız ADMIN, diğer rollere 403 `UNLOCK_ADMIN_ONLY`. `revision` değerini artırmaz. Kilitliyken ayar kaydı 423 döner; kilit açılınca açık düzenleme aynı `revision` ile kaydedilebilir.
 - `POST /jury-admin/jurors` ve `POST /jury-admin/jurors/:id/regenerate`: `{juror, token}`. Düz token yalnız bu yanıtta döner.
 - `POST /jury-admin/scorecards/reset`: `{deleted, config}`. Bütün puan kartlarını kalıcı siler; takımlar, jüriler ve linkler kalır.
 - `POST /jury-admin/jurors/:id/scorecards/:teamId/void`: `{reason, version}`. `reason` zorunlu (en fazla 500), `version` sonuçlarda görülen kartın sürümüdür.

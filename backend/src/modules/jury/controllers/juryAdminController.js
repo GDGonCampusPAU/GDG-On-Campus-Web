@@ -57,7 +57,7 @@ const updateJuror = respond(req => jurorAdmin.updateJuror(req.params.id, req.bod
 /**
  * @desc    Lock or open scoring
  * @route   PUT /api/v1/jury-admin/lock
- * @access  Private (ORGANIZER, ADMIN)
+ * @access  Private (lock: ORGANIZER, ADMIN; unlock: ADMIN)
  */
 const setLock = respond(req => configAdmin.setLock(req.body.locked, req.user));
 

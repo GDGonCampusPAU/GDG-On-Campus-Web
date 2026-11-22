@@ -161,7 +161,7 @@ function Dashboard({ session, onExpire, onExit }) {
   const toggleLock = async () => {
     const locked = !setup.config.locked
     const question = locked
-      ? 'Puanlama kilitlensin mi? Jüriler puan değiştiremez. Taslaklar ve gönderilmemiş değişiklikler hesaba girmez.'
+      ? `Puanlama kilitlensin mi? Jüriler puan değiştiremez. Taslaklar ve gönderilmemiş değişiklikler hesaba girmez.${isAdmin ? '' : ' Kilidi yalnız ADMIN açabilir, sen geri alamazsın.'}`
       : 'Puanlama açılsın mı? Jüriler puanlarını yeniden değiştirebilir.'
     if (!window.confirm(question)) return
     try {
@@ -239,7 +239,11 @@ function Dashboard({ session, onExpire, onExit }) {
               <span className={`jury-admin__state${setup.config.locked ? ' jury-admin__state--locked' : ''}`}>
                 {setup.config.locked ? '🔒 Puanlama kilitli' : 'Puanlama açık'}
               </span>
-              <Button variant="secondary" onClick={toggleLock}>{setup.config.locked ? 'Puanlamayı aç' : 'Puanlamayı kilitle'}</Button>
+              {locked && !isAdmin ? (
+                <span className="jury-admin__unlock">Kilidi yalnız ADMIN açabilir.</span>
+              ) : (
+                <Button variant="secondary" onClick={toggleLock}>{locked ? 'Puanlamayı aç' : 'Puanlamayı kilitle'}</Button>
+              )}
             </>
           )}
           <Button variant="ghost" href="/admin">İçerik paneli</Button>
