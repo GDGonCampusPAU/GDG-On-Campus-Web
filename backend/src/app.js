@@ -9,6 +9,7 @@ const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const formRoutes = require('./routes/formRoutes');
 const hackathonModule = require('./modules/hackathon');
+const juryModule = require('./modules/jury');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -49,6 +50,8 @@ if (process.env.NODE_ENV !== 'test') {
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 200, // Limit each IP to 200 requests per windowMs
+  // Jury routes have their own limits (modules/jury/middleware/limits.js).
+  skip: req => Boolean(req.juryRequest),
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -56,6 +59,8 @@ const generalLimiter = rateLimit({
     message: 'Çok fazla istek gönderildi. Lütfen 15 dakika sonra tekrar deneyiniz.'
   }
 });
+// The hall shares one IP: jury requests get a high IP ceiling plus per-person limits instead.
+app.use(juryModule.limits.PATHS, juryModule.limits.ipLimiter, juryModule.limits.markJuryRequest);
 app.use('/api/', generalLimiter);
 
 // 5. Stricter Rate Limiting for Auth Endpoints
@@ -134,6 +139,7 @@ app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
 app.use('/api/v1/maintenance', require('./routes/maintenanceRoutes'));
+app.use('/api/v1/jury', juryModule.juryRoutes);
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
 if (hackathonModule.isEnabled()) {
