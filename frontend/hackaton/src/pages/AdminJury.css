@@ -366,3 +366,10 @@
     padding-bottom: 160px;
   }
 }
+
+/* Kilitliyken alanlar kapalı olduğunu göstersin. */
+.jury-admin__editor:disabled :is(input, textarea, select) {
+  background: var(--off-white);
+  opacity: 0.65;
+  cursor: not-allowed;
+}
