@@ -52,6 +52,13 @@ const link = (value, label) => {
 const parseJurorName = value => text(value, 'Jüri adı', { max: 80, required: true });
 
 /** @param {any} body */
+const parseVoid = body => {
+  const reason = text(body.reason, 'İptal gerekçesi', { max: 500, required: true });
+  if (!Number.isInteger(body.version) || body.version < 1) throw invalid('Puan kartı sürümü (version) gerekli.');
+  return { reason, version: body.version };
+};
+
+/** @param {any} body */
 const parseConfig = body => {
   if (!Number.isInteger(body.revision) || body.revision < 1) throw invalid('Yayın sürümü (revision) gerekli.');
 
@@ -121,4 +128,4 @@ const parseScorecard = body => {
     generalComment: text(body.generalComment, 'Genel yorum', { max: LIMITS.generalComment, trim: false }) };
 };
 
-module.exports = { isId, parseConfig, parseScorecard, parseJurorName };
+module.exports = { isId, parseConfig, parseScorecard, parseJurorName, parseVoid };

@@ -7,7 +7,8 @@ const { loadConfig } = require('./services/configService');
  * Both routers must be mounted before the general API limiter and the body parsers, see app.js.
  */
 const init = async () => {
-  await Promise.all([require('./models/Juror').init(), require('./models/Scorecard').init(), require('./models/JudgingConfig').init()]);
+  await Promise.all([require('./models/Juror').init(), require('./models/Scorecard').init(), require('./models/JudgingConfig').init(),
+    require('./models/JuryAuditLog').init()]);
   await loadConfig();
 };
 

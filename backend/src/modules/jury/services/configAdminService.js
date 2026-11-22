@@ -7,6 +7,7 @@ const { FORM_SLUG } = require('../../../services/eventPageService');
 const JudgingConfig = require('../models/JudgingConfig');
 const Scorecard = require('../models/Scorecard');
 const { loadConfig } = require('./configService');
+const { record, configChanges } = require('./auditService');
 const { juryError } = require('./juryError');
 const { parseConfig } = require('./validation');
 
@@ -51,8 +52,8 @@ const listTeams = async () => {
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 };
 
-/** @param {any} body @param {any} userId */
-const saveConfig = async (body, userId) => {
+/** @param {any} body @param {any} user */
+const saveConfig = async (body, user) => {
   const input = parseConfig(body);
   await loadConfig();
   const form = await eventForm();
@@ -99,36 +100,44 @@ const saveConfig = async (body, userId) => {
       return { ...entry, teamName: team?.name ?? old.teamName };
     });
 
-    config.set({ criteria: input.criteria, categories: input.categories, entries, revision: config.revision + 1, updatedBy: userId });
+    const changes = configChanges(config.toObject(), { criteria: input.criteria, categories: input.categories, entries });
+    if (changes) await record(session, user, 'CONFIG_UPDATED', { details: { changes } });
+    config.set({ criteria: input.criteria, categories: input.categories, entries, revision: config.revision + 1, updatedBy: user._id });
     await config.save({ session });
   });
   return getConfig();
 };
 
-/** @param {unknown} locked @param {any} userId */
-const setLock = async (locked, userId) => {
+/** @param {unknown} locked @param {any} user */
+const setLock = async (locked, user) => {
   if (typeof locked !== 'boolean') throw juryError(400, 'locked alanı true veya false olmalıdır.', 'INVALID_INPUT');
   await loadConfig();
-  // Not a revision bump: locking must not break a config edit that is open on another screen.
-  await JudgingConfig.updateOne({ _id: CONFIG_ID }, { $set: { locked, updatedBy: userId } });
+  await mongoose.connection.transaction(async session => {
+    const before = await JudgingConfig.findById(CONFIG_ID).session(session).lean();
+    if (before.locked === locked) return;
+    // Not a revision bump: locking must not break a config edit that is open on another screen.
+    await JudgingConfig.updateOne({ _id: CONFIG_ID }, { $set: { locked, updatedBy: user._id } }, { session });
+    await record(session, user, locked ? 'LOCKED' : 'UNLOCKED');
+  });
   return getConfig();
 };
 
 /**
  * Deletes every scorecard (rehearsal data) and starts a new round, which makes drafts still
  * sitting on juror devices unsendable. ADMIN only, checked by the route.
- * @param {unknown} confirmation @param {any} userId
+ * @param {unknown} confirmation @param {any} user
  */
-const resetScorecards = async (confirmation, userId) => {
+const resetScorecards = async (confirmation, user) => {
   if (confirmation !== RESET_CONFIRMATION) throw juryError(400, `Onay için ${RESET_CONFIRMATION} yazılmalıdır.`, 'CONFIRMATION_REQUIRED');
   await loadConfig();
   let deleted = 0;
   await mongoose.connection.transaction(async session => {
-    const config = await JudgingConfig.findOneAndUpdate({ _id: CONFIG_ID }, { $inc: { round: 1 }, $set: { updatedBy: userId } }, { session, returnDocument: 'after' }).lean();
+    const config = await JudgingConfig.findOneAndUpdate({ _id: CONFIG_ID }, { $inc: { round: 1 }, $set: { updatedBy: user._id } }, { session, returnDocument: 'after' }).lean();
     if (config?.locked) throw juryError(423, 'Puanlama kilitliyken puan kartları sıfırlanamaz.', 'CONFIG_LOCKED');
     deleted = (await Scorecard.deleteMany({}, { session })).deletedCount;
+    await record(session, user, 'SCORECARDS_RESET', { details: { deleted, round: config?.round } });
   });
-  console.warn(`[Jüri] ${deleted} puan kartı sıfırlandı (kullanıcı ${userId}).`);
+  console.warn(`[Jüri] ${deleted} puan kartı sıfırlandı (kullanıcı ${user._id}).`);
   return { deleted, config: await getConfig() };
 };
 

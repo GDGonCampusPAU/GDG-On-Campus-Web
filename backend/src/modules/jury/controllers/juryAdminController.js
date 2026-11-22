@@ -1,6 +1,8 @@
 const configAdmin = require('../services/configAdminService');
 const jurorAdmin = require('../services/jurorAdminService');
 const results = require('../services/resultsService');
+const scorecardAdmin = require('../services/scorecardAdminService');
+const audit = require('../services/auditService');
 const { respond } = require('./respond');
 
 /**
@@ -15,7 +17,7 @@ const getConfig = respond(() => configAdmin.getConfig());
  * @route   PUT /api/v1/jury-admin/config
  * @access  Private (ORGANIZER, ADMIN)
  */
-const saveConfig = respond(req => configAdmin.saveConfig(req.body, req.user._id));
+const saveConfig = respond(req => configAdmin.saveConfig(req.body, req.user));
 
 /**
  * @desc    Teams that can be added as entries
@@ -34,37 +36,51 @@ const listJurors = respond(() => jurorAdmin.listJurors());
 /**
  * @desc    New juror; the plain token is returned only here
  * @route   POST /api/v1/jury-admin/jurors
- * @access  Private (ORGANIZER, ADMIN)
+ * @access  Private (ADMIN)
  */
-const createJuror = respond(req => jurorAdmin.createJuror(req.body.name), 201);
+const createJuror = respond(req => jurorAdmin.createJuror(req.body.name, req.user), 201);
 
 /**
  * @desc    New token; the old link stops working
  * @route   POST /api/v1/jury-admin/jurors/:id/regenerate
- * @access  Private (ORGANIZER, ADMIN)
+ * @access  Private (ADMIN)
  */
-const regenerateToken = respond(req => jurorAdmin.regenerateToken(req.params.id));
+const regenerateToken = respond(req => jurorAdmin.regenerateToken(req.params.id, req.user));
 
 /**
  * @desc    Rename, activate or deactivate a juror
  * @route   PATCH /api/v1/jury-admin/jurors/:id
  * @access  Private (ORGANIZER, ADMIN)
  */
-const updateJuror = respond(req => jurorAdmin.updateJuror(req.params.id, req.body));
+const updateJuror = respond(req => jurorAdmin.updateJuror(req.params.id, req.body, req.user));
 
 /**
  * @desc    Lock or open scoring
  * @route   PUT /api/v1/jury-admin/lock
  * @access  Private (ORGANIZER, ADMIN)
  */
-const setLock = respond(req => configAdmin.setLock(req.body.locked, req.user._id));
+const setLock = respond(req => configAdmin.setLock(req.body.locked, req.user));
 
 /**
  * @desc    Delete all scorecards after a typed confirmation
  * @route   POST /api/v1/jury-admin/scorecards/reset
  * @access  Private (ADMIN)
  */
-const resetScorecards = respond(req => configAdmin.resetScorecards(req.body.confirm, req.user._id));
+const resetScorecards = respond(req => configAdmin.resetScorecards(req.body.confirm, req.user));
+
+/**
+ * @desc    Take one submitted card out of the results, with a reason
+ * @route   POST /api/v1/jury-admin/jurors/:id/scorecards/:teamId/void
+ * @access  Private (ADMIN)
+ */
+const voidScorecard = respond(req => scorecardAdmin.voidScorecard(req.params.id, req.params.teamId, req.body, req.user));
+
+/**
+ * @desc    Who changed what, newest first
+ * @route   GET /api/v1/jury-admin/log
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const getLog = respond(req => audit.listLog(req.query.before));
 
 /**
  * @desc    Ranking, award suggestions, every juror's scores and comments
@@ -90,4 +106,4 @@ const exportResults = async (_req, res, next) => {
   }
 };
 
-module.exports = { getConfig, saveConfig, listTeams, listJurors, createJuror, regenerateToken, updateJuror, setLock, resetScorecards, getResults, exportResults };
+module.exports = { getConfig, saveConfig, listTeams, listJurors, createJuror, regenerateToken, updateJuror, setLock, resetScorecards, voidScorecard, getLog, getResults, exportResults };

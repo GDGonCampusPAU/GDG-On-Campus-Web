@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const Juror = require('../models/Juror');
 const Scorecard = require('../models/Scorecard');
+const { record } = require('./auditService');
 const { loadConfig } = require('./configService');
 const { issueToken } = require('./tokenService');
 const { juryError } = require('./juryError');
@@ -24,25 +26,35 @@ const listJurors = async () => {
   }));
 };
 
-/** @param {unknown} name */
-const createJuror = async name => {
+/** ADMIN only, checked by the route. @param {unknown} name @param {any} user */
+const createJuror = async (name, user) => {
   const parsed = parseJurorName(name);
   const { token, tokenHash } = issueToken();
-  const juror = await Juror.create({ name: parsed, tokenHash });
+  /** @type {any} */
+  let juror;
+  await mongoose.connection.transaction(async session => {
+    [juror] = await Juror.create([{ name: parsed, tokenHash }], { session });
+    await record(session, user, 'JUROR_CREATED', { target: parsed, details: { juror: String(juror._id) } });
+  });
   return { juror: jurorView(juror), token };
 };
 
-/** The old link stops working immediately. @param {unknown} id */
-const regenerateToken = async id => {
+/** ADMIN only, checked by the route. The old link stops working immediately. @param {unknown} id @param {any} user */
+const regenerateToken = async (id, user) => {
   if (!isId(id)) throw notFound();
   const { token, tokenHash } = issueToken();
-  const juror = await Juror.findByIdAndUpdate(id, { $set: { tokenHash } }, { returnDocument: 'after' }).lean();
-  if (!juror) throw notFound();
+  /** @type {any} */
+  let juror;
+  await mongoose.connection.transaction(async session => {
+    juror = await Juror.findByIdAndUpdate(id, { $set: { tokenHash } }, { session, returnDocument: 'after' }).lean();
+    if (!juror) throw notFound();
+    await record(session, user, 'LINK_REGENERATED', { target: juror.name, details: { juror: String(juror._id) } });
+  });
   return { juror: jurorView(juror), token };
 };
 
-/** @param {unknown} id @param {any} body */
-const updateJuror = async (id, body) => {
+/** @param {unknown} id @param {any} body @param {any} user */
+const updateJuror = async (id, body, user) => {
   if (!isId(id)) throw notFound();
   /** @type {{ name?: string, active?: boolean }} */
   const changes = {};
@@ -52,8 +64,21 @@ const updateJuror = async (id, body) => {
     changes.active = body.active;
   }
   if (!Object.keys(changes).length) throw juryError(400, 'Değiştirilecek name veya active alanı gerekli.', 'INVALID_INPUT');
-  const juror = await Juror.findByIdAndUpdate(id, { $set: changes }, { returnDocument: 'after', runValidators: true }).lean();
-  if (!juror) throw notFound();
+  /** @type {any} */
+  let juror;
+  await mongoose.connection.transaction(async session => {
+    juror = await Juror.findById(id).session(session);
+    if (!juror) throw notFound();
+    if (changes.name !== undefined && changes.name !== juror.name) {
+      await record(session, user, 'JUROR_RENAMED', { target: changes.name, details: { from: juror.name, to: changes.name } });
+      juror.name = changes.name;
+    }
+    if (changes.active !== undefined && changes.active !== juror.active) {
+      await record(session, user, changes.active ? 'JUROR_ACTIVATED' : 'JUROR_DEACTIVATED', { target: juror.name, details: { juror: String(juror._id) } });
+      juror.active = changes.active;
+    }
+    await juror.save({ session });
+  });
   return jurorView(juror);
 };
 

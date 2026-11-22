@@ -58,7 +58,7 @@ const addEntries = async () => {
   assert.equal(res.status, 200, JSON.stringify(res.body));
 };
 const addJuror = async name => {
-  const res = await call('post', '/jurors', { name });
+  const res = await call('post', '/jurors', { name }, admin);
   assert.equal(res.status, 201);
   return res.body.data;
 };
@@ -72,7 +72,8 @@ const score = async (token, team, value, { submit = true, nominations = [], comm
 
 const ENDPOINTS = [['get', '/config'], ['put', '/config'], ['get', '/teams'], ['get', '/jurors'], ['post', '/jurors'],
   ['post', '/jurors/000000000000000000000000/regenerate'], ['patch', '/jurors/000000000000000000000000'], ['put', '/lock'],
-  ['post', '/scorecards/reset'], ['get', '/results'], ['get', '/results.csv']];
+  ['post', '/scorecards/reset'], ['get', '/results'], ['get', '/results.csv'], ['get', '/log'],
+  ['post', '/jurors/000000000000000000000000/scorecards/000000000000000000000000/void']];
 
 test('every admin endpoint needs ORGANIZER or ADMIN', async () => {
   const { token: jurorToken } = await addJuror('Jüri');
@@ -231,7 +232,7 @@ test('a juror token is shown once and stored only as a hash', async () => {
 
 test('regenerating invalidates the old link', async () => {
   const { juror, token } = await addJuror('Burak');
-  const res = await call('post', `/jurors/${juror.id}/regenerate`);
+  const res = await call('post', `/jurors/${juror.id}/regenerate`, undefined, admin);
   assert.equal(res.status, 200);
   const me = value => request(app).get('/api/v1/jury/me').set('Authorization', `Bearer ${value}`);
   assert.equal((await me(token)).status, 401);
@@ -244,7 +245,7 @@ test('jurors can be renamed and deactivated; bad input is rejected', async () =>
   assert.equal((await call('patch', `/jurors/${juror.id}`, { active: false })).body.data.active, false);
   assert.equal((await request(app).get('/api/v1/jury/me').set('Authorization', `Bearer ${token}`)).status, 401);
   for (const body of [{}, { active: 'hayır' }, { name: ' ' }]) assert.equal((await call('patch', `/jurors/${juror.id}`, body)).status, 400);
-  for (const body of [{}, { name: { $ne: null } }, { name: 'x'.repeat(81) }]) assert.equal((await call('post', '/jurors', body)).status, 400);
+  for (const body of [{}, { name: { $ne: null } }, { name: 'x'.repeat(81) }]) assert.equal((await call('post', '/jurors', body, admin)).status, 400);
   assert.equal((await call('patch', '/jurors/yok', { active: true })).status, 404);
 });
 

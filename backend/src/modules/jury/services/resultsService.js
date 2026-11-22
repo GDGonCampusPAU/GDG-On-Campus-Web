@@ -28,11 +28,12 @@ const getResults = async () => {
       teamMissing: !existing.has(result.team),
       // A draft does not count, so that juror is still missing.
       missingJurors: active.filter(juror => cardOf(juror)?.status !== 'SUBMITTED')
-        .map(juror => ({ name: juror.name, hasDraft: cardOf(juror)?.status === 'DRAFT' })),
+        .map(juror => ({ name: juror.name, hasDraft: cardOf(juror)?.status === 'DRAFT', ...(cardOf(juror)?.voidedAt ? { voided: true } : {}) })),
       cards: jurors.filter(juror => cardOf(juror)?.status === 'SUBMITTED').map(juror => {
         const card = cardOf(juror);
         return {
           juror: { id: String(juror._id), name: juror.name, active: juror.active },
+          version: card.version,
           total: cardTotal(config.criteria, card.scores),
           scores: card.scores.map(({ criterion, value, comment }) => ({ criterion, value: value ?? null, comment })),
           nominations: card.nominations,

@@ -15,6 +15,8 @@ const scorecardSchema = new mongoose.Schema({
   generalComment: { type: String, default: '', maxlength: 2000 },
   status: { type: String, enum: ['DRAFT', 'SUBMITTED'], default: 'DRAFT' },
   submittedAt: { type: Date, default: null },
+  // Set when an ADMIN voided the card, cleared when the juror submits again.
+  voidedAt: { type: Date, default: null },
   // Increases on every save; a second tab or an old device cannot overwrite newer scores.
   version: { type: Number, default: 0 }
 }, { timestamps: true, versionKey: false });

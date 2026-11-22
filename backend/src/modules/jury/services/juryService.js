@@ -15,7 +15,9 @@ const cardView = card => card && ({
   generalComment: card.generalComment,
   status: card.status,
   version: card.version,
-  submittedAt: card.submittedAt
+  submittedAt: card.submittedAt,
+  // The time only: the admin's reason stays in the staff log.
+  voidedAt: card.voidedAt ?? null
 });
 
 const overview = async juror => {
@@ -96,7 +98,7 @@ const saveScorecard = async (juror, teamId, body) => {
     }
 
     card.set({ scores, nominations: input.nominations, generalComment: input.generalComment, version: card.version + 1,
-      ...(input.submit ? { status: 'SUBMITTED', submittedAt: new Date() } : {}) });
+      ...(input.submit ? { status: 'SUBMITTED', submittedAt: new Date(), voidedAt: null } : {}) });
     await card.save({ session });
     saved = card;
   });
