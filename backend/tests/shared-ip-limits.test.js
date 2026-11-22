@@ -10,7 +10,8 @@ const { MongoMemoryReplSet } = require('mongodb-memory-server');
 const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const mail = require('../src/services/emailService');
-mail.sendEmail = async () => {};
+const delivered = [];
+mail.sendEmail = async message => { delivered.push(message.to); };
 mail.sendRegistrationOtpEmail = mail.sendHackathonOtpEmail = mail.sendPasswordResetOtpEmail = async () => {};
 const app = require('../src/app');
 const User = require('../src/models/User');
@@ -122,7 +123,31 @@ test('codes for unknown addresses stay capped, known participants still get thei
   const statuses = await repeat(105, i => codeFor(`flood${network}x${i}@example.com`));
   assert.equal(statuses.filter(status => status === 200).length, 100);
   assert.equal(statuses.filter(status => status === 429).length, 5);
-  assert.equal((await codeFor(email)).status, 200);
+  const answer = await codeFor(email);
+  assert.equal(answer.body.code, 'MAIL_LIMITED');
+  for (let i = 0; i < 100 && !delivered.includes(email); i += 1) await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(delivered.includes(email), 'the known participant still gets a code');
+});
+
+/** Everything a caller can compare, without values that differ per request anyway. */
+const visible = res => {
+  const pick = (object, omit) => Object.fromEntries(Object.entries(object).filter(([key]) => !omit.includes(key)));
+  return {
+    status: res.status,
+    headers: pick(res.headers, ['date', 'etag', 'x-request-id', 'content-length', 'connection']),
+    body: pick(res.body, ['requestId'])
+  };
+};
+
+test('a code request does not reveal whether the address is a participant', async () => {
+  const known = [0, 1].map(i => `member${network}x${i}@example.com`);
+  await Participant.create(known.map(email => ({ email, emailVerifiedAt: new Date() })));
+  const strangers = [0, 1].map(i => `stranger${network}x${i}@example.com`);
+  assert.deepEqual(visible(await codeFor(known[0])), visible(await codeFor(strangers[0])), 'normally');
+
+  await repeat(105, i => codeFor(`made-up${network}x${i}@example.com`));
+  assert.deepEqual(visible(await codeFor(known[1])), visible(await codeFor(strangers[1])), 'over the ceiling');
+  assert.deepEqual(visible(await codeFor(known[1])), visible(await codeFor(strangers[1])), 'repeated over the ceiling');
 });
 
 test('code guessing is capped per address without affecting others', async () => {

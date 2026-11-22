@@ -9,6 +9,7 @@ const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const { verifyToken } = require('../utils/jwt');
 const participantTokens = require('../modules/participantAuth/services/tokenService');
 const Participant = require('../modules/participantAuth/models/Participant');
+const otpService = require('../modules/participantAuth/services/otpService');
 
 const LIMITS = {
   anonymous: 200,
@@ -70,13 +71,27 @@ const PARTICIPANT_MESSAGE = 'Çok fazla doğrulama isteği. Daha sonra tekrar de
 const participantCode = limiter({ limit: LIMITS.participantCode, keyGenerator: accountKey, skipSuccessfulRequests: true }, PARTICIPANT_MESSAGE);
 // The ceiling protects the mail quota against made-up addresses. People who verified before are not
 // counted (the 60 s cooldown per address still applies), so such a flood cannot lock the hall out.
-const participantMail = limiter({
-  limit: LIMITS.participantMail,
-  skip: async req => {
-    const email = req.body?.email;
-    return typeof email === 'string' && email.length <= 254 && Boolean(await Participant.exists({ email: email.trim().toLowerCase() }));
+// Nobody may learn from the answer who they are: no RateLimit headers, the same body for everyone,
+// and over the ceiling their mail goes out without being awaited.
+const mailLimited = (_req, res) => res.status(429).json({
+  success: false,
+  code: 'MAIL_LIMITED',
+  message: 'Şu an çok fazla kod isteniyor. Adresin daha önce doğrulandıysa kod yine gönderildi; gelmezse biraz sonra tekrar dene.'
+});
+const participantMailCeiling = limiter({ limit: LIMITS.participantMail, standardHeaders: false, handler: mailLimited }, PARTICIPANT_MESSAGE);
+/** @type {import('express').RequestHandler} */
+const participantMail = async (req, res, next) => {
+  try {
+    const email = typeof req.body?.email === 'string' && req.body.email.length <= 254 ? req.body.email.trim().toLowerCase() : '';
+    if (!(await Participant.exists({ email }))) return await participantMailCeiling(req, res, next);
+    const used = await participantMailCeiling.getKey(ipKeyGenerator(req.ip || ''));
+    if ((used?.totalHits ?? 0) < LIMITS.participantMail) return next();
+    otpService.sendOtp(email).catch(() => { /* cooldown or mail failure: the answer must not differ */ });
+    return mailLimited(req, res);
+  } catch (error) {
+    next(error);
   }
-}, PARTICIPANT_MESSAGE);
+};
 const google = limiter({ limit: LIMITS.google, skipSuccessfulRequests: true }, PARTICIPANT_MESSAGE);
 
 const SIGN_IN_PATHS = ['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/send-otp', '/api/v1/auth/verify-email',

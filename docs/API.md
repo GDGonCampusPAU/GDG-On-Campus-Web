@@ -40,6 +40,7 @@ Ekip ve hackathon OTP akışları `node:crypto` `randomInt` ve HMAC-SHA256 hash'
 | Katılımcı kod kontrolü | 15 başarısız deneme | Adres + IP |
 | Katılımcı kod e-postası, daha önce doğrulanmamış adres | 100 | IP |
 | Katılımcı kod e-postası, daha önce doğrulanmış adres | 60 sn'de 1 | Adres |
+| Katılımcı e-posta tavanı dolunca | 429 `MAIL_LIMITED`, herkese aynı yanıt | Daha önce doğrulanmış adrese kod yine gider |
 | Google doğrulaması | 300 başarısız deneme | IP |
 | `GET /event-page/hackathon`, `GET /forms/public/:slugOrId` | Uygulama sınırı yok | Girişten önce gerekli okumalar |
 
