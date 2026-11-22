@@ -6,6 +6,7 @@ import Schedule from './pages/Schedule.jsx'
 import Team from './pages/Team.jsx'
 import NotFound from './pages/NotFound.jsx'
 import Admin from './pages/Admin.jsx'
+import AdminJury from './pages/AdminJury.jsx'
 import Application from './pages/Application.jsx'
 import Jury from './pages/Jury.jsx'
 
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
       <Route path="admin" element={<Admin />} />
+      <Route path="admin/juri" element={<AdminJury />} />
       <Route path="juri/:token" element={<Jury />} />
     </Routes>
   )

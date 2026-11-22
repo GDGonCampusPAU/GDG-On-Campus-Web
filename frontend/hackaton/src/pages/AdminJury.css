@@ -1,0 +1,318 @@
+.jury-admin h2 {
+  margin-bottom: 12px;
+  font-size: 1.375rem;
+}
+
+.jury-admin h3 {
+  font-size: 1.0625rem;
+}
+
+.jury-admin h4 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.jury-admin section > h3 {
+  margin: 28px 0 8px;
+}
+
+.jury-admin__editor,
+.jury-admin__checks {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.jury-admin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.jury-admin__actions > h2,
+.jury-admin__actions > h3,
+.jury-admin__juror {
+  margin: 0 auto 0 0;
+}
+
+.jury-admin__add {
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.jury-admin__add .field {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 420px;
+  margin-bottom: 0;
+}
+
+.jury-admin__add .field__error {
+  display: none;
+}
+
+.jury-admin input[type='number'],
+.jury-admin__link input,
+.jury-admin__rename input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 2px solid var(--black);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--black);
+  font: 400 1rem/1.4 var(--font-sans);
+}
+
+.jury-admin__state {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--green-pastel);
+  font-weight: 700;
+}
+
+.jury-admin__state--locked {
+  background: var(--red-pastel);
+}
+
+.jury-admin__save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 2px solid var(--black);
+  border-radius: var(--radius-sm);
+  background: var(--yellow-pastel);
+}
+
+.jury-admin__hint {
+  margin-bottom: 12px;
+  font-size: 0.9375rem;
+}
+
+.jury-admin__warning {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--red-pastel);
+  font-weight: 700;
+}
+
+.jury-admin__total {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--green-pastel);
+  font-weight: 700;
+}
+
+.jury-admin__total--bad {
+  background: var(--red-pastel);
+}
+
+.jury-admin__card {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--black);
+  border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
+}
+
+.jury-admin__card > legend,
+.jury-admin__checks legend {
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+.jury-admin__card--inactive {
+  background: var(--off-white);
+}
+
+.jury-admin__criterion,
+.jury-admin__category {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 0 12px;
+}
+
+.jury-admin__criterion > :last-child {
+  grid-column: 1 / -1;
+}
+
+.jury-admin__entry {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 0 12px;
+  margin-top: 10px;
+}
+
+.jury-admin__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+}
+
+.jury-admin__checks label,
+.jury-admin__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+}
+
+.jury-admin__checks input,
+.jury-admin__switch input {
+  width: 20px;
+  height: 20px;
+}
+
+.jury-admin__issued {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 2px solid var(--black);
+  border-radius: var(--radius-md);
+  background: var(--yellow-pastel);
+}
+
+.jury-admin__link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.jury-admin__link label {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 4px;
+  min-width: 0;
+  font-weight: 700;
+}
+
+.jury-admin__rename {
+  flex: 1 1 100%;
+}
+
+.jury-admin__rename input {
+  flex: 1 1 200px;
+  width: auto;
+}
+
+/* Tablo kendi içinde kayar, sayfa kaymaz. */
+.jury-admin__scroll {
+  overflow-x: auto;
+}
+
+.jury-admin__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.jury-admin__table th,
+.jury-admin__table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--black);
+  line-height: 1.3;
+  text-align: left;
+  vertical-align: top;
+}
+
+.jury-admin__table thead th {
+  background: var(--off-white);
+  font-size: 0.8125rem;
+}
+
+.jury-admin__table small,
+.jury-admin__top small {
+  display: block;
+  font-weight: 400;
+}
+
+.jury-admin__table tbody th {
+  min-width: 130px;
+}
+
+.jury-admin__overall {
+  font: 700 1.125rem/1.3 var(--font-mono);
+}
+
+.jury-admin__table .jury-admin__short {
+  background: var(--yellow-pastel);
+}
+
+.jury-admin__expand {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--black);
+  font: 700 1rem/1.3 var(--font-sans);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.jury-admin__detail {
+  max-width: min(760px, 100vw - 64px);
+  overflow-wrap: anywhere;
+}
+
+.jury-admin__scorecard {
+  padding: 10px 0;
+}
+
+.jury-admin__scorecard dd,
+.jury-admin__comment {
+  margin: 2px 0 6px;
+  padding-left: 10px;
+  border-left: 3px solid var(--yellow);
+  white-space: pre-wrap;
+}
+
+.jury-admin__scorecard dt {
+  padding: 2px 0;
+}
+
+.jury-admin__suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+}
+
+.jury-admin__suggestions .jury-admin__card {
+  margin: 0;
+}
+
+.jury-admin__winner strong {
+  font-size: 1.125rem;
+}
+
+.jury-admin__undecided {
+  font-weight: 700;
+}
+
+.jury-admin__top {
+  margin-top: 8px;
+  padding-left: 20px;
+  list-style: decimal;
+}
+
+.jury-admin__danger {
+  margin-top: 40px;
+  padding: 16px;
+  border: 2px solid var(--red);
+  border-radius: var(--radius-md);
+}
+
+.jury-admin__danger form > p {
+  margin-bottom: 12px;
+}
