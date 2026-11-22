@@ -6,7 +6,7 @@ User rol listesinde `PENDING`, `MEMBER`, `ORGANIZER`, `ADMIN` tanımlıdır; eş
 
 > Güncelleme: 11 Kasım 2026 — `iyilestirme-ve-test` çalışma dalı (Commit: `b4fbf69`). Başvuru durum alanları, şifre sıfırlama token'ları ve güvenli indeksler dahil.
 
-Varsayılan veritabanı `gdg_pau`; toplam dokuz model (`User`, `Form`, `FormResponse`, `EventPage`, `Content`, `HackathonApp`, `VerificationToken`, `Participant`, `ParticipantOtp`) vardır (eski `Team` modeli kaldırıldı; koleksiyondaki eski veriler silinmez). Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
+Varsayılan veritabanı `gdg_pau`; toplam dokuz model (`User`, `Form`, `FormResponse`, `EventPage`, `Content`, `HackathonApp`, `VerificationToken`, `Participant`, `ParticipantOtp`) vardır (eski `Team` modeli kaldırıldı; koleksiyondaki eski veriler silinmez). Bunlara ek olarak `HackathonTeam` ve jüri modülünün üç modeli (`JudgingConfig`, `Juror`, `Scorecard`) bulunur. Form submit transaction’ları için replica set veya Atlas gerekir; sunucu açılışı standalone bağlantıyı reddeder. Mongoose modellerinde `versionKey:false`; `__v` sürüm alanı tutulmuyor. Her dokümanda MongoDB `_id` kimliği bulunur.
 
 ```mermaid
 erDiagram
@@ -15,6 +15,9 @@ erDiagram
     User o|--o{ FormResponse : respondent_user
     User o|--o{ FormResponse : reviewedBy
     Participant o|--o{ FormResponse : participant
+    Juror ||--o{ Scorecard : juror
+    HackathonTeam ||--o{ Scorecard : team
+    JudgingConfig }o--o{ HackathonTeam : entries
     Participant {
         ObjectId _id
         string email
@@ -139,6 +142,37 @@ Kayıt formundaki `team` alanıyla kurulan takımlar. `form` (→ Form), `name` 
 
 Mevcut veritabanlarında eski takım soruları (`teamName`, `teamRole`, `teammates`) `npm run migrate:team-field --workspace backend` ile yeni `team` alanına çevrilir (varsayılan deneme modu; yazmak için `-- --apply`, tekrar çalıştırmak güvenli).
 
+### JudgingConfig → `judgingconfigs`
+
+Jüri modülünün tek dokümanı (`_id: 'hackathon'`). İlk açılışta spec'teki varsayılan kriter ve kategorilerle oluşur; mevcut doküman ezilmez.
+
+| Alan | Yapı |
+| --- | --- |
+| `criteria[]` | `{key, label, description, weight}`; ağırlık tam sayı, toplam 100 |
+| `categories[]` | `{key, name, icon, criterionKeys[], priority, active}` |
+| `entries[]` | `{team → HackathonTeam, teamName, order, projectName, repoUrl, demoUrl, presentationUrl}`; `teamName` kopyadır, takım dağıtılsa da kalır; proje adı ve linkler boş olabilir |
+| `locked` | Boolean; true iken puan yazılamaz |
+| `revision` | Ayar kaydında artar; eski sürümle kayıt 409 |
+| `round` | Sıfırlamada artar; önceki turun taslakları kabul edilmez |
+| `writeSeq` | Her puan kaydının transaction içinde artırdığı sayaç (aşağıya bakın) |
+| `updatedBy` | → User; timestamps ayrıca tutulur |
+
+### Juror → `jurors`
+
+`name` (en fazla 80), `tokenHash` (SHA-256, unique, `select:false`), `active` (varsayılan true), `lastSeenAt`, timestamps. Hesap veya parola yoktur. Token 24 rastgele bayttır (base64url) ve düz hâli saklanmaz. Jüri silinmez, pasifleştirilir.
+
+### Scorecard → `scorecards`
+
+| Alan | Yapı |
+| --- | --- |
+| `juror`, `team` | → Juror, → HackathonTeam; ikisi birlikte unique |
+| `scores[]` | `{criterion, value: 1-5 veya null, comment (≤1000)}` |
+| `nominations[]` | Kategori anahtarları |
+| `generalComment` | En fazla 2000 karakter |
+| `status` | `DRAFT` / `SUBMITTED`; yalnız `SUBMITTED` hesaba girer, taslağa geri dönmez |
+| `submittedAt` | Son gönderim zamanı |
+| `version` | Her kayıtta artar; eski sekmenin yeni puanı ezmesini engeller |
+
 ### HackathonApp → `hackathonapps`
 
 Takım ve lider bilgileri (`teamName`, `leaderName`, `leaderEmail`, `leaderPhone`, `memberCount`, `projectIdea`, `resumeUrl`, `appliedAt`).
@@ -180,6 +214,8 @@ Her koleksiyonda MongoDB'nin `_id` indeksi beklenir; ek tanımlar:
 | Form | `slug` unique; tekil `status`, `category`; bileşik `{status:1,createdAt:-1}`, `{category:1,status:1}` |
 | FormResponse | Tekil `form`, `formSlug`, `submittedAt`, `status`; bileşik `{form:1,submittedAt:-1}`, `{form:1,status:1,submittedAt:-1}`; `{form:1,singleSubmissionKey:1}` partial unique (anahtar String ise) |
 | HackathonApp | Tekil `appliedAt` (`1`) ve tekil `status` (`1`) |
+| Juror | `tokenHash` unique |
+| Scorecard | `{juror:1,team:1}` unique |
 | Participant | `email` unique; `googleSubject` unique sparse |
 | ParticipantOtp | `email` unique; `expiresAt` TTL (`expireAfterSeconds:0`) |
 | VerificationToken | Tekil `email`, `purpose`; `expiresAt` TTL (`expireAfterSeconds:0`); `{email:1,purpose:1}` partial unique (`codeHash` String ise) |
@@ -192,6 +228,7 @@ Hackathon araması controller katmanında `teamName`, `leaderName` ve `leaderEma
 - Aynı katılımcının aynı tek başvurulu forma eşzamanlı gönderiminde yalnız bir kayıt oluştuğu test edildi. Partial unique indeks ek DB korumasıdır.
 - Form `updatedAt` değeri upload sırasında değişirse submit 409 verir.
 - Katılımcı OTP tüketimi atomiktir (`findOneAndDelete`). Ekip şifre sıfırlama OTP'si `verifyOtp` ile doğrulanıp atomik olarak silinir.
+- Jüri puan kaydı, transaction içinde önce `JudgingConfig.writeSeq` değerini artırır. Böylece kilit, ayar değişikliği ve sıfırlama ile sıraya girer: kilit onaylandıktan sonra puan yazılamaz, ilk kart oluşurken kriter silinemez, sıfırlamanın ardından eski turun kartı geri gelmez.
 - Rol güncellemeleri transaction içinde aktörün `roleChangeVersion` değerini artırarak eşzamanlı admin kaybını engeller.
 - Dosya sistemi ile DB arasında transaction yoktur. Submit controller’ının reddettiği dosyalar `unlink` ile silinir.
 - Başlangıçta Participant, ParticipantOtp ve FormResponse indekslerinin init işlemi beklenir. Canlı ortamın tüm indeksleri ve performansı ayrıca incelenmelidir.
