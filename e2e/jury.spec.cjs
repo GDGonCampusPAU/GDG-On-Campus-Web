@@ -159,7 +159,30 @@ test('jury scoring from setup to locked results', async ({ browser, request }) =
   await expect(phone.getByRole('button', { name: /gönder/i })).toHaveCount(0);
   await checkLayout(phone, 'locked');
 
+  // A lock also freezes settings and the reset
+  await expect(admin.getByRole('button', { name: 'Puan kartlarını sıfırla' })).toBeDisabled();
+  await admin.getByRole('button', { name: 'Kriterler', exact: true }).click();
+  await expect(admin.getByLabel('Ağırlık', { exact: true }).first()).toBeDisabled();
+  await admin.getByRole('button', { name: 'Sonuçlar', exact: true }).click();
+  await admin.getByRole('button', { name: 'Puanlamayı aç' }).click();
+
+  // ADMIN voids a single card with a reason
+  await table.getByRole('row').nth(1).getByRole('button').click();
+  const voidButton = admin.getByRole('button', { name: 'Ayşe Yılmaz kartını iptal et' });
+  await voidButton.click();
+  await admin.getByLabel('İptal gerekçesi').fill('Yanlış takım puanlandı');
+  await admin.getByRole('button', { name: 'Kartı iptal et' }).click();
+  await expect(admin.getByText('Puan kartı iptal edildi.', { exact: true })).toBeVisible();
+  await phone.reload();
+  await expect(phone.getByText('Puan kartın yönetim tarafından iptal edildi.')).toBeVisible();
+  await checkLayout(phone, 'voided card');
+  await admin.getByRole('button', { name: 'İşlem kaydı', exact: true }).click();
+  await expect(admin.getByText('Gerekçe: Yanlış takım puanlandı')).toBeVisible();
+  await checkLayout(admin, 'admin log');
+  await admin.setViewportSize({ width: 1280, height: 900 });
+
   // ADMIN reset after the rehearsal
+  await admin.getByRole('button', { name: 'Sonuçlar', exact: true }).click();
   await admin.getByRole('button', { name: 'Puan kartlarını sıfırla' }).click();
   await admin.getByLabel('Onaylamak için SIFIRLA yaz').fill('SIFIRLA');
   await admin.getByRole('button', { name: 'Kalıcı olarak sil' }).click();
