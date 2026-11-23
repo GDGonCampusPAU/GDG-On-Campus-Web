@@ -158,7 +158,7 @@ export default function JuryScoreForm({ me, summary, team, store, previous, next
       {me.categories.length > 0 && (
         <fieldset className="jury__criterion">
           <legend>Ödül adaylığı</legend>
-          <p className="jury__description">Yakıştırdığın ödüllere aday göster. Seçmek zorunda değilsin.</p>
+          <p className="jury__description">Yakıştırdığın ödülleri işaretle. Ödül önerileri yalnız aday gösterilen takımlar arasından çıkar.</p>
           {me.categories.map(({ key, name, icon }) => (
             <label key={key} className="jury__nomination">
               <input type="checkbox" disabled={disabled} checked={form.nominations.includes(key)} onChange={() => toggle(key)} />

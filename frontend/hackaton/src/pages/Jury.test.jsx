@@ -86,6 +86,7 @@ describe('takım görünümü', () => {
 
     await user.click(within(technical).getByText('Neden? (isteğe bağlı)'))
     await user.type(screen.getByLabelText('Teknik uygulama: neden?'), 'Sağlam')
+    expect(screen.getByText('Yakıştırdığın ödülleri işaretle. Ödül önerileri yalnız aday gösterilen takımlar arasından çıkar.')).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: 'Vay Be' }))
     await user.type(screen.getByLabelText('Genel yorum'), 'İyi iş')
     expect(screen.getByRole('status')).toHaveTextContent('Kaydediliyor')
