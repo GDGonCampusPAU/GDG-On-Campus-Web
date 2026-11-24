@@ -8,18 +8,18 @@ import { render } from '../test/render.jsx'
 vi.mock('../lib/api.js', () => ({ getPermissions: vi.fn(), setPermissions: vi.fn() }))
 
 const session = { token: 'admin', user: { id: 'a1', fullName: 'Admin', role: 'ADMIN' } }
-const OPEN = { registration: true, teamChanges: true, answerEditing: true, closedReason: '', closedEnding: '' }
+const OPEN = { registration: true, teamChanges: true, answerEditing: true, projectUpload: true, closedReason: '', closedEnding: '' }
 const card = (name) => screen.getByRole('region', { name })
 const confirmIn = (label) => within(screen.getByRole('group', { name: label }))
 
 beforeEach(() => vi.resetAllMocks())
 
-test('shows all three permissions; closing one asks for confirmation first', async () => {
+test('shows every permission; closing one asks for confirmation first', async () => {
   const user = userEvent.setup()
   api.getPermissions.mockResolvedValue(OPEN)
   render(<Permissions session={session} />)
   expect(await screen.findByRole('heading', { name: 'Takım değişiklikleri' })).toBeInTheDocument()
-  for (const name of ['Kayıtlar', 'Takım değişiklikleri', 'Bilgileri düzenleme']) expect(within(card(name)).getByText('Açık')).toBeInTheDocument()
+  for (const name of ['Kayıtlar', 'Takım değişiklikleri', 'Bilgileri düzenleme', 'Proje yükleme']) expect(within(card(name)).getByText('Açık')).toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: 'Takım değişikliklerini kapat' }))
   await user.click(confirmIn('Takım değişikliklerini kapat').getByRole('button', { name: 'Vazgeç' }))
@@ -32,6 +32,19 @@ test('shows all three permissions; closing one asks for confirmation first', asy
   expect(await screen.findByText(/Takım değişiklikleri kapatıldı/)).toBeInTheDocument()
   expect(within(card('Takım değişiklikleri')).getByText('Kapalı')).toBeInTheDocument()
   expect(within(card('Bilgileri düzenleme')).getByText('Açık')).toBeInTheDocument()
+})
+
+test('project upload can be closed when the submission time is over', async () => {
+  const user = userEvent.setup()
+  api.getPermissions.mockResolvedValue(OPEN)
+  api.setPermissions.mockResolvedValueOnce({ ...OPEN, projectUpload: false })
+  render(<Permissions session={session} />)
+  expect(await within(await screen.findByRole('region', { name: 'Proje yükleme' })).findByText(/GitHub linkini ekleyebilir/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Proje yüklemeyi kapat' }))
+  await user.click(confirmIn('Proje yüklemeyi kapat').getByRole('button', { name: 'Kapat' }))
+  expect(api.setPermissions).toHaveBeenCalledWith({ projectUpload: false }, 'admin')
+  expect(await screen.findByText(/Proje yükleme kapatıldı/)).toBeInTheDocument()
+  expect(within(card('Proje yükleme')).getByText('Kapalı')).toBeInTheDocument()
 })
 
 test('opening a closed permission also asks for confirmation', async () => {

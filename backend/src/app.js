@@ -51,6 +51,9 @@ const generalLimiter = rateLimit({
   max: 200, // Limit each IP to 200 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
+  // The project upload site's backend calls the internal API for every visitor from one address;
+  // that API is key-protected and unreachable from outside (internalKey.js, nginx.conf).
+  skip: req => req.originalUrl.startsWith('/api/v1/internal/'),
   message: {
     success: false,
     message: 'Çok fazla istek gönderildi. Lütfen 15 dakika sonra tekrar deneyiniz.'
@@ -134,6 +137,7 @@ app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
 app.use('/api/v1/maintenance', require('./routes/maintenanceRoutes'));
+app.use('/api/v1/internal/project-upload', require('./modules/projectUpload/routes/internalRoutes'));
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
 if (hackathonModule.isEnabled()) {

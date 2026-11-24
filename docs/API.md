@@ -653,6 +653,29 @@ curl -X PATCH "$API_BASE/hackathon/applications/$APPLICATION_ID/status" \
 - Takım liderine (`leaderEmail`) otomatik bildirim gönderir.
 - Yanıt modelinde `emailSent`, durum mesajı ve güncellenmiş başvuru verisi döner.
 
+## Proje Yükleme (proje.gdgocpamukkale.com)
+
+Takımlar GitHub proje linklerini ayrı bir sitede (`hackaton-proje-yukleme` projesi) ekler. Link takım başına tektir, onaylı her üye değiştirebilir; her değişiklik kişi ve zamanla `ProjectSubmission.history` içinde saklanır. Aynı repo iki takıma eklenemez. Admin, panelin **İzinler** sayfasından "Proje yükleme"yi kapatınca linkler kilitlenir; site ve commit geçmişi görüntülenmeye devam eder (`projectUpload` izni, `PUT /api/v1/forms/:id/permissions`).
+
+### Siteye geçiş (katılımcı)
+
+| Metot | Yol | Açıklama |
+|---|---|---|
+| POST | `/api/v1/forms/public/:slugOrId/my-application/project-upload` | Katılımcı token'ı gerekir. Onaylı takım üyesine 24 saatlik giriş anahtarı üretir: `{ url: "<PROJECT_UPLOAD_URL>/#t=<token>", expiresAt }`. Takımsız → 409 `NO_TEAM`, onay bekleyen → 409 `TEAM_PENDING`, yapılandırılmamış → 503. |
+
+Anahtar `PROJECT_UPLOAD_SECRET` ile imzalı bir JWT'dir (`aud: project-upload`, `sub`: katılımcı, `team`, `teamName`). URL'nin `#` kısmında taşındığı için sunuculara, loglara ve Referer'a gitmez. Yükleme sitesi onu bitiş saatine kadar geçerli httpOnly bir çereze çevirir.
+
+### İç API (yalnız yükleme sitesinin backend'i)
+
+`/api/v1/internal/project-upload` altında; `X-Internal-Key: <PROJECT_UPLOAD_INTERNAL_KEY>` başlığı gerekir (anahtar yoksa uçlar 404, yanlışsa 401). nginx bu yolu yalnız özel Docker ağından gelen isteklere açar; genel IP limitine sayılmaz.
+
+| Metot | Yol | Açıklama |
+|---|---|---|
+| GET | `/teams/:teamId/state?participant=<id>` | `{ member, reason, team: { id, name }, open, submission, eventStartsAt }`. `reason`: `NOT_MEMBER` / `TEAM_GONE`. `submission`: `{ repoUrl, updatedBy, updatedAt, history[] }` (son 10 değişiklik, yalnız ad). |
+| PUT | `/teams/:teamId/submission` | Gövde `{ participant, repoUrl }`. Üyelik ve izin kaydetme anında denetlenir. Hatalar: 400 `INVALID_REPO`, 403 `NOT_MEMBER` / `UPLOAD_CLOSED`, 409 `REPO_TAKEN`. Aynı repo (büyük/küçük harf farkı dahil) yeniden kaydedilirse değişiklik sayılmaz. |
+
+Ortam değişkenleri: `PROJECT_UPLOAD_URL`, `PROJECT_UPLOAD_SECRET`, `PROJECT_UPLOAD_INTERNAL_KEY` (bkz. `backend/.env.example`).
+
 ## Bakım Modu ("Tadilattayız" sayfası)
 
 Panelde **Bakım** sekmesinden (yalnızca ADMIN) açılıp kapatılır. Açıkken katılımcı sitesindeki bütün sayfalar 503 ile `frontend/hackaton/public/maintenance.html` sayfasını gösterir; panel ve API çalışmaya devam eder.

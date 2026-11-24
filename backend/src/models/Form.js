@@ -151,6 +151,12 @@ const formSchema = new mongoose.Schema(
         type: Boolean,
         default: true
       },
+      // Proje yükleme (proje.gdgocpamukkale.com). Kapalıyken takımlar GitHub linkini değiştiremez;
+      // site açılır, link ve commit geçmişi görüntülenmeye devam eder.
+      projectUploadEnabled: {
+        type: Boolean,
+        default: true
+      },
       // Kayıt izni. Kapalıyken yeni başvuru alınmaz; kayıt sayfası şu metni gösterir:
       // "İlginiz için teşekkür ederiz, {reason} için kaydınızı yapamıyoruz. {ending}"
       registrationEnabled: {
