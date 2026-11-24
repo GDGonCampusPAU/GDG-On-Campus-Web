@@ -3,13 +3,13 @@ const cors = require('cors');
 const { default: helmet } = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-const { rateLimit } = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const formRoutes = require('./routes/formRoutes');
 const hackathonModule = require('./modules/hackathon');
 const errorHandler = require('./middleware/errorHandler');
+const rateLimits = require('./middleware/rateLimits');
 
 const app = express();
 const { randomUUID } = require('node:crypto');
@@ -46,35 +46,10 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // 4. Rate Limiting for general API
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Çok fazla istek gönderildi. Lütfen 15 dakika sonra tekrar deneyiniz.'
-  }
-});
-app.use('/api/', generalLimiter);
-
-// 5. Stricter Rate Limiting for Auth Endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30, // 30 requests per 15 minutes for auth endpoints
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Çok fazla kimlik doğrulama denemesi. Lütfen bir süre sonra tekrar deneyiniz.'
-  }
-});
-app.use('/api/v1/auth/login', authLimiter);
-app.use('/api/v1/auth/register', authLimiter);
-app.use('/api/v1/auth/send-otp', authLimiter);
-app.use('/api/v1/auth/verify-email', authLimiter);
-app.use('/api/v1/auth/forgot-password', authLimiter);
-app.use('/api/v1/auth/reset-password', authLimiter);
+// Per person when signed in, per IP otherwise (middleware/rateLimits.js).
+// 5. The sign-in endpoints have their own limits inside their routers.
+rateLimits.mountSignIn(app);
+app.use('/api/', rateLimits.general);
 
 // 6. Body Parsers
 // Files travel as multipart (multer has its own limits); JSON/urlencoded bodies stay small.

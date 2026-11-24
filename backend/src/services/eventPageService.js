@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const EventPage = require('../models/EventPage');
 const Form = require('../models/Form');
 const base = require('../../../shared/hackathon-event.json');
+const { ADMIN_ONLY_MESSAGE } = require('./formPermissionsService');
 const FORM_SLUG = 'hackathon-katilim';
 const fieldsFor = event => event.register.steps.flatMap(step => step.fields).map((field, order) => ({
   fieldId: field.id, label: field.label, description: field.hint, type: field.kind === 'tel' ? 'phone' : field.kind,
@@ -19,13 +20,18 @@ const ensureHackathonPage = async () => {
     await EventPage.create([{ _id: 'hackathon', event: base, formSlug: form.slug }], { session });
   });
 };
-const savePage = async (event, revision, userId) => {
+/** Without `mayChangeRegistration` (ORGANIZER, scripts) publishing never opens or closes registration. */
+const savePage = async (event, revision, userId, { mayChangeRegistration = false } = {}) => {
   const { isEventShape } = await import('../../../shared/eventContent.mjs');
   if (!isEventShape(base, event)) throw Object.assign(new Error('Etkinlik verisi geçersiz.'), { status: 400 });
   if (!Number.isInteger(revision) || revision < 1) throw Object.assign(new Error('Yayın sürümü gerekli.'), { status: 400 });
   /** @type {import('mongoose').HydratedDocument<any> | null | undefined} */
   let page;
   await mongoose.connection.transaction(async session => {
+    if (!mayChangeRegistration) {
+      const current = await EventPage.findOne({ _id: 'hackathon', revision }).session(session).lean();
+      if (current && current.event.register?.status !== event.register.status) throw Object.assign(new Error(ADMIN_ONLY_MESSAGE), { status: 403 });
+    }
     page = await EventPage.findOneAndUpdate({ _id: 'hackathon', revision }, {
       $set: { event, updatedBy: userId }, $inc: { revision: 1 }
     }, { session, returnDocument: 'after' });
@@ -34,7 +40,8 @@ const savePage = async (event, revision, userId) => {
     if (!form) throw Object.assign(new Error('Başvuru formu bulunamadı.'), { status: 409 });
     // Preserve submission count, capacity and dates while updating the published schema.
     const data = formData(event);
-    form.fields = data.fields; form.title = data.title; form.status = data.status;
+    form.fields = data.fields; form.title = data.title;
+    if (mayChangeRegistration) form.status = data.status;
     form.settings.successMessage = data.settings.successMessage;
     await form.save({ session });
   });

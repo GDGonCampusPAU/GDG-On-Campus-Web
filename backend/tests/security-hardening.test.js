@@ -158,11 +158,14 @@ test('JSON bodies above 1 MB are rejected with 413', async () => {
   assert.equal(res.body.success, false);
 });
 
-// Keep last: the auth limiter is shared per process and would starve the tests above.
-test('forgot-password and reset-password share the strict auth rate limit', async () => {
+// Keep last: the limiters are shared per process and would starve the tests above.
+test('forgot-password and reset-password are both strictly limited', async () => {
   let last;
   for (let i = 0; i < 31; i += 1) last = await post('/api/v1/auth/forgot-password', { email: 'nobody@pau.edu.tr' });
   assert.equal(last.status, 429);
-  const reset = await post('/api/v1/auth/reset-password', { email: 'nobody@pau.edu.tr', code: '000000', newPassword: 'another-password' });
-  assert.equal(reset.status, 429);
+  // Separate counters on purpose: a mail flood must not block someone who already holds a code.
+  const reset = () => post('/api/v1/auth/reset-password', { email: 'victim@pau.edu.tr', code: '000000', newPassword: 'another-password' });
+  assert.equal((await reset()).status, 400);
+  for (let i = 0; i < 30; i += 1) last = await reset();
+  assert.equal(last.status, 429);
 });

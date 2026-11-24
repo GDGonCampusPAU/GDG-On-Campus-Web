@@ -31,7 +31,7 @@ export function validateRegisterEmail(value) {
 
 export function validateNewPassword(value) {
   if (!value) return 'Şifre gerekli.'
-  if (value.length < 6) return 'Şifre en az 6 karakter olmalı.'
+  if (value.length < 8) return 'Şifre en az 8 karakter olmalı.'
   return ''
 }
 

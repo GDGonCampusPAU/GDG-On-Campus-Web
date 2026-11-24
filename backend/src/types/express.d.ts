@@ -6,6 +6,8 @@ declare global {
     interface Request {
       /** Set by the request-id middleware in app.js. */
       requestId?: string;
+      /** Limited by its own route limiter instead of the general one (middleware/rateLimits.js). */
+      ownLimit?: boolean;
       /** Authenticated Core Team user (authMiddleware). */
       user?: HydratedDocument<any>;
       /** Verified form participant (formParticipantMiddleware). */

@@ -1,6 +1,7 @@
 // Admin-controlled participant permissions on a registration form.
 // Stored on form.settings; a missing value (forms created before these settings) means enabled.
 const Form = require('../models/Form');
+const EventPage = require('../models/EventPage');
 
 const failure = (status, message) => Object.assign(new Error(message), { status });
 
@@ -27,6 +28,30 @@ const permissionsOf = (form) => {
 const registrationOf = (form) => {
   const { registration, closedReason, closedEnding } = permissionsOf(form);
   return registration ? { open: true, message: '' } : { open: false, message: closedMessage(closedReason, closedEnding) };
+};
+
+const ADMIN_ONLY_MESSAGE = 'Etkinlik kayıtlarını açma, kapatma ve sınırlarını değiştirme yalnızca ADMIN yetkisindedir.';
+
+/** Registration of the published event is ADMIN-only on every path; other forms stay with the staff. */
+const mayChangeRegistration = async (user, form) => user?.role === 'ADMIN' || !(await EventPage.exists({ formSlug: form.slug }));
+
+const timeOf = value => (value ? new Date(value).getTime() : null);
+
+/**
+ * Whether a PUT /forms/:id body changes who can register. Sending the stored values back is no change.
+ * Of the settings only the success message is content; every other one is guarded.
+ */
+const changesRegistration = (form, body) => {
+  const { status, slug, startDate, endDate, maxSubmissions, settings } = body;
+  if (status !== undefined && status !== form.status) return true;
+  if (slug && slug !== form.slug) return true;
+  if (startDate !== undefined && timeOf(startDate) !== timeOf(form.startDate)) return true;
+  if (endDate !== undefined && timeOf(endDate) !== timeOf(form.endDate)) return true;
+  if (maxSubmissions !== undefined && (maxSubmissions ? Number(maxSubmissions) : null) !== (form.maxSubmissions ?? null)) return true;
+  if (settings === undefined) return false;
+  if (settings === null || typeof settings !== 'object' || Array.isArray(settings)) return true;
+  const stored = form.toObject().settings || {};
+  return Object.entries(settings).some(([key, value]) => key !== 'successMessage' && JSON.stringify(value) !== JSON.stringify(stored[key]));
 };
 
 const findForm = async (id) => {
@@ -68,4 +93,4 @@ const updatePermissions = async (id, body) => {
   return getPermissions(id);
 };
 
-module.exports = { permissionsOf, registrationOf, closedMessage, getPermissions, updatePermissions };
+module.exports = { permissionsOf, registrationOf, closedMessage, getPermissions, updatePermissions, ADMIN_ONLY_MESSAGE, mayChangeRegistration, changesRegistration };

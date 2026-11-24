@@ -33,8 +33,8 @@ describe('panel validation rules', () => {
     expect(validateLoginPassword('1')).toBe('')
 
     expect(validateNewPassword('')).toBe('Şifre gerekli.')
-    expect(validateNewPassword('12345')).toContain('en az 6')
-    expect(validateNewPassword('123456')).toBe('')
+    expect(validateNewPassword('1234567')).toContain('en az 8')
+    expect(validateNewPassword('12345678')).toBe('')
 
     expect(validatePasswordConfirm('123456', '')).toBe('Şifreni tekrar yaz.')
     expect(validatePasswordConfirm('123456', '123457')).toBe('Şifreler eşleşmiyor.')

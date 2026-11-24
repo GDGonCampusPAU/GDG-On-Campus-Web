@@ -47,6 +47,16 @@ test('wrong OTP keeps verification open and displays the server error', async ()
   expect(verified).not.toHaveBeenCalled()
 })
 
+test('at the mail ceiling the code field opens and the situation is explained', async () => {
+  const user = userEvent.setup()
+  render(<ParticipantVerification slug="hackathon-katilim" onVerified={vi.fn()} />)
+  await user.type(await screen.findByLabelText('Doğrulama e-postası'), 'ceiling@example.com')
+  api.mockRejectedValueOnce(Object.assign(new Error('Adresin daha önce doğrulandıysa kod yine gönderildi.'), { status: 429, code: 'MAIL_LIMITED' }))
+  await user.click(screen.getByRole('button', { name: 'Kod gönder' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('kod yine gönderildi')
+  expect(screen.getByLabelText('Doğrulama kodu')).toBeInTheDocument()
+})
+
 test('Google credential is sent as idToken to the existing API', async () => {
   vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'web-client')
   const initialize = vi.fn()
