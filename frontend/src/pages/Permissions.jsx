@@ -50,6 +50,18 @@ const PERMISSIONS = [
     closedNotice: 'Bilgi düzenleme kapatıldı. Başvuru yapanlar bilgilerini artık yalnızca görüntüleyebilir.',
     openedNotice: 'Bilgi düzenleme açıldı.',
   },
+  {
+    key: 'projectUpload',
+    title: 'Proje yükleme',
+    on: 'Takım üyeleri “Başvurum” sayfasındaki “Proje Yükleme” ile proje sitesine girip takımlarının GitHub linkini ekleyebilir ve değiştirebilir.',
+    off: 'Proje sitesi açılmaya devam eder; takımlar eklenmiş linki ve commit geçmişini görür ama linki ekleyemez veya değiştiremez. Teslim süresi dolunca kapatın.',
+    closeLabel: 'Proje yüklemeyi kapat',
+    openLabel: 'Proje yüklemeyi aç',
+    closeQuestion: 'Takımlar GitHub linklerini artık değiştiremeyecek. Proje yüklemeyi kapatmak istediğine emin misin?',
+    openQuestion: 'Takımlar GitHub linklerini yeniden ekleyip değiştirebilecek. Emin misin?',
+    closedNotice: 'Proje yükleme kapatıldı. Takımlar linklerini artık yalnızca görüntüleyebilir.',
+    openedNotice: 'Proje yükleme açıldı.',
+  },
 ]
 
 /** Kayıtları kapatırken doldurulan metin: neden + kapanış cümlesi, canlı önizlemeyle. */

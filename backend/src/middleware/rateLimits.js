@@ -57,7 +57,9 @@ const accountKey = req => {
 const general = limiter({
   limit: req => (signedIdentity(req) ? LIMITS.signedIn : LIMITS.anonymous),
   keyGenerator: req => signedIdentity(req) || ipKeyGenerator(req.ip || ''),
-  skip: req => Boolean(req.ownLimit)
+  // The project upload site's backend calls the internal API for every visitor from one address;
+  // that API is key-protected and unreachable from outside (modules/projectUpload, nginx.conf).
+  skip: req => Boolean(req.ownLimit) || req.originalUrl.startsWith('/api/v1/internal/')
 }, 'Çok fazla istek gönderildi. Lütfen 15 dakika sonra tekrar deneyiniz.');
 
 const AUTH_MESSAGE = 'Çok fazla kimlik doğrulama denemesi. Lütfen bir süre sonra tekrar deneyiniz.';

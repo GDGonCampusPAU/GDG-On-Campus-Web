@@ -115,6 +115,7 @@ app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
 app.use('/api/v1/maintenance', require('./routes/maintenanceRoutes'));
+app.use('/api/v1/internal/project-upload', require('./modules/projectUpload/routes/internalRoutes'));
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
 if (hackathonModule.isEnabled()) {

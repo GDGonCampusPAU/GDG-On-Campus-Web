@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import StepForm from '../components/StepForm.jsx'
 import TeamPanel from '../components/TeamPanel.jsx'
+import ProjectUploadCard from '../components/ProjectUploadCard.jsx'
 import { useEvent } from '../context/EventContext.jsx'
 import { applicationApi, lookupTeam } from '../lib/eventApi.js'
 import './Application.css'
@@ -174,6 +175,12 @@ export default function Application() {
                 </Button>
               </section>
             </li>
+            <ProjectUploadCard
+              team={application.team}
+              open={application.permissions?.projectUpload !== false}
+              start={api.projectUpload}
+              onExpired={() => setExpired(true)}
+            />
           </ul>
 
           {editing && !canEdit && (

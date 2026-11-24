@@ -12,12 +12,13 @@ const ENDING_MAX = 200;
 const closedMessage = (reason, ending) =>
   `İlginiz için teşekkür ederiz, ${reason} için kaydınızı yapamıyoruz. ${ending}`.trim();
 
-/** @returns {{ teamChanges: boolean, answerEditing: boolean, registration: boolean, closedReason: string, closedEnding: string }} */
+/** @returns {{ teamChanges: boolean, answerEditing: boolean, projectUpload: boolean, registration: boolean, closedReason: string, closedEnding: string }} */
 const permissionsOf = (form) => {
   const settings = form?.settings || {};
   return {
     teamChanges: settings.teamChangesEnabled !== false,
     answerEditing: settings.answerEditingEnabled !== false,
+    projectUpload: settings.projectUploadEnabled !== false,
     registration: settings.registrationEnabled !== false,
     closedReason: settings.registrationClosedReason || '',
     closedEnding: settings.registrationClosedEnding || ''
@@ -78,12 +79,12 @@ const text = (value, label, max) => {
  */
 const updatePermissions = async (id, body) => {
   const $set = {};
-  for (const [key, setting] of [['teamChanges', 'teamChangesEnabled'], ['answerEditing', 'answerEditingEnabled'], ['registration', 'registrationEnabled']]) {
+  for (const [key, setting] of [['teamChanges', 'teamChangesEnabled'], ['answerEditing', 'answerEditingEnabled'], ['projectUpload', 'projectUploadEnabled'], ['registration', 'registrationEnabled']]) {
     if (body?.[key] === undefined) continue;
     if (typeof body[key] !== 'boolean') throw failure(400, `${key} alanı true veya false olmalıdır.`);
     $set[`settings.${setting}`] = body[key];
   }
-  if (!Object.keys($set).length) throw failure(400, 'Değiştirilecek bir izin gönderilmedi (teamChanges, answerEditing, registration).');
+  if (!Object.keys($set).length) throw failure(400, 'Değiştirilecek bir izin gönderilmedi (teamChanges, answerEditing, projectUpload, registration).');
   if (body.registration === false) {
     $set['settings.registrationClosedReason'] = text(body.closedReason, 'Kayıtların kapanma nedeni', REASON_MAX);
     $set['settings.registrationClosedEnding'] = text(body.closedEnding, 'Kapanış cümlesi', ENDING_MAX);

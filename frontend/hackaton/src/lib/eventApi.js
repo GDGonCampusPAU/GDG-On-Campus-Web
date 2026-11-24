@@ -53,6 +53,7 @@ export function applicationApi(slug, token) {
     remove: (id) => post(`/team/members/${encodeURIComponent(id)}/remove`),
     sendDisbandCode: () => post('/team/disband/code'),
     disband: (code) => post('/team/disband', { code }),
+    projectUpload: () => post('/project-upload'),
   }
 }
 export const getEventPage = () => api('/event-page/hackathon').then(result => result.data)
