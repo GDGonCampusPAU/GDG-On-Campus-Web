@@ -15,6 +15,10 @@ declare global {
       participantVerification?: { sub: string; method: 'GOOGLE' | 'EMAIL_OTP'; verifiedAt: string };
       submissionForm?: HydratedDocument<any>;
       submissionSaved?: boolean;
+      /** Active juror behind a jury link (modules/jury jurorAuth). */
+      juror?: HydratedDocument<any>;
+      /** Signed team login, the key of the jury admin limit (modules/jury/middleware/limits.js). */
+      staffKey?: string;
     }
   }
 }

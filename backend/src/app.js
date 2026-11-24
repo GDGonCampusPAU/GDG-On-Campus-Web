@@ -8,6 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const formRoutes = require('./routes/formRoutes');
 const hackathonModule = require('./modules/hackathon');
+const juryModule = require('./modules/jury');
 const errorHandler = require('./middleware/errorHandler');
 const rateLimits = require('./middleware/rateLimits');
 
@@ -44,6 +45,11 @@ app.use(cors({
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
+
+// Jury routes come before the shared limiter and the body parsers on purpose: they authenticate
+// first, then count per person (modules/jury/middleware/limits.js).
+app.use('/api/v1/jury', juryModule.juryRoutes);
+app.use('/api/v1/jury-admin', juryModule.juryAdminRoutes);
 
 // 4. Rate Limiting for general API
 // Per person when signed in, per IP otherwise (middleware/rateLimits.js).
