@@ -22,4 +22,9 @@ describe('Timeline', () => {
     render(<Timeline items={[item(), item()]} />)
     expect(screen.getAllByRole('heading', { level: 3, name: 'Başlık' })).toHaveLength(2)
   })
+
+  it('açıklama boşsa açıklama paragrafı render etmez', () => {
+    const { container } = render(<Timeline items={[item({ description: '' })]} />)
+    expect(container.querySelector('p')).toBeNull()
+  })
 })

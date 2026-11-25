@@ -43,4 +43,43 @@ describe('event.json', () => {
       expect(p.title).toBeTruthy()
     })
   })
+
+  it('program öğeleri açıklamasız başlıklar olarak tanımlıdır', () => {
+    const items = event.days.flatMap((d) => d.items)
+    expect(items.map((i) => i.title)).toEqual([
+      'Tema Duyurusu',
+      'Mini Challenge 1',
+      'Öğle Yemeği',
+      'Mini Challenge 2',
+      'Proje Teslimi',
+      'Sunumlar & Ödüller',
+    ])
+    items.forEach((i) => expect(i.description).toBe(''))
+  })
+
+  it('jüride Ali Rıza Selçuk ve Sinan Bakış fotoğraf, hakkında ve site linkiyle yer alır; mentorlar boştur', () => {
+    expect(event.people.mentors).toEqual([])
+    expect(event.people.jury).toHaveLength(2)
+    const [ali, sinan] = event.people.jury
+    expect(ali).toMatchObject({
+      name: 'Ali Rıza Selçuk',
+      title: 'Asistone Kurucusu',
+      photo: '/images/ali-riza-selcuk.jpg',
+      url: 'https://www.asistone.ai/tr',
+    })
+    expect(ali.bio).toContain('Asistone')
+    expect(sinan).toMatchObject({
+      name: 'Sinan Bakış',
+      title: 'Zenmira Kurucusu',
+      photo: '/images/sinan-bakis.png',
+      url: 'https://zenmira.com/',
+    })
+    expect(sinan.bio).toContain('Zenmira Bilgi Teknolojileri A.Ş.')
+    expect(event.sponsors[0]).toMatchObject({
+      name: 'Asistone',
+      tier: 'main',
+      logo: '/images/asistone-logo.jpg',
+      url: 'https://www.asistone.ai/tr',
+    })
+  })
 })

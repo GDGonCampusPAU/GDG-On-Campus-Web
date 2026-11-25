@@ -18,29 +18,31 @@ export default function Schedule({ data: dataProp }) {
         <p>Program yakında açıklanacak.</p>
       ) : (
         <>
-          <div className="schedule__tabs" role="tablist" aria-label="Günler">
-            {days.map((day, i) => (
-              <button
-                key={i}
-                type="button"
-                role="tab"
-                id={`tab-${i}`}
-                aria-selected={i === active}
-                aria-controls={`day-${i}`}
-                className="schedule__tab"
-                onClick={() => setActive(i)}
-              >
-                {day.label}
-              </button>
-            ))}
-          </div>
+          {days.length > 1 && (
+            <div className="schedule__tabs" role="tablist" aria-label="Günler">
+              {days.map((day, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  id={`tab-${i}`}
+                  aria-selected={i === active}
+                  aria-controls={`day-${i}`}
+                  className="schedule__tab"
+                  onClick={() => setActive(i)}
+                >
+                  {day.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {days.map((day, i) => (
             <section
               key={i}
               id={`day-${i}`}
-              role="tabpanel"
-              aria-labelledby={`tab-${i}`}
+              role={days.length > 1 ? 'tabpanel' : undefined}
+              aria-labelledby={days.length > 1 ? `tab-${i}` : undefined}
               className={`schedule__day${i === active ? ' is-active' : ''}`}
             >
               <h2 className="schedule__day-title">

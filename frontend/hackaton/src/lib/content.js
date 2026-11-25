@@ -1,6 +1,6 @@
 export const DRAFT_KEY = 'hackathon-event-draft'
 
-export { typeLabels, choices, isEventShape } from '../../../../shared/eventContent.mjs'
+export { typeLabels, choices, isEventShape, normalizeEventPayload } from '../../../../shared/eventContent.mjs'
 import { isEventShape } from '../../../../shared/eventContent.mjs'
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 
