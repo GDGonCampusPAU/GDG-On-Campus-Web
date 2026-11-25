@@ -26,10 +26,10 @@ describe('initials', () => {
 })
 
 describe('Team sayfası', () => {
-  it('jüri, mentor ve sponsor bölümlerini gösterir', () => {
+  it('jüri ve sponsor bölümlerini gösterir, mentorlar bölümünü göstermez', () => {
     renderTeam(fixtureEvent)
     expect(screen.getByRole('heading', { level: 2, name: 'Jüri' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Mentorlar' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Mentorlar' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: 'Sponsorlar' })).toBeInTheDocument()
     expect(screen.getByText(fixtureEvent.people.jury[0].name)).toBeInTheDocument()
   })

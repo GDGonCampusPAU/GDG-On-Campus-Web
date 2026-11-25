@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DRAFT_KEY, applyDraft, clearDraft, isEventShape, readDraft, writeDraft } from './content.js'
+import { DRAFT_KEY, applyDraft, clearDraft, isEventShape, normalizeEventPayload, readDraft, writeDraft } from './content.js'
 
 const base = {
   name: 'Etkinlik',
@@ -178,6 +178,19 @@ describe('isEventShape: kayıt formu', () => {
   it('bilinmeyen alan türü reddedilir', () => {
     const bad = withFields({ ...field('a', [{ value: 'x', label: 'X' }]), kind: 'unknown' })
     expect(isEventShape(form, bad)).toBe(false)
+  })
+
+  it('normalizeEventPayload eski kişi kayıtlarına varsayılan bio ve url ekler', () => {
+    const oldPayload = {
+      ...base,
+      people: {
+        jury: [{ name: 'Ali', title: 'Kurucu', photo: null }],
+        mentors: [{ name: 'Veli', title: 'Mentor', photo: '/v.jpg', bio: 'Özel', url: 'https://example.com/' }],
+      },
+    }
+    const normalized = normalizeEventPayload(oldPayload)
+    expect(normalized.people.jury[0]).toEqual({ name: 'Ali', title: 'Kurucu', photo: null, bio: '', url: null })
+    expect(normalized.people.mentors[0]).toEqual({ name: 'Veli', title: 'Mentor', photo: '/v.jpg', bio: 'Özel', url: 'https://example.com/' })
   })
 })
 
