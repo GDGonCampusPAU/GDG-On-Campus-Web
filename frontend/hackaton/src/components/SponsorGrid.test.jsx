@@ -17,10 +17,11 @@ describe('SponsorGrid', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('logo varsa ad alt metniyle görseli gösterir', () => {
+  it('logo varsa ad alt metniyle görseli ve altında adını gösterir', () => {
     render(<SponsorGrid sponsors={[{ name: 'Logolu', tier: 'main', logo: '/logo.png', url: null }]} />)
     expect(screen.getByRole('img', { name: 'Logolu' })).toHaveAttribute('src', '/logo.png')
     expect(screen.getByRole('img', { name: 'Logolu' })).toHaveAttribute('loading', 'lazy')
+    expect(screen.getByText('Logolu')).toBeInTheDocument()
   })
 
   it('ana sponsoru destek sponsorlarının önüne alır', () => {

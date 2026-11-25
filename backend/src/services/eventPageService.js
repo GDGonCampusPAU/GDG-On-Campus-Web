@@ -20,20 +20,21 @@ const ensureHackathonPage = async () => {
   });
 };
 const savePage = async (event, revision, userId) => {
-  const { isEventShape } = await import('../../../shared/eventContent.mjs');
-  if (!isEventShape(base, event)) throw Object.assign(new Error('Etkinlik verisi geçersiz.'), { status: 400 });
+  const { isEventShape, normalizeEventPayload } = await import('../../../shared/eventContent.mjs');
+  const normalized = normalizeEventPayload(event);
+  if (!isEventShape(base, normalized)) throw Object.assign(new Error('Etkinlik verisi geçersiz.'), { status: 400 });
   if (!Number.isInteger(revision) || revision < 1) throw Object.assign(new Error('Yayın sürümü gerekli.'), { status: 400 });
   /** @type {import('mongoose').HydratedDocument<any> | null | undefined} */
   let page;
   await mongoose.connection.transaction(async session => {
     page = await EventPage.findOneAndUpdate({ _id: 'hackathon', revision }, {
-      $set: { event, updatedBy: userId }, $inc: { revision: 1 }
+      $set: { event: normalized, updatedBy: userId }, $inc: { revision: 1 }
     }, { session, returnDocument: 'after' });
     if (!page) throw Object.assign(new Error('İçerik başka bir oturumda güncellendi. Yenileyip tekrar deneyin.'), { status: 409 });
     const form = await Form.findOne({ slug: page.formSlug }).session(session);
     if (!form) throw Object.assign(new Error('Başvuru formu bulunamadı.'), { status: 409 });
     // Preserve submission count, capacity and dates while updating the published schema.
-    const data = formData(event);
+    const data = formData(normalized);
     form.fields = data.fields; form.title = data.title; form.status = data.status;
     form.settings.successMessage = data.settings.successMessage;
     await form.save({ session });

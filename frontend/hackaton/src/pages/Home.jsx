@@ -58,7 +58,7 @@ export default function Home({ data: dataProp }) {
           <SectionHeading eyebrow="Destekçiler" title="Sponsorlarımız" />
           <SponsorGrid sponsors={sponsors} compact />
           <p className="home-section__more">
-            <Link to="/ekip">Jüri, mentor ve tüm sponsorlar</Link>
+            <Link to="/ekip">Jüri ve tüm sponsorlar</Link>
           </p>
         </section>
       )}

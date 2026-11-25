@@ -8,8 +8,9 @@ router.get('/hackathon', async (_req, res, next) => {
   try {
     const page = await EventPage.findById('hackathon').lean();
     if (!page) return res.status(503).json({ message: 'Etkinlik henüz hazırlanmadı.' });
+    const { normalizeEventPayload } = await import('../../../shared/eventContent.mjs');
     const form = await Form.findOne({ slug: page.formSlug }).select('_id').lean();
-    res.set('Cache-Control', 'no-cache').json({ success: true, data: { ...page, formId: form?._id } });
+    res.set('Cache-Control', 'no-cache').json({ success: true, data: { ...page, event: normalizeEventPayload(page.event), formId: form?._id } });
   } catch (error) { next(error); }
 });
 router.put('/hackathon', auth, requireRoles('ADMIN', 'ORGANIZER'), async (req, res, next) => {

@@ -2,6 +2,8 @@ export const typeLabels = {
   opening: 'Açılış',
   workshop: 'Workshop',
   coding: 'Kodlama',
+  challenge: 'Mini Challenge',
+  lunch: 'Yemek',
   submission: 'Teslim',
   jury: 'Jüri',
   awards: 'Ödül',
@@ -67,6 +69,22 @@ function namesNonEmpty(value) {
     if (value.people.mentors.some((m) => !m?.name || typeof m.name !== 'string' || m.name.trim().length === 0)) return false
   }
   return true
+}
+
+const withPersonDefaults = (p) =>
+  isObject(p) ? { ...p, bio: typeof p.bio === 'string' ? p.bio : '', url: 'url' in p ? p.url : null } : p
+
+// Eski yayınlarda kişi nesnelerinde bio/url olmayabilir; varsayılanları tamamlar.
+export function normalizeEventPayload(value) {
+  if (!isObject(value) || !isObject(value.people)) return value
+  return {
+    ...value,
+    people: {
+      ...value.people,
+      ...(Array.isArray(value.people.jury) ? { jury: value.people.jury.map(withPersonDefaults) } : {}),
+      ...(Array.isArray(value.people.mentors) ? { mentors: value.people.mentors.map(withPersonDefaults) } : {}),
+    },
+  }
 }
 
 export const isEventShape = (base, value) =>

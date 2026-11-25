@@ -26,7 +26,7 @@ const renderAt = (path) =>
 const stored = () => JSON.parse(window.localStorage.getItem(DRAFT_KEY))?.value
 const seed = (patch) => writeDraft(base, { ...base, ...patch })
 const sponsor = (name) => ({ name, tier: 'support', logo: null, url: null })
-const person = (name) => ({ name, title: 'Unvan', photo: null })
+const person = (name) => ({ name, title: 'Unvan', photo: null, bio: '', url: null })
 
 afterEach(() => {
   vi.restoreAllMocks()

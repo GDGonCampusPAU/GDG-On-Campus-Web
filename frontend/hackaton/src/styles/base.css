@@ -90,18 +90,22 @@ a {
 
 .tone--blue {
   --tone: var(--blue);
+  --tone-half: var(--blue-half);
   --tone-pastel: var(--blue-pastel);
 }
 .tone--green {
   --tone: var(--green);
+  --tone-half: var(--green-half);
   --tone-pastel: var(--green-pastel);
 }
 .tone--yellow {
   --tone: var(--yellow);
+  --tone-half: var(--yellow-half);
   --tone-pastel: var(--yellow-pastel);
 }
 .tone--red {
   --tone: var(--red);
+  --tone-half: var(--red-half);
   --tone-pastel: var(--red-pastel);
 }
 
