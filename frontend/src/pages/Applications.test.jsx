@@ -9,6 +9,7 @@ vi.mock('../lib/api.js', () => ({
   getHackathonApplications: vi.fn(),
   downloadHackathonApplicationsCsv: vi.fn(),
   downloadPrivateFile: vi.fn(),
+  sendWhatsappInvites: vi.fn(),
   updateApplicationStatus: vi.fn(),
 }))
 
@@ -189,4 +190,33 @@ test('private attachment button downloads via authorized client and handles CSV/
   api.downloadPrivateFile.mockRejectedValueOnce({ status: 401, message: 'Yetkisiz' })
   await user.click(screen.getByRole('button', { name: 'ozgecmis.pdf indir' }))
   await waitFor(() => expect(unauthorized).toHaveBeenCalled())
+})
+
+test('WhatsApp invite button sends individual invites to pending approved applicants and per-card invite works', async () => {
+  const user = userEvent.setup()
+  api.getHackathonApplications.mockResolvedValue({
+    form: { id: 'form-10' },
+    whatsappPending: 2,
+    data: [{ ...record, status: 'APPROVED', whatsappInvitedAt: null }],
+    pagination: { totalItems: 1, totalPages: 1, currentPage: 1, hasPrevPage: false, hasNextPage: false },
+  })
+  api.sendWhatsappInvites.mockResolvedValueOnce({
+    success: true,
+    message: 'Katılımcıya bireysel WhatsApp daveti e-postası gönderildi.',
+  })
+
+  render(<Applications session={session} onUnauthorized={vi.fn()} />)
+  const singleBtn = await screen.findByRole('button', { name: 'WP daveti gönder' })
+  await user.click(singleBtn)
+  expect(api.sendWhatsappInvites).toHaveBeenCalledWith({ formId: 'form-10', responseId: 'response' }, 'staff')
+  expect(await screen.findByRole('status')).toHaveTextContent('bireysel WhatsApp daveti')
+  expect(screen.queryByRole('button', { name: 'WP daveti gönder' })).not.toBeInTheDocument()
+
+  api.sendWhatsappInvites.mockResolvedValueOnce({
+    success: true,
+    message: '1 onaylı katılımcıya bireysel WhatsApp daveti e-postası gönderildi.',
+  })
+  await user.click(screen.getByRole('button', { name: 'WP Daveti Gönder (1)' }))
+  await user.click(screen.getByRole('button', { name: 'Evet, gönder' }))
+  expect(api.sendWhatsappInvites).toHaveBeenLastCalledWith({ formId: 'form-10' }, 'staff')
 })

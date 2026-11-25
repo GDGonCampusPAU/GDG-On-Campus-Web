@@ -1,4 +1,5 @@
-const { sendApplicationStatusEmail } = require('./emailService');
+const { sendApplicationStatusEmail, sendWhatsappInviteEmail } = require('./emailService');
+const FormResponse = require('../models/FormResponse');
 const { isValidEmail } = require('../utils/validators');
 
 const APPLICATION_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'];
@@ -74,7 +75,8 @@ const updateApplicationDecision = async ({
     reviewedBy: doc.reviewedBy || null,
     reviewedAt: doc.reviewedAt || null,
     lastNotifiedStatus: doc.lastNotifiedStatus || null,
-    lastNotifiedAt: doc.lastNotifiedAt || null
+    lastNotifiedAt: doc.lastNotifiedAt || null,
+    whatsappInvitedAt: doc.whatsappInvitedAt || null
   };
 
   const now = new Date();
@@ -85,6 +87,10 @@ const updateApplicationDecision = async ({
   if (shouldNotify) {
     doc.lastNotifiedStatus = status;
     doc.lastNotifiedAt = now;
+    // Onay e-postası zaten WhatsApp davet bağlantısını içerir; ikinci kez toplu davet gitmesini önle.
+    if (status === 'APPROVED' && !doc.whatsappInvitedAt) {
+      doc.whatsappInvitedAt = now;
+    }
   }
 
   await doc.save();
@@ -112,11 +118,98 @@ const updateApplicationDecision = async ({
   };
 };
 
+/** @param {import('mongoose').Types.ObjectId | string} formId */
+const whatsappPendingFilter = (formId) => ({
+  form: formId,
+  status: /** @type {const} */ ('APPROVED'),
+  $or: [{ whatsappInvitedAt: null }, { whatsappInvitedAt: { $exists: false } }]
+});
+
+/**
+ * Send individual WhatsApp channel invitation emails only to APPROVED form responses
+ * that have not received a WhatsApp invite yet (`whatsappInvitedAt` is unset/null).
+ * @param {{ formId: import('mongoose').Types.ObjectId | string, responseId?: string | null, eventTitle?: string }} params
+ */
+const sendWhatsappInvitesForForm = async ({ formId, responseId = null, eventTitle = 'Pamukkale Hackathon' }) => {
+  if (responseId) {
+    const target = await FormResponse.findOne({ _id: responseId, form: formId });
+    if (!target) {
+      throw Object.assign(new Error('Başvuru yanıtı bulunamadı.'), { status: 404 });
+    }
+    if (target.status !== 'APPROVED') {
+      throw Object.assign(new Error('WhatsApp daveti yalnızca onaylanmış başvurulara gönderilebilir.'), { status: 400 });
+    }
+    if (target.whatsappInvitedAt) {
+      throw Object.assign(new Error('Bu katılımcıya WhatsApp daveti daha önce gönderilmiş.'), { status: 409 });
+    }
+
+    const { email, recipientName, teamName } = resolveFormApplicant(target);
+    if (!email) {
+      throw Object.assign(new Error('Katılımcının geçerli bir e-posta adresi bulunamadı.'), { status: 400 });
+    }
+
+    await sendWhatsappInviteEmail({ email, recipientName, teamName, eventTitle });
+    target.whatsappInvitedAt = new Date();
+    await target.save();
+
+    return {
+      totalPending: 1,
+      sentCount: 1,
+      skippedCount: 0,
+      failedCount: 0,
+      skipped: [],
+      failed: [],
+      updatedId: target._id
+    };
+  }
+
+  const pendingDocs = await FormResponse.find(whatsappPendingFilter(formId)).sort({ submittedAt: 1 });
+  const sentEmails = new Set();
+  let sentCount = 0;
+  const skipped = [];
+  const failed = [];
+
+  for (const doc of pendingDocs) {
+    const { email, recipientName, teamName } = resolveFormApplicant(doc);
+    if (!email) {
+      skipped.push({ id: String(doc._id), reason: 'Geçerli e-posta bulunamadı.' });
+      continue;
+    }
+    if (sentEmails.has(email)) {
+      doc.whatsappInvitedAt = new Date();
+      await doc.save();
+      skipped.push({ id: String(doc._id), email, reason: 'Aynı e-posta adresine bu oturumda davet gönderildi.' });
+      continue;
+    }
+
+    try {
+      await sendWhatsappInviteEmail({ email, recipientName, teamName, eventTitle });
+      doc.whatsappInvitedAt = new Date();
+      await doc.save();
+      sentEmails.add(email);
+      sentCount += 1;
+    } catch (error) {
+      failed.push({ id: String(doc._id), email, error: error.message });
+    }
+  }
+
+  return {
+    totalPending: pendingDocs.length,
+    sentCount,
+    skippedCount: skipped.length,
+    failedCount: failed.length,
+    skipped,
+    failed
+  };
+};
+
 module.exports = {
   APPLICATION_STATUSES,
+  whatsappPendingFilter,
   buildStatusFilter,
   combineFilters,
   resolveFormApplicant,
-  updateApplicationDecision
+  updateApplicationDecision,
+  sendWhatsappInvitesForForm
 };
 
