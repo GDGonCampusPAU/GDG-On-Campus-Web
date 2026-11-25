@@ -5,6 +5,8 @@ const Scorecard = require('../models/Scorecard');
 const { loadConfig } = require('./configService');
 const { juryError } = require('./juryError');
 const { isId, parseScorecard } = require('./validation');
+const live = require('./liveService');
+const ProjectSubmission = require('../../projectUpload/models/ProjectSubmission');
 
 const notAnEntry = () => juryError(404, 'Bu takım yarışan takımlar arasında değil.', 'ENTRY_NOT_FOUND');
 const findEntry = (config, teamId) => config?.entries.find(entry => String(entry.team) === String(teamId).toLowerCase());
@@ -21,32 +23,44 @@ const cardView = card => card && ({
 });
 
 const overview = async juror => {
-  const config = await loadConfig();
+  const [config, open] = await Promise.all([loadConfig(), live.evaluationOpen()]);
   const cards = await Scorecard.find({ juror: juror._id }).select('team status').lean();
   const statusByTeam = new Map(cards.map(card => [String(card.team), card.status]));
+  // While evaluation is open the list follows the presentation order of the live session.
+  const ordered = open ? live.orderedEntries(config) : [...config.entries].sort((a, b) => a.order - b.order);
+  const current = ordered.find(entry => live.stateOf(config, entry.team) === 'VOTING');
   return {
     juror: { id: String(juror._id), name: juror.name },
     locked: config.locked,
     round: config.round,
+    live: {
+      open,
+      current: open && current ? { team: String(current.team), teamName: current.teamName, position: ordered.indexOf(current) + 1 } : null
+    },
     criteria: config.criteria.map(({ key, label, description, weight }) => ({ key, label, description, weight })),
     categories: config.categories
       .filter(category => category.active)
       .sort((a, b) => a.priority - b.priority)
       .map(({ key, name, icon }) => ({ key, name, icon })),
-    entries: [...config.entries].sort((a, b) => a.order - b.order).map(({ team, teamName, projectName, order }) => ({
-      team: String(team), teamName, projectName, order, status: statusByTeam.get(String(team)) ?? 'NONE'
+    entries: ordered.map(({ team, teamName, projectName, order }, i) => ({
+      team: String(team), teamName, projectName, order: open ? i + 1 : order, status: statusByTeam.get(String(team)) ?? 'NONE',
+      // live: CLOSED (frozen), VOTING (on stage now) or WAITING; writable: may this juror save it now.
+      live: live.stateOf(config, team), writable: !config.locked && live.writable(config, team, open)
     }))
   };
 };
 
 const getEntry = async (juror, teamId) => {
-  const config = await loadConfig();
+  const [config, open] = await Promise.all([loadConfig(), live.evaluationOpen()]);
   const entry = isId(teamId) ? findEntry(config, teamId) : null;
   if (!entry) throw notAnEntry();
-  const { team, teamName, order, projectName, repoUrl, demoUrl, presentationUrl } = entry;
+  const { team, teamName, order, projectName, demoUrl, presentationUrl } = entry;
+  // A link typed in the jury setup wins; otherwise the one the team added on the project upload site.
+  const repoUrl = entry.repoUrl || (await ProjectSubmission.findOne({ team }).select('repoUrl').lean())?.repoUrl || '';
   const card = await Scorecard.findOne({ juror: juror._id, team }).lean();
   return {
-    entry: { team: String(team), teamName, order, projectName, repoUrl, demoUrl, presentationUrl },
+    entry: { team: String(team), teamName, order, projectName, repoUrl, demoUrl, presentationUrl,
+      live: live.stateOf(config, team), writable: !config.locked && live.writable(config, team, open) },
     locked: config.locked,
     round: config.round,
     scorecard: cardView(card)
@@ -60,6 +74,7 @@ const getEntry = async (juror, teamId) => {
 const saveScorecard = async (juror, teamId, body) => {
   if (!isId(teamId)) throw notAnEntry();
   const input = parseScorecard(body);
+  const open = await live.evaluationOpen();
   /** @type {any} */
   let saved;
   await mongoose.connection.transaction(async session => {
@@ -72,6 +87,8 @@ const saveScorecard = async (juror, teamId, body) => {
     const entry = findEntry(config, teamId);
     if (!config || !entry) throw notAnEntry();
     if (config.locked) throw juryError(423, 'Puanlama kapatıldı; puanlar değiştirilemez.', 'JURY_LOCKED');
+    // Live session: only the team on stage, and never a team whose voting has ended.
+    if (!live.writable(config, entry.team, open)) throw live.refusal(config, entry.team);
     if (input.round !== config.round) throw juryError(409, 'Puan kartları sıfırlandı. Sayfa güncel hâliyle yeniden yüklenecek.', 'JURY_RESET');
 
     const given = new Map(input.scores.map(score => [score.criterion, score]));

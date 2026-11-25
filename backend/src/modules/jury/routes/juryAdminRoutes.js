@@ -22,6 +22,12 @@ router.put('/lock', controller.setLock);
 // Irreversible, so organizers do not get it.
 router.post('/scorecards/reset', requireRoles('ADMIN'), controller.resetScorecards);
 router.get('/log', controller.getLog);
+// Live presentation session (needs "Proje değerlendirme" open on the panel's İzinler page).
+router.get('/live', controller.getLive);
+router.post('/live/start', controller.startVoting);
+router.post('/live/end', controller.endVoting);
+router.post('/live/reopen', requireRoles('ADMIN'), controller.reopenVoting);
+router.post('/live/shuffle', requireRoles('ADMIN'), controller.shuffleOrder);
 router.get('/results', controller.getResults);
 router.get('/results.csv', controller.exportResults);
 router.use(notFound);

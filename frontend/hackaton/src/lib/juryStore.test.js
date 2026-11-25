@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AUTOSAVE_MS, POLL_MS, RATE_LIMIT_RETRY_MS, RETRY_MS, createJuryStore, describeTeam } from './juryStore.js'
+import { AUTOSAVE_MS, LIVE_POLL_MS, POLL_MS, RATE_LIMIT_RETRY_MS, RETRY_MS, createJuryStore, describeTeam } from './juryStore.js'
 import { CRITERIA, failure, fakeJuryServer, makeCard, networkError } from '../test/juryFixtures.js'
 
 const TOKEN = 'a'.repeat(32)
@@ -423,5 +423,48 @@ describe('kilit, sıfırlama, geçersiz link', () => {
     close(await open())
     server.invalid = true
     expect((await open()).getState().phase).toBe('invalid')
+  })
+})
+
+describe('canlı oylama', () => {
+  it('yalnız oylaması açık takım düzenlenir ve kaydedilir; diğerleri salt okunur', async () => {
+    server = fakeJuryServer({ live: { open: true, current: 't2', closed: ['t1'] } })
+    const store = await open()
+    expect([store.canWrite('t1'), store.canWrite('t2'), store.canWrite('t3')]).toEqual([false, true, false])
+    score(store, 4, 't1')
+    score(store, 4, 't3')
+    score(store, 5, 't2')
+    await wait()
+    expect(saved('t2')).toBe(5)
+    expect([saved('t1'), saved('t3')]).toEqual([undefined, undefined])
+    expect(server.client.save).toHaveBeenCalledTimes(1)
+  })
+
+  it('canlı oylama açıkken admin başlatınca birkaç saniyede yazılabilir olur', async () => {
+    server = fakeJuryServer({ live: { open: true, current: null, closed: [] } })
+    const store = await open()
+    expect(store.canWrite('t1')).toBe(false)
+    server.live.current = 't1'
+    await wait(LIVE_POLL_MS)
+    expect(store.canWrite('t1')).toBe(true)
+    // Kapalıyken hızlı yoklama yapılmaz: 20 sn'lik yoklama aynen kalır.
+    server.live.open = false
+    await wait(LIVE_POLL_MS)
+    const calls = server.client.me.mock.calls.length
+    // (toplam süre 20 sn'lik normal yoklamaya varmadan)
+    await wait(LIVE_POLL_MS * 2)
+    expect(server.client.me.mock.calls.length).toBe(calls)
+  })
+
+  it('kayıt sırasında oylama kapanırsa güncel durum alınır, genel kilit sanılmaz', async () => {
+    server = fakeJuryServer({ live: { open: true, current: 't1', closed: [] } })
+    const store = await open()
+    score(store, 3, 't1')
+    server.live.current = null
+    server.live.closed = ['t1']
+    await wait()
+    expect(store.getState().me.locked).toBe(false)
+    expect(store.canWrite('t1')).toBe(false)
+    expect(store.getState().me.entries.find((e) => e.team === 't1').live).toBe('CLOSED')
   })
 })

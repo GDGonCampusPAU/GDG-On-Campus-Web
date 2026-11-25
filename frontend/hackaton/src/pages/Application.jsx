@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx'
 import StepForm from '../components/StepForm.jsx'
 import TeamPanel from '../components/TeamPanel.jsx'
 import ProjectUploadCard from '../components/ProjectUploadCard.jsx'
+import PresentationCard from '../components/PresentationCard.jsx'
 import { useEvent } from '../context/EventContext.jsx'
 import { applicationApi, lookupTeam } from '../lib/eventApi.js'
 import './Application.css'
@@ -138,6 +139,8 @@ export default function Application() {
               {SAVED_NOTICE}
             </p>
           )}
+
+          <PresentationCard teamName={application.team?.name ?? null} />
 
           <ul className="application__grid">
             <li className={`application__card tone--${status.tone}`}>

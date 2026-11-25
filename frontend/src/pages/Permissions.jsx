@@ -62,6 +62,18 @@ const PERMISSIONS = [
     closedNotice: 'Proje yükleme kapatıldı. Takımlar linklerini artık yalnızca görüntüleyebilir.',
     openedNotice: 'Proje yükleme açıldı.',
   },
+  {
+    key: 'projectEvaluation',
+    title: 'Proje değerlendirme',
+    on: 'Sahnede canlı oylama açık. Jürideki yarışan takımlar rastgele sıralandı; sunum yapan takım hackathon sitesindeki Jüri yönetimi > “Sunum akışı” sekmesinden seçilir ve jüriler yalnız o takımı oylar. Katılımcılar “Başvurum” sayfasında sunum sırasını ve sıranın hangi takımda olduğunu görür.',
+    off: 'Canlı oylama kapalı. Açınca jürideki yarışan takımlar rastgele sıralanır (sıra bir kez belirlenir, kapatıp açmak değiştirmez) ve sunum akışı yönetilebilir hâle gelir. Oylaması bitirilen takımlar kapalıyken de kilitli kalır.',
+    closeLabel: 'Proje değerlendirmeyi kapat',
+    openLabel: 'Proje değerlendirmeyi aç',
+    closeQuestion: 'Canlı oylama duracak; jüriler oylaması bitmemiş takımları serbestçe puanlayabilecek. Emin misin?',
+    openQuestion: 'Takımlar rastgele sıralanacak ve jüriler yalnız oylaması başlatılan takımı puanlayabilecek. Emin misin?',
+    closedNotice: 'Proje değerlendirme kapatıldı.',
+    openedNotice: 'Proje değerlendirme açıldı. Sunum sırası belirlendi; akışı Jüri yönetimindeki “Sunum akışı” sekmesinden yönetebilirsin.',
+  },
 ]
 
 /** Kayıtları kapatırken doldurulan metin: neden + kapanış cümlesi, canlı önizlemeyle. */

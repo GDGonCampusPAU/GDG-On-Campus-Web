@@ -3,6 +3,7 @@ const jurorAdmin = require('../services/jurorAdminService');
 const results = require('../services/resultsService');
 const scorecardAdmin = require('../services/scorecardAdminService');
 const audit = require('../services/auditService');
+const live = require('../services/liveService');
 const { respond } = require('./respond');
 
 /**
@@ -106,4 +107,28 @@ const exportResults = async (_req, res, next) => {
   }
 };
 
-module.exports = { getConfig, saveConfig, listTeams, listJurors, createJuror, regenerateToken, updateJuror, setLock, resetScorecards, voidScorecard, getLog, getResults, exportResults };
+/**
+ * @desc    Live presentation session: order, team being voted, who has voted
+ * @route   GET /api/v1/jury-admin/live
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const getLive = respond(() => live.adminView());
+
+/**
+ * @desc    Start voting for the team on stage; ending it needs every active juror's vote or force: true
+ * @route   POST /api/v1/jury-admin/live/start, /live/end
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const startVoting = respond(req => live.start(req.body.team, req.user));
+const endVoting = respond(req => live.end(req.body.force, req.user));
+
+/**
+ * @desc    Reopen a closed team's voting; new random order before anything was voted
+ * @route   POST /api/v1/jury-admin/live/reopen, /live/shuffle
+ * @access  Private (ADMIN)
+ */
+const reopenVoting = respond(req => live.reopen(req.body.team, req.user));
+const shuffleOrder = respond(req => live.reshuffle(req.user));
+
+module.exports = {
+  getLive, startVoting, endVoting, reopenVoting, shuffleOrder, getConfig, saveConfig, listTeams, listJurors, createJuror, regenerateToken, updateJuror, setLock, resetScorecards, voidScorecard, getLog, getResults, exportResults };

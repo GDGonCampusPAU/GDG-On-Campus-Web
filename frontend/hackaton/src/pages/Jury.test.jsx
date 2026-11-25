@@ -213,3 +213,25 @@ describe('kilitli mod', () => {
     expect(screen.queryByRole('button', { name: /Gönder/ })).toBeNull()
   })
 })
+
+describe('canlı oylama', () => {
+  it('listede sunan takım bandı ve satır etiketleri; "Puanla" o takımı açar', async () => {
+    server = fakeJuryServer({ live: { open: true, current: 't2', closed: ['t1'] } })
+    const user = show()
+    const banner = await screen.findByText(/Şu an sunuyor:/)
+    expect(banner.closest('[role="status"]')).toHaveTextContent('Işık Hızı')
+    const rows = within(screen.getByRole('list')).getAllByRole('button')
+    expect(rows[0]).toHaveTextContent('Oylama bitti')
+    expect(rows[1]).toHaveTextContent('Şu an sunuyor')
+    await user.click(screen.getByRole('button', { name: 'Puanla' }))
+    expect(await screen.findByRole('heading', { name: /Işık Hızı/ })).toBeInTheDocument()
+    expect(within(group(/Teknik uygulama/)).getByRole('radio', { name: '4' })).toBeEnabled()
+  })
+
+  it('oylaması biten ya da henüz açılmayan takımda alanlar kilitli ve nedeni yazar', async () => {
+    server = fakeJuryServer({ live: { open: true, current: 't2', closed: ['t1'] } })
+    await openTeam(/Kampüs Asistanı/)
+    expect(await screen.findByText('Bu takımın oylaması bitti.')).toBeInTheDocument()
+    expect(within(group(/Teknik uygulama/)).getByRole('radio', { name: '4' })).toBeDisabled()
+  })
+})

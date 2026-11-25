@@ -31,6 +31,11 @@ export function juryAdminApi(token) {
     setLock: (locked) => call('/lock', { method: 'PUT', body: { locked } }),
     reset: (confirm) => call('/scorecards/reset', { method: 'POST', body: { confirm } }),
     results: () => call('/results'),
+    live: () => call('/live'),
+    startVoting: (team) => call('/live/start', { method: 'POST', body: { team } }),
+    endVoting: (force = false) => call('/live/end', { method: 'POST', body: { force } }),
+    reopenVoting: (team) => call('/live/reopen', { method: 'POST', body: { team } }),
+    shuffle: () => call('/live/shuffle', { method: 'POST', body: {} }),
     log: (before) => call(before ? `/log?before=${encodeURIComponent(before)}` : '/log'),
     voidCard: (juror, team, body) =>
       call(`/jurors/${encodeURIComponent(juror)}/scorecards/${encodeURIComponent(team)}/void`, { method: 'POST', body }),

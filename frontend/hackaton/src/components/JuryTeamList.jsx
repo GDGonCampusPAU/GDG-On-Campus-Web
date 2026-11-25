@@ -51,6 +51,12 @@ export default function JuryTeamList({ me, teams, onOpen }) {
                     <span className={`jury__badge jury__badge--${changed ? 'unsent' : status.toLowerCase()}`}>
                       <span aria-hidden="true">{icon}</span> {label}
                     </span>
+                    {entry.live === 'VOTING' && me.live?.open && (
+                      <span className="jury__badge jury__badge--live"><span aria-hidden="true">🎤</span> Şu an sunuyor</span>
+                    )}
+                    {entry.live === 'CLOSED' && (
+                      <span className="jury__badge jury__badge--closed"><span aria-hidden="true">🔒</span> Oylama bitti</span>
+                    )}
                   </span>
                 </button>
               </li>

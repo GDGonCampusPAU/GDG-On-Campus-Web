@@ -12,13 +12,15 @@ const ENDING_MAX = 200;
 const closedMessage = (reason, ending) =>
   `İlginiz için teşekkür ederiz, ${reason} için kaydınızı yapamıyoruz. ${ending}`.trim();
 
-/** @returns {{ teamChanges: boolean, answerEditing: boolean, projectUpload: boolean, registration: boolean, closedReason: string, closedEnding: string }} */
+/** @returns {{ teamChanges: boolean, answerEditing: boolean, projectUpload: boolean, projectEvaluation: boolean, registration: boolean, closedReason: string, closedEnding: string }} */
 const permissionsOf = (form) => {
   const settings = form?.settings || {};
   return {
     teamChanges: settings.teamChangesEnabled !== false,
     answerEditing: settings.answerEditingEnabled !== false,
     projectUpload: settings.projectUploadEnabled !== false,
+    // Opt-in: off unless an admin opened it.
+    projectEvaluation: settings.projectEvaluationEnabled === true,
     registration: settings.registrationEnabled !== false,
     closedReason: settings.registrationClosedReason || '',
     closedEnding: settings.registrationClosedEnding || ''
@@ -77,20 +79,23 @@ const text = (value, label, max) => {
  * Saved without touching updatedAt: it is the form's schema version, and bumping it would make
  * everyone who is filling the form right now get "Form güncellendi" on submit.
  */
-const updatePermissions = async (id, body) => {
+const updatePermissions = async (id, body, user = null) => {
   const $set = {};
-  for (const [key, setting] of [['teamChanges', 'teamChangesEnabled'], ['answerEditing', 'answerEditingEnabled'], ['projectUpload', 'projectUploadEnabled'], ['registration', 'registrationEnabled']]) {
+  for (const [key, setting] of [['teamChanges', 'teamChangesEnabled'], ['answerEditing', 'answerEditingEnabled'], ['projectUpload', 'projectUploadEnabled'], ['projectEvaluation', 'projectEvaluationEnabled'], ['registration', 'registrationEnabled']]) {
     if (body?.[key] === undefined) continue;
     if (typeof body[key] !== 'boolean') throw failure(400, `${key} alanı true veya false olmalıdır.`);
     $set[`settings.${setting}`] = body[key];
   }
-  if (!Object.keys($set).length) throw failure(400, 'Değiştirilecek bir izin gönderilmedi (teamChanges, answerEditing, projectUpload, registration).');
+  if (!Object.keys($set).length) throw failure(400, 'Değiştirilecek bir izin gönderilmedi (teamChanges, answerEditing, projectUpload, projectEvaluation, registration).');
   if (body.registration === false) {
     $set['settings.registrationClosedReason'] = text(body.closedReason, 'Kayıtların kapanma nedeni', REASON_MAX);
     $set['settings.registrationClosedEnding'] = text(body.closedEnding, 'Kapanış cümlesi', ENDING_MAX);
   }
   const form = await findForm(id);
   await Form.updateOne({ _id: form._id }, { $set }, { timestamps: false, runValidators: true });
+  // Opening evaluation fixes a random presentation order (once; reopening keeps it).
+  // Required lazily: the jury module itself reads these permissions.
+  if (body.projectEvaluation === true) await require('../modules/jury/services/liveService').ensureOrder(user);
   return getPermissions(id);
 };
 

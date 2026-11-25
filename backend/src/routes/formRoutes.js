@@ -57,7 +57,7 @@ const respond = (fn) => async (req, res, next) => {
   try { res.json({ success: true, data: await fn(req) }); } catch (error) { next(error); }
 };
 router.get('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.getPermissions(req.params.id)));
-router.put('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.updatePermissions(req.params.id, req.body)));
+router.put('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.updatePermissions(req.params.id, req.body, req.user)));
 
 // Registration teams (staff): list, remove member, change captain, disband.
 router.get('/:id/teams', teamAdmin.listTeams);

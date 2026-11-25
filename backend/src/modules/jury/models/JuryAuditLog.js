@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 
 const ACTIONS = ['JUROR_CREATED', 'LINK_REGENERATED', 'JUROR_RENAMED', 'JUROR_ACTIVATED', 'JUROR_DEACTIVATED',
-  'CONFIG_UPDATED', 'LOCKED', 'UNLOCKED', 'SCORECARDS_RESET', 'SCORECARD_VOIDED'];
+  'CONFIG_UPDATED', 'LOCKED', 'UNLOCKED', 'SCORECARDS_RESET', 'SCORECARD_VOIDED',
+  // Live presentation session (liveService.js)
+  'LIVE_ORDER_SHUFFLED', 'LIVE_VOTING_STARTED', 'LIVE_VOTING_ENDED', 'LIVE_VOTING_REOPENED'];
 
 /** Append-only: the module has no route or function that edits or deletes an entry, reset keeps them. */
 const auditSchema = new mongoose.Schema({

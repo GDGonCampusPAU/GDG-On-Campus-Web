@@ -712,6 +712,21 @@ Anahtar `PROJECT_UPLOAD_SECRET` ile imzalı bir JWT'dir (`aud: project-upload`, 
 
 Ortam değişkenleri: `PROJECT_UPLOAD_URL`, `PROJECT_UPLOAD_SECRET`, `PROJECT_UPLOAD_INTERNAL_KEY` (bkz. `backend/.env.example`).
 
+## Canlı Sunum ve Oylama (Proje değerlendirme)
+
+Panelin **İzinler** sayfasındaki "Proje değerlendirme" (`projectEvaluation`, varsayılan kapalı) açılınca jürideki yarışan takımlar bir kez rastgele sıralanır; kapatıp açmak sırayı değiştirmez. Admin `/admin/juri` > **Sunum akışı** sekmesinden sunan takımın oylamasını başlatır; jüriler yalnız o takımı puanlayabilir. Bütün **aktif** jüriler kartını göndermeden oylama bitirilemez (`force: true` ile onaylanarak bitirilebilir, eksikler işlem kaydına yazılır). Oylaması biten takım kalıcı olarak kilitlenir (değerlendirme sonradan kapatılsa da); yalnız ADMIN yeniden açabilir. Değerlendirme kapalıyken jüri eskisi gibi serbest puanlar (sahnede akış bozulursa yedek yol).
+
+| Metot | Yol | Yetki | Açıklama |
+|---|---|---|---|
+| GET | `/api/v1/jury-admin/live` | ORGANIZER, ADMIN | `{ open, locked, started, order[{ team, teamName, projectName, position, state }], current, next, votes[{ id, name, active, status }] }`; `state`: `WAITING` / `VOTING` / `CLOSED`, `status`: `NONE` / `DRAFT` / `SUBMITTED`. |
+| POST | `/api/v1/jury-admin/live/start` | ORGANIZER, ADMIN | `{ team }`. Hatalar: `EVALUATION_CLOSED`, `JURY_LOCKED`, `VOTING_IN_PROGRESS`, `VOTING_CLOSED`, `ENTRY_NOT_FOUND`. |
+| POST | `/api/v1/jury-admin/live/end` | ORGANIZER, ADMIN | `{ force? }`. Eksik oy varsa 409 `VOTES_MISSING` (mesajda jüri adları). |
+| POST | `/api/v1/jury-admin/live/reopen` | ADMIN | `{ team }`: bitmiş takım yeniden oylanabilir olur. |
+| POST | `/api/v1/jury-admin/live/shuffle` | ADMIN | Yeni rastgele sıra; ilk oylama başladıktan sonra 409 `LIVE_STARTED`. |
+| GET | `/api/v1/presentation` | herkese açık | Başvurum sayfası için: `{ open, current: { name, position } \| null, order[{ position, name, state }] }` (yalnız takım adları). Kendi IP başına geniş limiti vardır, sonuç 2 sn önbellekte. |
+
+Jüri tarafında `GET /api/v1/jury/me` ayrıca `live: { open, current }` ve her takım için `live` (durum) ile `writable` döner; yazılamayan takıma kayıt 423 `VOTING_NOT_OPEN` / `VOTING_CLOSED` ile reddedilir. Jüri ekranı canlı oylama açıkken 4 sn'de bir yenilenir. Jüri ayarında repo linki boş olan takımın linki proje yükleme sitesinden gelir.
+
 ## Bakım Modu ("Tadilattayız" sayfası)
 
 Panelde **Bakım** sekmesinden (yalnızca ADMIN) açılıp kapatılır. Açıkken katılımcı sitesindeki bütün sayfalar 503 ile `frontend/hackaton/public/maintenance.html` sayfasını gösterir; panel ve API çalışmaya devam eder.

@@ -1,5 +1,6 @@
 const juryRoutes = require('./routes/juryRoutes');
 const juryAdminRoutes = require('./routes/juryAdminRoutes');
+const presentationRoutes = require('./routes/presentationRoutes');
 const { loadConfig } = require('./services/configService');
 
 /**
@@ -12,4 +13,4 @@ const init = async () => {
   await loadConfig();
 };
 
-module.exports = { juryRoutes, juryAdminRoutes, init };
+module.exports = { juryRoutes, juryAdminRoutes, presentationRoutes, init };

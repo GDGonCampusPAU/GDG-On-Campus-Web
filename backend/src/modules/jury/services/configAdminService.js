@@ -136,7 +136,8 @@ const resetScorecards = async (confirmation, user) => {
   await loadConfig();
   let deleted = 0;
   await mongoose.connection.transaction(async session => {
-    const config = await JudgingConfig.findOneAndUpdate({ _id: CONFIG_ID }, { $inc: { round: 1 }, $set: { updatedBy: user._id } }, { session, returnDocument: 'after' }).lean();
+    // A reset is a rehearsal reset: the live session starts over too (the presentation order stays).
+    const config = await JudgingConfig.findOneAndUpdate({ _id: CONFIG_ID }, { $inc: { round: 1 }, $set: { updatedBy: user._id, 'live.current': null, 'live.startedAt': null, 'live.closed': [] } }, { session, returnDocument: 'after' }).lean();
     if (config?.locked) throw juryError(423, 'Puanlama kilitliyken puan kartları sıfırlanamaz.', 'CONFIG_LOCKED');
     deleted = (await Scorecard.deleteMany({}, { session })).deletedCount;
     await record(session, user, 'SCORECARDS_RESET', { details: { deleted, round: config?.round } });

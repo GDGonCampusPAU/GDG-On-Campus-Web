@@ -50,6 +50,10 @@ function JuryApp({ token }) {
 
   const index = me.entries.findIndex((entry) => entry.team === params.get(TEAM_PARAM))
   const open = (team) => setParams(team ? { [TEAM_PARAM]: team } : {})
+  const shown = index >= 0 ? me.entries[index] : null
+  const current = me.live?.open ? me.live.current : null
+  // Canlı oylama: bu takıma şu an yazılamıyorsa form genel kilitteki gibi salt okunur gösterilir.
+  const formMe = shown && shown.writable === false && !me.locked ? { ...me, locked: true } : me
 
   return (
     <main className={`jury${index >= 0 ? ' jury--team' : ''}`}>
@@ -68,10 +72,32 @@ function JuryApp({ token }) {
           Puan kartları organizasyon tarafından sıfırlandı.
         </p>
       )}
+      {me.live?.open && !me.locked && (!shown || shown.team !== current?.team) && (
+        <div className={`jury__banner jury__banner--live${current ? ' jury__banner--now' : ''}`} role="status">
+          {current ? (
+            <>
+              <p><strong>🎤 Şu an sunuyor:</strong> {current.position}. {current.teamName}</p>
+              <Button size="sm" onClick={() => open(current.team)}>Puanla</Button>
+            </>
+          ) : (
+            <p>Sunum bekleniyor. Organizasyon oylamayı başlatınca sunan takım burada görünecek.</p>
+          )}
+        </div>
+      )}
+      {shown && !me.locked && shown.live === 'CLOSED' && (
+        <p className="jury__banner jury__banner--locked" role="status">
+          <strong>Bu takımın oylaması bitti.</strong> Puanlar artık değiştirilemez.
+        </p>
+      )}
+      {shown && !me.locked && me.live?.open && shown.live === 'WAITING' && (
+        <p className="jury__banner" role="status">
+          <strong>Bu takımın oylaması henüz açılmadı.</strong> Takım sunum yapınca organizasyon oylamayı başlatacak.
+        </p>
+      )}
       {index >= 0 ? (
         <JuryScoreForm
           key={me.entries[index].team}
-          me={me}
+          me={formMe}
           summary={me.entries[index]}
           team={teams[me.entries[index].team]}
           store={store}

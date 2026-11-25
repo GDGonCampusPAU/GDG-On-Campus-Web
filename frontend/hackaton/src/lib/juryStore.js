@@ -16,6 +16,8 @@ export const AUTOSAVE_MS = 1000
 export const RETRY_MS = 5000
 export const RATE_LIMIT_RETRY_MS = 30000
 export const POLL_MS = 20000
+// Canlı oylama açıkken (sahnede sunum varken) admin'in başlat/bitir'i birkaç saniyede görülsün.
+export const LIVE_POLL_MS = 4000
 // Başka sekmenin taslağını, o sekme kapanmışsa kaydetmek için bekleme.
 export const MIRROR_SAVE_MS = 8000
 
@@ -69,6 +71,7 @@ export function createJuryStore(token, client) {
   let running = false
   let refreshing = null
   let poll
+  let livePoll
   const listeners = new Set()
   const timers = new Map()
   const queues = new Map()
@@ -80,6 +83,8 @@ export function createJuryStore(token, client) {
     listeners.forEach((listener) => listener())
   }
   const team = (id) => state.teams[id] ?? BLANK
+  /** Bu takıma şimdi yazılabilir mi: genel kilit yok ve canlı oylama kuralı izin veriyor (sunucu hesaplar). */
+  const canWrite = (id) => Boolean(state.me) && !state.me.locked && state.me.entries?.find((entry) => entry.team === id)?.writable !== false
   const info = (id) => describeTeam(state.me?.criteria ?? [], team(id))
 
   function update(id, changes) {
@@ -159,7 +164,7 @@ export function createJuryStore(token, client) {
   function schedule(id, delay = AUTOSAVE_MS) {
     clearTimeout(timers.get(id))
     timers.delete(id)
-    if (!running || state.me?.locked || state.phase !== 'ready') return
+    if (!running || !canWrite(id) || state.phase !== 'ready') return
     const { dirty, submitted, conflict } = info(id)
     if (!dirty || submitted || conflict) return
     timers.set(id, setTimeout(() => {
@@ -185,7 +190,7 @@ export function createJuryStore(token, client) {
     if (!state.me || state.phase !== 'ready' || !team(id).known) return false
     follow(id)
     const before = info(id)
-    if (state.me.locked || before.conflict) return false
+    if (!canWrite(id) || before.conflict) return false
     if (!submit && (!before.dirty || before.submitted)) return false
 
     const { form, base } = team(id)
@@ -210,6 +215,8 @@ export function createJuryStore(token, client) {
     update(id, { saving: false, saveError: error.message, ...(submit ? { submitError: error.message } : {}) })
     if (isInvalidLink(error)) return invalidate()
     if (error.code === 'JURY_LOCKED') return set({ me: { ...state.me, locked: true } })
+    // Canlı oylama: bu takımın oylaması kapandı ya da henüz açılmadı; güncel durumu al.
+    if (error.code === 'VOTING_CLOSED' || error.code === 'VOTING_NOT_OPEN') return refresh()
     if (error.code === 'JURY_RESET') return refresh()
     if (error.code === 'SCORECARD_CONFLICT' || error.code === 'SCORECARD_SUBMITTED') {
       try {
@@ -341,6 +348,7 @@ export function createJuryStore(token, client) {
       running = true
       void refresh()
       poll = setInterval(onVisible, POLL_MS)
+      livePoll = setInterval(() => { if (state.me?.live?.open) onVisible() }, LIVE_POLL_MS)
       document.addEventListener('visibilitychange', onVisible)
       window.addEventListener('online', onOnline)
       window.addEventListener('storage', onStorage)
@@ -350,6 +358,7 @@ export function createJuryStore(token, client) {
     stop() {
       running = false
       clearInterval(poll)
+      clearInterval(livePoll)
       timers.forEach(clearTimeout)
       timers.clear()
       document.removeEventListener('visibilitychange', onVisible)
@@ -359,11 +368,12 @@ export function createJuryStore(token, client) {
     },
     refresh,
     loadTeam,
+    canWrite,
     /** @param {string} id @param {(form: import('./juryForm.js').JuryForm) => import('./juryForm.js').JuryForm} change */
     edit(id, change) {
       follow(id)
       const current = team(id)
-      if (!state.me || state.me.locked || !current.known || current.submitting) return
+      if (!state.me || !canWrite(id) || !current.known || current.submitting) return
       const form = change(current.form)
       // Form sunucudakiyle aynı olduysa (geri alma, çakışmada aynı değerler) artık o sürüme dayanır.
       const clean = sameForm(state.me.criteria, form, formOf(current.server))

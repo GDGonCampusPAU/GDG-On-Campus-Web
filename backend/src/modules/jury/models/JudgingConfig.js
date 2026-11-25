@@ -29,6 +29,18 @@ const entrySchema = new mongoose.Schema({
   presentationUrl: { type: String, default: '', maxlength: 500 }
 }, { _id: false });
 
+/**
+ * Live presentation session ("Proje değerlendirme" permission). `order` is the random presentation order of
+ * the entries, fixed when evaluation is first opened. While evaluation is open jurors may only score
+ * `current`; a team in `closed` stays frozen for good unless an ADMIN reopens it.
+ */
+const liveSchema = new mongoose.Schema({
+  order: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  current: { type: mongoose.Schema.Types.ObjectId, default: null },
+  startedAt: { type: Date, default: null },
+  closed: { type: [mongoose.Schema.Types.ObjectId], default: [] }
+}, { _id: false });
+
 /** Single document (`_id: 'hackathon'`) holding the whole judging setup. */
 const configSchema = new mongoose.Schema({
   _id: { type: String, default: CONFIG_ID },
@@ -36,6 +48,7 @@ const configSchema = new mongoose.Schema({
   categories: { type: [categorySchema], default: [] },
   entries: { type: [entrySchema], default: [] },
   locked: { type: Boolean, default: false },
+  live: { type: liveSchema, default: () => ({}) },
   revision: { type: Number, default: 1 },
   // Increases on every score reset, so a device cannot re-send scores from before the reset.
   round: { type: Number, default: 1 },

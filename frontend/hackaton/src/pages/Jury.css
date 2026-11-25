@@ -408,3 +408,29 @@
   font-size: 0.8125rem;
   overflow-wrap: normal;
 }
+
+/* Canlı oylama: sunan takım bandı ve satır etiketleri. */
+.jury__banner--live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.jury__banner--now {
+  border: 2px solid var(--black);
+  background: var(--yellow-pastel);
+}
+
+.jury__badge--live {
+  background: var(--yellow);
+}
+
+.jury__badge--closed {
+  background: var(--off-white);
+}
+
+.jury__banner--live:not(.jury__banner--now) {
+  background: var(--off-white);
+}

@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
 vi.mock('../lib/eventApi.js', () => ({
   applicationApi: () => api,
   lookupTeam: vi.fn(async () => ({ name: 'Yıldızlar', size: 2, maxSize: 4, full: false })),
+  getPresentation: vi.fn(async () => ({ open: false, current: null, order: [] })),
 }))
 
 const identity = { token: 't', participant: { email: 'ayse@example.com' } }

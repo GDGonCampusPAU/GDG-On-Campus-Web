@@ -50,6 +50,8 @@ if (process.env.NODE_ENV !== 'test') {
 // first, then count per person (modules/jury/middleware/limits.js).
 app.use('/api/v1/jury', juryModule.juryRoutes);
 app.use('/api/v1/jury-admin', juryModule.juryAdminRoutes);
+// Live presentation order for participants: its own per-IP ceiling, not the shared limit.
+app.use('/api/v1/presentation', juryModule.presentationRoutes);
 
 // 4. Rate Limiting for general API
 // Per person when signed in, per IP otherwise (middleware/rateLimits.js).

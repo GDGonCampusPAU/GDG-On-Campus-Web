@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx'
 import JuryAdminJurors from '../components/JuryAdminJurors.jsx'
 import JuryAdminLog from '../components/JuryAdminLog.jsx'
 import JuryAdminResults from '../components/JuryAdminResults.jsx'
+import JuryLiveControl from '../components/JuryLiveControl.jsx'
 import { CategoriesEditor, CriteriaEditor, EntriesEditor } from '../components/JuryAdminSetup.jsx'
 import JuryResetPanel from '../components/JuryResetPanel.jsx'
 import { useEditorSession } from '../hooks/useEditorSession.js'
@@ -14,8 +15,11 @@ import './Admin.css'
 import './AdminJury.css'
 
 const REFRESH_MS = 10000
+// Sahnede oylar anında görünsün: Sunum akışı açıkken daha sık yenilenir.
+const LIVE_REFRESH_MS = 3000
 /** @type {[string, string][]} */
 const TABS = [
+  ['live', 'Sunum akışı'],
   ['results', 'Sonuçlar'],
   ['criteria', 'Kriterler'],
   ['categories', 'Kategoriler'],
@@ -51,6 +55,7 @@ function Dashboard({ session, onExpire, onExit }) {
   const [results, setResults] = useState(null)
   const [jurors, setJurors] = useState(null)
   const [log, setLog] = useState(null)
+  const [live, setLive] = useState(null)
   const [links, setLinks] = useState([])
   const [stale, setStale] = useState(false)
   const [note, setNote] = useState(null)
@@ -69,13 +74,14 @@ function Dashboard({ session, onExpire, onExit }) {
     const request = ++latest.current
     pending.current += 1
     try {
-      const [config, list] = await Promise.all([client.config(), tab === 'results' ? client.results() : tab === 'jurors' ? client.jurors() : tab === 'log' ? client.log() : null])
+      const [config, list] = await Promise.all([client.config(), tab === 'results' ? client.results() : tab === 'jurors' ? client.jurors() : tab === 'log' ? client.log() : tab === 'live' ? client.live() : null])
       // Geç gelen eski yanıt yeni veriyi ezmesin.
       if (request !== latest.current) return
       setSetup((current) => mergeConfig(current, config))
       if (tab === 'results') setResults(list)
       if (tab === 'jurors') setJurors(list)
       if (tab === 'log') setLog((current) => mergeLog(current, list))
+      if (tab === 'live') setLive(list)
       setStale(false)
     } catch (error) {
       if (request !== latest.current) return
@@ -94,13 +100,13 @@ function Dashboard({ session, onExpire, onExit }) {
     // Yavaş bağlantıda yeni tur öncekini iptal etmesin; yoksa ekran hiç güncellenmez.
     const timer = setInterval(() => {
       if (!pending.current) whenVisible()
-    }, REFRESH_MS)
+    }, tab === 'live' ? LIVE_REFRESH_MS : REFRESH_MS)
     document.addEventListener('visibilitychange', whenVisible)
     return () => {
       clearInterval(timer)
       document.removeEventListener('visibilitychange', whenVisible)
     }
-  }, [refresh])
+  }, [refresh, tab])
 
   const dirty = setup ? isDirty(setup.config, setup.draft) : false
   useEffect(() => {
@@ -280,6 +286,17 @@ function Dashboard({ session, onExpire, onExit }) {
         <p>{stale ? 'Jüri ayarları alınamadı, yeniden deneniyor…' : 'Yükleniyor…'}</p>
       ) : (
         <>
+          {tab === 'live' && (
+            <JuryLiveControl
+              live={live}
+              stale={stale}
+              isAdmin={isAdmin}
+              client={client}
+              onChanged={(view) => { latest.current += 1; setLive(view) }}
+              onNote={setNote}
+              onError={report}
+            />
+          )}
           {tab === 'results' && <JuryAdminResults results={results} stale={stale} onDownload={download} onVoid={isAdmin && !locked ? voidCard : undefined} />}
           {tab === 'results' && isAdmin && <JuryResetPanel count={setup.config.scorecardCount} locked={locked} onReset={reset} />}
           {tab === 'jurors' && <JuryAdminJurors jurors={jurors} links={links} client={client} canIssueLinks={isAdmin} onIssued={addLink} onChanged={refresh} onError={report} />}

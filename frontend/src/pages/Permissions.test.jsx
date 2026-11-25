@@ -8,7 +8,7 @@ import { render } from '../test/render.jsx'
 vi.mock('../lib/api.js', () => ({ getPermissions: vi.fn(), setPermissions: vi.fn() }))
 
 const session = { token: 'admin', user: { id: 'a1', fullName: 'Admin', role: 'ADMIN' } }
-const OPEN = { registration: true, teamChanges: true, answerEditing: true, projectUpload: true, closedReason: '', closedEnding: '' }
+const OPEN = { registration: true, teamChanges: true, answerEditing: true, projectUpload: true, projectEvaluation: false, closedReason: '', closedEnding: '' }
 const card = (name) => screen.getByRole('region', { name })
 const confirmIn = (label) => within(screen.getByRole('group', { name: label }))
 
@@ -45,6 +45,20 @@ test('project upload can be closed when the submission time is over', async () =
   expect(api.setPermissions).toHaveBeenCalledWith({ projectUpload: false }, 'admin')
   expect(await screen.findByText(/Proje yükleme kapatıldı/)).toBeInTheDocument()
   expect(within(card('Proje yükleme')).getByText('Kapalı')).toBeInTheDocument()
+})
+
+test('project evaluation is closed by default and opening it asks first', async () => {
+  const user = userEvent.setup()
+  api.getPermissions.mockResolvedValue(OPEN)
+  api.setPermissions.mockResolvedValueOnce({ ...OPEN, projectEvaluation: true })
+  render(<Permissions session={session} />)
+  expect(await within(await screen.findByRole('region', { name: 'Proje değerlendirme' })).findByText('Kapalı')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Proje değerlendirmeyi aç' }))
+  expect(api.setPermissions).not.toHaveBeenCalled()
+  await user.click(confirmIn('Proje değerlendirmeyi aç').getByRole('button', { name: 'Aç' }))
+  expect(api.setPermissions).toHaveBeenCalledWith({ projectEvaluation: true }, 'admin')
+  expect(await screen.findByText(/Sunum sırası belirlendi/)).toBeInTheDocument()
+  expect(within(card('Proje değerlendirme')).getByText('Açık')).toBeInTheDocument()
 })
 
 test('opening a closed permission also asks for confirmation', async () => {
