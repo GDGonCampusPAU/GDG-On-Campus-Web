@@ -5,6 +5,7 @@ import {
   downloadHackathonApplicationsCsv,
   getHackathonApplications,
   downloadPrivateFile,
+  sendWhatsappInvites,
   updateApplicationStatus,
 } from '../lib/api.js'
 
@@ -57,8 +58,10 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [teamFilter, setTeamFilter] = useState('ALL')
   const [revision, setRevision] = useState(0)
-  const [state, setState] = useState({ key: '', status: 'loading', items: [], pagination: null, summary: null, formId: null, error: '' })
+  const [state, setState] = useState({ key: '', status: 'loading', items: [], pagination: null, summary: null, whatsappPending: 0, formId: null, error: '' })
   const [exporting, setExporting] = useState(false)
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false)
+  const [confirmingWhatsapp, setConfirmingWhatsapp] = useState(false)
   const [actionError, setActionError] = useState('')
   const [actionNotice, setActionNotice] = useState('')
   const [busyId, setBusyId] = useState(null)
@@ -87,6 +90,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
           items: data.data ?? [],
           pagination: data.pagination ?? null,
           summary: data.summary ?? null,
+          whatsappPending: data.whatsappPending ?? 0,
           formId: data.form?.id ?? null,
           error: '',
         })
@@ -97,7 +101,7 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
           onUnauthorized?.()
           return
         }
-        setState({ key: requestKey, status: 'error', items: [], pagination: null, summary: null, formId: null, error: error.message })
+        setState({ key: requestKey, status: 'error', items: [], pagination: null, summary: null, whatsappPending: 0, formId: null, error: error.message })
       })
 
     return () => {
@@ -205,7 +209,38 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
     }
   }
 
-  const { items, pagination, summary, error } = state
+  const handleSendWhatsappInvites = async (responseId = null) => {
+    if (responseId) setBusyId(responseId)
+    else setSendingWhatsapp(true)
+    setConfirmingWhatsapp(false)
+    setActionError('')
+    setActionNotice('')
+    try {
+      const result = await sendWhatsappInvites({ formId: state.formId, ...(responseId ? { responseId } : {}) }, token)
+      setActionNotice(result?.message || 'WhatsApp davetleri gönderildi.')
+      if (responseId) {
+        const nowIso = new Date().toISOString()
+        setState((prev) => ({
+          ...prev,
+          whatsappPending: Math.max(0, (prev.whatsappPending ?? 0) - 1),
+          items: prev.items.map((item) => (item._id === responseId ? { ...item, whatsappInvitedAt: nowIso } : item)),
+        }))
+      } else {
+        setRevision((value) => value + 1)
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        onUnauthorized?.()
+        return
+      }
+      setActionError(error.message)
+    } finally {
+      if (responseId) setBusyId(null)
+      else setSendingWhatsapp(false)
+    }
+  }
+
+  const { items, pagination, summary, whatsappPending, error } = state
   const status = state.key === requestKey ? state.status : 'loading'
   const total = pagination?.totalItems ?? 0
   const filtered = query || statusFilter !== 'ALL' || teamFilter !== 'ALL'
@@ -216,9 +251,41 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
       onLogout={onLogout}
       title="Hackathon Başvuruları"
       actions={
-        <button type="button" className="btn btn--outline" onClick={handleExport} disabled={exporting}>
-          {exporting ? 'İndiriliyor…' : 'CSV indir'}
-        </button>
+        <div className="panel__actions">
+          {source === 'forms' && (confirmingWhatsapp ? (
+            <span className="confirm">
+              <span>{whatsappPending} onaylı kişiye tek tek gönderilsin mi?</span>
+              <button
+                type="button"
+                className="btn btn--sm btn--approve"
+                disabled={sendingWhatsapp}
+                onClick={() => handleSendWhatsappInvites()}
+              >
+                {sendingWhatsapp ? 'Gönderiliyor…' : 'Evet, gönder'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--sm btn--outline"
+                disabled={sendingWhatsapp}
+                onClick={() => setConfirmingWhatsapp(false)}
+              >
+                Vazgeç
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--approve"
+              disabled={sendingWhatsapp || whatsappPending === 0}
+              onClick={() => setConfirmingWhatsapp(true)}
+            >
+              {sendingWhatsapp ? 'Gönderiliyor…' : `WP Daveti Gönder (${whatsappPending})`}
+            </button>
+          ))}
+          <button type="button" className="btn btn--outline" onClick={handleExport} disabled={exporting}>
+            {exporting ? 'İndiriliyor…' : 'CSV indir'}
+          </button>
+        </div>
       }
     >
       {summary && (
@@ -432,10 +499,20 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                       Beklemeye al
                     </button>
                   )}
+                  {isSite && currentStatus === 'APPROVED' && !record.whatsappInvitedAt && (
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--outline"
+                      disabled={cardBusy}
+                      onClick={() => handleSendWhatsappInvites(record._id)}
+                    >
+                      WP daveti gönder
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {(isSite || hasIdea || record.lastNotifiedAt) && (
+              {(isSite || hasIdea || record.lastNotifiedAt || record.whatsappInvitedAt) && (
                 <details className="app-card__details">
                   <summary>{isSite ? 'Başvuru yanıtları' : 'Ayrıntılar'}</summary>
                   {isSite && (
@@ -457,6 +534,11 @@ export default function Applications({ session, onLogout, onUnauthorized }) {
                   {record.lastNotifiedAt && (
                     <p className="app-card__meta">
                       Son e-posta bildirimi: {STATUS_LABELS[record.lastNotifiedStatus] || record.lastNotifiedStatus} ({formatDate(record.lastNotifiedAt)})
+                    </p>
+                  )}
+                  {record.whatsappInvitedAt && (
+                    <p className="app-card__meta">
+                      WhatsApp daveti gönderildi ({formatDate(record.whatsappInvitedAt)})
                     </p>
                   )}
                 </details>

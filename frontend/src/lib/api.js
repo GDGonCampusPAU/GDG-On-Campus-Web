@@ -118,6 +118,21 @@ export async function updateApplicationStatus({ id, formId, source = 'forms', st
   })
 }
 
+/**
+ * Onaylanmış ama henüz WhatsApp daveti gönderilmemiş katılımcılara bireysel davet gönderir.
+ * `responseId` verilirse yalnızca o katılımcıya gönderir.
+ * @param {{ formId?: string | null, responseId?: string }} [options]
+ * @param {string} [token]
+ */
+export async function sendWhatsappInvites({ formId, responseId } = {}, token) {
+  const resolvedFormId = formId || (await request('/event-page/hackathon')).data.formId
+  return request(`/forms/${encodeURIComponent(resolvedFormId)}/responses/whatsapp-invite`, {
+    method: 'POST',
+    body: responseId ? { responseId } : {},
+    token,
+  })
+}
+
 // CSV dosyasını Authorization başlığı gerektiği için fetch ile indirip Blob olarak döndürür.
 /**
  * @param {string} token

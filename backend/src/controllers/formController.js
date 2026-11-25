@@ -19,10 +19,12 @@ const teamRoleLabel = (response) => !response.team ? 'Bireysel'
   : response.teamRole === 'CAPTAIN' ? 'Kaptan' : response.teamStatus === 'PENDING' ? 'Kaptan onayı bekliyor' : 'Üye';
 const {
   APPLICATION_STATUSES,
+  whatsappPendingFilter,
   buildStatusFilter,
   combineFilters,
   resolveFormApplicant,
-  updateApplicationDecision
+  updateApplicationDecision,
+  sendWhatsappInvitesForForm
 } = require('../services/applicationStatusService');
 const { unlink } = require('node:fs/promises');
 const EventPage = require('../models/EventPage');
@@ -432,9 +434,10 @@ const getFormResponses = async (req, res, next) => {
     ]);
 
     const teamIds = [...new Set(responses.map(response => response.team).filter(Boolean).map(String))];
-    const [teams, statusCounts] = await Promise.all([
+    const [teams, statusCounts, whatsappPending] = await Promise.all([
       HackathonTeam.find({ _id: { $in: teamIds } }).select('code').lean(),
-      FormResponse.aggregate([{ $match: { form: form._id } }, { $group: { _id: { $ifNull: ['$status', 'PENDING'] }, count: { $sum: 1 } } }])
+      FormResponse.aggregate([{ $match: { form: form._id } }, { $group: { _id: { $ifNull: ['$status', 'PENDING'] }, count: { $sum: 1 } } }]),
+      FormResponse.countDocuments(whatsappPendingFilter(form._id))
     ]);
     const codes = new Map(teams.map(team => [String(team._id), team.code]));
     const counts = Object.fromEntries(statusCounts.map(item => [item._id, item.count]));
@@ -457,6 +460,7 @@ const getFormResponses = async (req, res, next) => {
       data: normalizedResponses,
       // Whole-form counts (filters ignored) for the summary boxes.
       summary: { total: Object.values(counts).reduce((a, b) => a + b, 0), PENDING: counts.PENDING || 0, APPROVED: counts.APPROVED || 0, REJECTED: counts.REJECTED || 0 },
+      whatsappPending,
       pagination: {
         totalItems,
         totalPages,
@@ -532,6 +536,56 @@ const updateFormResponseStatus = async (req, res, next) => {
         ? `Başvuru ${statusLabel} ve katılımcıya bilgilendirme e-postası gönderildi.`
         : `Başvuru durumu güncellendi (${statusLabel}).`) + teamNote,
       data: fresh
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Send individual WhatsApp invite emails to approved form applicants who have not been invited yet
+ * @route   POST /api/v1/forms/:id/responses/whatsapp-invite
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const sendFormWhatsappInvites = async (req, res, next) => {
+  try {
+    const form = await Form.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({ success: false, message: 'Form bulunamadı.' });
+    }
+
+    const rawResponseId = req.body?.responseId;
+    if (rawResponseId !== undefined && rawResponseId !== null && !mongoose.Types.ObjectId.isValid(String(rawResponseId))) {
+      return res.status(400).json({ success: false, message: 'Geçersiz başvuru kimliği.' });
+    }
+
+    let eventTitle = form.title || 'Pamukkale Hackathon';
+    if (form.eventKey) {
+      const eventPage = await EventPage.findById(form.eventKey).select('event.name').lean();
+      eventTitle = eventPage?.event?.name || 'Pamukkale Hackathon';
+    }
+
+    const result = await sendWhatsappInvitesForForm({
+      formId: form._id,
+      responseId: rawResponseId ? String(rawResponseId) : null,
+      eventTitle
+    });
+
+    let message;
+    if (rawResponseId) {
+      message = 'Katılımcıya bireysel WhatsApp daveti e-postası gönderildi.';
+    } else if (result.totalPending === 0) {
+      message = 'WhatsApp daveti bekleyen onaylı katılımcı bulunmuyor.';
+    } else if (result.failedCount > 0) {
+      message = `${result.sentCount} onaylı katılımcıya bireysel WhatsApp daveti gönderildi; ${result.failedCount} gönderimde hata oluştu (tekrar denendiğinde yalnızca kalanlara gönderilecektir).`;
+    } else {
+      message = `${result.sentCount} onaylı katılımcıya bireysel WhatsApp daveti e-postası gönderildi.`;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message,
+      data: result
     });
   } catch (error) {
     next(error);
@@ -887,6 +941,7 @@ module.exports = {
   deleteForm,
   getFormResponses,
   updateFormResponseStatus,
+  sendFormWhatsappInvites,
   exportFormResponses,
   getPublicForm,
   submitFormResponse

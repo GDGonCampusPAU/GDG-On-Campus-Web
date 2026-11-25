@@ -64,6 +64,10 @@ const hackathonAppSchema = new mongoose.Schema(
     lastNotifiedAt: {
       type: Date,
       default: null
+    },
+    whatsappInvitedAt: {
+      type: Date,
+      default: null
     }
   },
   {
