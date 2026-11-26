@@ -22,24 +22,25 @@ const ensureHackathonPage = async () => {
 };
 /** Without `mayChangeRegistration` (ORGANIZER, scripts) publishing never opens or closes registration. */
 const savePage = async (event, revision, userId, { mayChangeRegistration = false } = {}) => {
-  const { isEventShape } = await import('../../../shared/eventContent.mjs');
-  if (!isEventShape(base, event)) throw Object.assign(new Error('Etkinlik verisi geçersiz.'), { status: 400 });
+  const { isEventShape, normalizeEventPayload } = await import('../../../shared/eventContent.mjs');
+  const normalized = normalizeEventPayload(event);
+  if (!isEventShape(base, normalized)) throw Object.assign(new Error('Etkinlik verisi geçersiz.'), { status: 400 });
   if (!Number.isInteger(revision) || revision < 1) throw Object.assign(new Error('Yayın sürümü gerekli.'), { status: 400 });
   /** @type {import('mongoose').HydratedDocument<any> | null | undefined} */
   let page;
   await mongoose.connection.transaction(async session => {
     if (!mayChangeRegistration) {
       const current = await EventPage.findOne({ _id: 'hackathon', revision }).session(session).lean();
-      if (current && current.event.register?.status !== event.register.status) throw Object.assign(new Error(ADMIN_ONLY_MESSAGE), { status: 403 });
+      if (current && current.event.register?.status !== normalized.register?.status) throw Object.assign(new Error(ADMIN_ONLY_MESSAGE), { status: 403 });
     }
     page = await EventPage.findOneAndUpdate({ _id: 'hackathon', revision }, {
-      $set: { event, updatedBy: userId }, $inc: { revision: 1 }
+      $set: { event: normalized, updatedBy: userId }, $inc: { revision: 1 }
     }, { session, returnDocument: 'after' });
     if (!page) throw Object.assign(new Error('İçerik başka bir oturumda güncellendi. Yenileyip tekrar deneyin.'), { status: 409 });
     const form = await Form.findOne({ slug: page.formSlug }).session(session);
     if (!form) throw Object.assign(new Error('Başvuru formu bulunamadı.'), { status: 409 });
     // Preserve submission count, capacity and dates while updating the published schema.
-    const data = formData(event);
+    const data = formData(normalized);
     form.fields = data.fields; form.title = data.title;
     if (mayChangeRegistration) form.status = data.status;
     form.settings.successMessage = data.settings.successMessage;

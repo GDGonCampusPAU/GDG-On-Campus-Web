@@ -53,50 +53,44 @@
   ],
   "days": [
     {
-      "label": "1. Gün",
-      "date": "12 Aralık 2026",
+      "label": "27 Kasım",
+      "date": "27 Kasım 2026",
       "items": [
         {
-          "time": "09:00",
-          "title": "Açılış ve tanışma",
-          "description": "Etkinliğin tanıtımı, kurallar ve takım eşleşmeleri.",
+          "time": "10:00",
+          "title": "Tema Duyurusu",
+          "description": "",
           "type": "opening"
         },
         {
-          "time": "10:30",
-          "title": "Yapay Zeka workshop",
-          "description": "Başlangıç seviyesinde uygulamalı oturum.",
-          "type": "workshop"
-        },
-        {
-          "time": "13:00",
-          "title": "Kodlama başlıyor",
-          "description": "Takımlar projelerine başlar, mentorlar sahada.",
-          "type": "coding"
-        }
-      ]
-    },
-    {
-      "label": "2. Gün",
-      "date": "13 Aralık 2026",
-      "items": [
-        {
-          "time": "12:00",
-          "title": "Proje teslimi",
-          "description": "Son commit ve sunum dosyalarının yüklenmesi.",
-          "type": "submission"
+          "time": "11:30",
+          "title": "Mini Challenge 1",
+          "description": "",
+          "type": "challenge"
         },
         {
           "time": "14:00",
-          "title": "Jüri sunumları",
-          "description": "Her takım 5 dakikada projesini anlatır.",
-          "type": "jury"
+          "title": "Öğle Yemeği",
+          "description": "",
+          "type": "lunch"
         },
         {
-          "time": "17:00",
-          "title": "Ödül töreni",
-          "description": "Sonuçların açıklanması ve kapanış.",
-          "type": "awards"
+          "time": "16:00",
+          "title": "Mini Challenge 2",
+          "description": "",
+          "type": "challenge"
+        },
+        {
+          "time": "18:00",
+          "title": "Proje Teslimi",
+          "description": "",
+          "type": "submission"
+        },
+        {
+          "time": "18:30",
+          "title": "Sunumlar & Ödüller",
+          "description": "",
+          "type": "jury"
         }
       ]
     }
@@ -104,49 +98,31 @@
   "people": {
     "jury": [
       {
-        "name": "Jüri Üyesi Bir",
-        "title": "Unvan yakında",
-        "photo": null
+        "name": "Ali Rıza Selçuk",
+        "title": "Asistone Kurucusu",
+        "photo": "/images/ali-riza-selcuk.jpg",
+        "bio": "Asistone; Trendyol, Hepsiburada ve Shopify üzerinden satış yapan işletmelerin sipariş, fatura, stok ve müşteri mesajı süreçlerini tek merkezde toplayan bir e-ticaret yönetim platformudur. Ali Rıza Selçuk, yazılımını Denizli'deki ekibiyle birlikte geliştiren, kurulum ve eğitim süreçlerini de bizzat yürüten bu ekibin kurucusudur.",
+        "url": "https://www.asistone.ai/tr"
       },
       {
-        "name": "Jüri Üyesi İki",
-        "title": "Unvan yakında",
-        "photo": null
-      },
-      {
-        "name": "Jüri Üyesi Üç",
-        "title": "Unvan yakında",
-        "photo": null
+        "name": "Sinan Bakış",
+        "title": "Zenmira Kurucusu",
+        "photo": "/images/sinan-bakis.png",
+        "bio": "Kariyerime İstanbul Emniyet Müdürlüğü Siber Suçlarla Mücadele biriminde başladım. Bu dönemde dijital güvenlik, adli bilişim, veri analizi ve sistematik problem çözme alanlarında güçlü bir temel edindim.\n\nSonrasında turizm, lojistik, sağlık ve e-ticaret sektörlerinde dijital dönüşüm, iş analizi, ürün geliştirme ve süreç optimizasyonu alanlarında çalıştım. Farklı operasyonel yapılarda edindiğim deneyim, işletmelerin nasıl çalıştığını, süreçlerin nerelerde aksadığını ve teknolojinin hangi noktalarda somut değer üretebildiğini daha iyi anlamamı sağladı.\n\n2023 yılından bu yana Zenmira Bilgi Teknolojileri A.Ş. bünyesinde, karmaşık iş süreçlerini ölçeklenebilir ve sürdürülebilir dijital yapılara dönüştüren ürünler ve yazılım sistemleri geliştiriyorum.\n\nBaşlıca odak alanlarım:\n\n• ERP & CRM Sistemleri\n• B2B Platformları\n• SaaS Ürün Geliştirme\n• İş Süreçleri Otomasyonu\n• Mobil Uygulamalar\n• Yapay Zekâ Destekli İş Çözümleri\n• Sistem Mimarisi ve Entegrasyonlar\n\nYaklaşımım; iş ihtiyaçlarını, ürün bakış açısını, kullanıcı deneyimini ve teknolojiyi aynı yapıda buluşturmak üzerine kurulu. Amacım yalnızca teknik olarak güçlü değil; gerçek operasyonlara uyum sağlayan, ölçeklenebilir ve uzun vadede sürdürülebilir sistemler geliştirmek.",
+        "url": "https://zenmira.com/"
       }
     ],
-    "mentors": [
-      {
-        "name": "Mentor Bir",
-        "title": "Unvan yakında",
-        "photo": null
-      },
-      {
-        "name": "Mentor İki",
-        "title": "Unvan yakında",
-        "photo": null
-      }
-    ]
+    "mentors": []
   },
   "sponsors": [
     {
-      "name": "Ana Sponsor",
+      "name": "Asistone",
       "tier": "main",
-      "logo": null,
-      "url": null
+      "logo": "/images/asistone-logo.jpg",
+      "url": "https://www.asistone.ai/tr"
     },
     {
-      "name": "Destek Sponsor 1",
-      "tier": "support",
-      "logo": null,
-      "url": null
-    },
-    {
-      "name": "Destek Sponsor 2",
+      "name": "Gizli Sponsor",
       "tier": "support",
       "logo": null,
       "url": null

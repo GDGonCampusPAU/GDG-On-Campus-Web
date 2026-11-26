@@ -1,10 +1,21 @@
 import './SponsorGrid.css'
 
 function SponsorItem({ sponsor }) {
-  const content = sponsor.logo ? (
-    <img src={sponsor.logo} alt={sponsor.name} loading="lazy" decoding="async" />
-  ) : (
-    <span>{sponsor.name}</span>
+  const content = (
+    <>
+      <div className="sponsor__media">
+        {sponsor.logo ? (
+          <img src={sponsor.logo} alt={sponsor.name} loading="lazy" decoding="async" />
+        ) : (
+          <span className="sponsor__placeholder" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l2.5 5.5L20 11l-5.5 2.5L12 19l-2.5-5.5L4 11l5.5-2.5L12 3z" />
+            </svg>
+          </span>
+        )}
+      </div>
+      <span className="sponsor__name">{sponsor.name}</span>
+    </>
   )
   const className = `sponsor sponsor--${sponsor.tier}`
   if (sponsor.url) {

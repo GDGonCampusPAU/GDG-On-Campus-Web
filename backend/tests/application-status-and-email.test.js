@@ -16,7 +16,13 @@ const EventPage = require('../src/models/EventPage');
 const HackathonApp = require('../src/modules/hackathon/models/HackathonApp');
 const { ensureHackathonPage } = require('../src/services/eventPageService');
 const { generateToken } = require('../src/utils/jwt');
-const { getEmailProfile, sendApplicationStatusEmail } = require('../src/services/emailService');
+const {
+  DEFAULT_HACKATHON_WHATSAPP_URL,
+  escapeHtml,
+  getEmailProfile,
+  sendApplicationStatusEmail,
+  sendWhatsappInviteEmail
+} = require('../src/services/emailService');
 
 let replica;
 let organizer;
@@ -118,7 +124,28 @@ test('emailService resolves default and applicationStatus sender / reply-to prof
     assert.ok(!captured[0].body.htmlContent.includes('<script>'));
     assert.ok(!captured[0].body.htmlContent.includes('<img src=x>'));
     assert.ok(captured[0].body.htmlContent.includes('&lt;script&gt;'));
+    assert.ok(captured[0].body.htmlContent.includes(escapeHtml(DEFAULT_HACKATHON_WHATSAPP_URL)));
+    assert.ok(captured[0].body.textContent.includes(DEFAULT_HACKATHON_WHATSAPP_URL));
     assert.ok(!captured[0].body.subject.includes('\n'));
+
+    await sendApplicationStatusEmail({
+      email: 'rejected@example.com',
+      recipientName: 'Veli',
+      eventTitle: 'Pamukkale Hackathon',
+      status: 'REJECTED'
+    });
+    assert.ok(!captured[1].body.htmlContent.includes('chat.whatsapp.com'));
+
+    await sendWhatsappInviteEmail({
+      email: 'invite@example.com',
+      recipientName: 'Zeynep <Admin>',
+      teamName: 'Takım Beta',
+      eventTitle: 'Pamukkale Hackathon'
+    });
+    assert.equal(captured[2].body.to[0].email, 'invite@example.com');
+    assert.ok(captured[2].body.htmlContent.includes('&lt;Admin&gt;'));
+    assert.ok(captured[2].body.htmlContent.includes(escapeHtml(DEFAULT_HACKATHON_WHATSAPP_URL)));
+    assert.ok(captured[2].body.textContent.includes(DEFAULT_HACKATHON_WHATSAPP_URL));
   } finally {
     global.fetch = originalFetch;
   }
@@ -318,5 +345,155 @@ test('Legacy HackathonApp status workflow updates status, sends email, filters l
   assert.equal(exportCsv.status, 200);
   assert.match(exportCsv.text, /Legacy Phoenix/);
   assert.match(exportCsv.text, /APPROVED/);
+});
+
+test('WhatsApp invite endpoint sends individual emails only to uninvited APPROVED applicants and prevents duplicates', async () => {
+  const approved1 = await FormResponse.create({
+    form: hackathonForm._id,
+    formSlug: hackathonForm.slug,
+    verifiedEmail: 'bir@example.com',
+    status: 'APPROVED',
+    answers: [{ fieldId: 'fullName', label: 'Ad soyad', value: 'Birinci Kişi' }]
+  });
+  const approved2 = await FormResponse.create({
+    form: hackathonForm._id,
+    formSlug: hackathonForm.slug,
+    verifiedEmail: 'iki@example.com',
+    status: 'APPROVED',
+    answers: [{ fieldId: 'fullName', label: 'Ad soyad', value: 'İkinci Kişi' }]
+  });
+  await FormResponse.create({
+    form: hackathonForm._id,
+    formSlug: hackathonForm.slug,
+    verifiedEmail: 'bekleyen@example.com',
+    status: 'PENDING',
+    answers: [{ fieldId: 'fullName', label: 'Ad soyad', value: 'Bekleyen Kişi' }]
+  });
+  await FormResponse.create({
+    form: hackathonForm._id,
+    formSlug: hackathonForm.slug,
+    verifiedEmail: 'red@example.com',
+    status: 'REJECTED',
+    answers: [{ fieldId: 'fullName', label: 'Ad soyad', value: 'Reddedilen Kişi' }]
+  });
+  const alreadyInvited = await FormResponse.create({
+    form: hackathonForm._id,
+    formSlug: hackathonForm.slug,
+    verifiedEmail: 'eski@example.com',
+    status: 'APPROVED',
+    whatsappInvitedAt: new Date('2026-11-20T10:00:00Z'),
+    answers: [{ fieldId: 'fullName', label: 'Ad soyad', value: 'Önceden Davetli' }]
+  });
+
+  // RBAC check
+  assert.equal((await request(app).post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`)).status, 401);
+  assert.equal((await request(app).post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`).set('Authorization', `Bearer ${memberToken}`)).status, 403);
+
+  const listBefore = await request(app)
+    .get(`/api/v1/forms/${hackathonForm._id}/responses`)
+    .set('Authorization', `Bearer ${organizerToken}`);
+  assert.equal(listBefore.status, 200);
+  assert.equal(listBefore.body.whatsappPending, 2);
+
+  // Simulate partial failure: 1st succeeds, 2nd fails -> 1st is marked invited, 2nd stays pending
+  process.env.BREVO_API_KEY = 'xkeysib-wp-test';
+  const sentPayloads = [];
+  const originalFetch = global.fetch;
+  let attempt = 0;
+  global.fetch = async (url, init) => {
+    attempt += 1;
+    const body = JSON.parse(init.body);
+    if (attempt === 2) {
+      return { ok: false, status: 500, json: async () => ({ message: 'Temporary error' }) };
+    }
+    sentPayloads.push(body);
+    return { ok: true, status: 201, json: async () => ({ messageId: `wp-${attempt}` }) };
+  };
+
+  try {
+    const partialRes = await request(app)
+      .post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`)
+      .set('Authorization', `Bearer ${organizerToken}`)
+      .send({});
+    assert.equal(partialRes.status, 200);
+    assert.equal(partialRes.body.data.sentCount, 1);
+    assert.equal(partialRes.body.data.failedCount, 1);
+    assert.equal(sentPayloads.length, 1);
+    assert.equal(sentPayloads[0].to.length, 1);
+    assert.equal(sentPayloads[0].to[0].email, 'bir@example.com');
+    assert.ok(sentPayloads[0].htmlContent.includes(escapeHtml(DEFAULT_HACKATHON_WHATSAPP_URL)));
+    assert.ok(sentPayloads[0].textContent.includes(DEFAULT_HACKATHON_WHATSAPP_URL));
+
+    // Retry sends ONLY to approved2 (not approved1, not alreadyInvited, not pending/rejected)
+    const retryRes = await request(app)
+      .post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`)
+      .set('Authorization', `Bearer ${organizerToken}`)
+      .send({});
+    assert.equal(retryRes.status, 200);
+    assert.equal(retryRes.body.data.sentCount, 1);
+    assert.equal(retryRes.body.data.failedCount, 0);
+    assert.equal(sentPayloads.length, 2);
+    assert.equal(sentPayloads[1].to[0].email, 'iki@example.com');
+
+    // Third run sends 0 emails
+    const emptyRes = await request(app)
+      .post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`)
+      .set('Authorization', `Bearer ${organizerToken}`)
+      .send({});
+    assert.equal(emptyRes.status, 200);
+    assert.equal(emptyRes.body.data.totalPending, 0);
+    assert.equal(emptyRes.body.data.sentCount, 0);
+    assert.equal(sentPayloads.length, 2);
+
+    // Newly approving a pending applicant with notify: true sends approval email WITH WP link & sets whatsappInvitedAt
+    const pendingDoc = await FormResponse.findOne({ verifiedEmail: 'bekleyen@example.com' });
+    const approveNew = await request(app)
+      .patch(`/api/v1/forms/${hackathonForm._id}/responses/${pendingDoc._id}/status`)
+      .set('Authorization', `Bearer ${organizerToken}`)
+      .send({ status: 'APPROVED' });
+    assert.equal(approveNew.status, 200);
+    assert.ok(approveNew.body.data.whatsappInvitedAt);
+    assert.equal(sentPayloads.length, 3);
+    assert.equal(sentPayloads[2].to[0].email, 'bekleyen@example.com');
+    assert.ok(sentPayloads[2].htmlContent.includes(escapeHtml(DEFAULT_HACKATHON_WHATSAPP_URL)));
+    assert.ok(sentPayloads[2].textContent.includes(DEFAULT_HACKATHON_WHATSAPP_URL));
+
+    // Batch invite still has 0 pending!
+    const afterApprove = await request(app)
+      .post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`)
+      .set('Authorization', `Bearer ${organizerToken}`)
+      .send({});
+    assert.equal(afterApprove.body.data.totalPending, 0);
+    assert.equal(sentPayloads.length, 3);
+
+    // Individual invite on already-invited response is rejected with 409
+    const dupRes = await request(app)
+      .post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`)
+      .set('Authorization', `Bearer ${organizerToken}`)
+      .send({ responseId: String(alreadyInvited._id) });
+    assert.equal(dupRes.status, 409);
+
+    // Silent approval (notify: false) leaves whatsappInvitedAt null, then single responseId invite sends only to them
+    const silent = await FormResponse.create({
+      form: hackathonForm._id,
+      formSlug: hackathonForm.slug,
+      verifiedEmail: 'sessiz@example.com',
+      status: 'APPROVED',
+      answers: [{ fieldId: 'fullName', label: 'Ad soyad', value: 'Sessiz Onay' }]
+    });
+    const singleRes = await request(app)
+      .post(`/api/v1/forms/${hackathonForm._id}/responses/whatsapp-invite`)
+      .set('Authorization', `Bearer ${organizerToken}`)
+      .send({ responseId: String(silent._id) });
+    assert.equal(singleRes.status, 200);
+    assert.equal(singleRes.body.data.sentCount, 1);
+    assert.equal(sentPayloads.length, 4);
+    assert.equal(sentPayloads[3].to[0].email, 'sessiz@example.com');
+
+    assert.ok((await FormResponse.findById(approved1._id)).whatsappInvitedAt);
+    assert.ok((await FormResponse.findById(approved2._id)).whatsappInvitedAt);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 

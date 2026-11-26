@@ -50,6 +50,7 @@ router.delete('/:id', formController.deleteForm);
 // Responses, Status & Export
 router.get('/:id/responses', formController.getFormResponses);
 router.patch('/:id/responses/:responseId/status', formController.updateFormResponseStatus);
+router.post('/:id/responses/whatsapp-invite', formController.sendFormWhatsappInvites);
 router.get('/:id/responses/export', formController.exportFormResponses);
 
 // Participant permissions (ADMIN only): may participants change teams / edit their answers?

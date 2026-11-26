@@ -4,6 +4,14 @@
  */
 
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+const DEFAULT_HACKATHON_WHATSAPP_URL = 'https://chat.whatsapp.com/EJySFAtDejv2atY2VhBCIg?s=sw&p=a&iam=2';
+
+const getHackathonWhatsappUrl = (override) => {
+  const raw = typeof override === 'string' && override.trim()
+    ? override.trim()
+    : (process.env.HACKATHON_WHATSAPP_URL || DEFAULT_HACKATHON_WHATSAPP_URL);
+  return /^https?:\/\//i.test(raw) ? raw : DEFAULT_HACKATHON_WHATSAPP_URL;
+};
 
 /**
  * Code-level sender & reply-to profile routing.
@@ -261,58 +269,33 @@ const sendPasswordResetOtpEmail = async ({ email, fullName, code }) => {
   });
 };
 
-/**
- * Send Hackathon / Form Application Approval or Rejection Email
- */
-/**
- * @param {object} message
- * @param {string} message.email
- * @param {string} [message.recipientName]
- * @param {string} [message.teamName]
- * @param {string} [message.eventTitle]
- * @param {'APPROVED' | 'REJECTED'} message.status
- * @param {string} [message.note]
- * @param {string} [message.fromEmail]
- * @param {string} [message.fromName]
- * @param {string} [message.replyTo]
- */
-const sendApplicationStatusEmail = async ({
-  email,
-  recipientName,
-  teamName,
-  eventTitle = 'PAU Hackathon 2026',
-  status,
-  note = '',
-  fromEmail,
-  fromName,
-  replyTo
-}) => {
-  if (!['APPROVED', 'REJECTED'].includes(status)) {
-    throw Object.assign(new Error('Bildirim e-postası yalnızca APPROVED veya REJECTED durumunda gönderilebilir.'), { status: 400 });
-  }
+const renderWhatsappInviteBox = (whatsappUrl) => {
+  const safeUrl = escapeHtml(whatsappUrl);
+  return `
+        <div class="whatsapp-box">
+          <div class="whatsapp-box__title">💬 WhatsApp İletişim Kanalına Davetlisiniz</div>
+          <p class="whatsapp-box__text">
+            Pamukkale Hackathon'da sizi aramızda görmek için sabırsızlanıyoruz! Etkinlik öncesi önemli duyuruları hızlıca paylaşabilmek, iletişimi hızlandırmak ve hem etkinlik öncesinde hem de hackathon süresince aklınıza takılan tüm soruları doğrudan ekibimize iletebilmeniz adına sizi resmi WhatsApp kanalımıza davet ediyoruz.
+          </p>
+          <p style="margin: 16px 0 12px;">
+            <a class="whatsapp-btn" href="${safeUrl}" target="_blank" rel="noopener noreferrer">
+              WhatsApp Kanalına Katıl
+            </a>
+          </p>
+          <p class="whatsapp-box__fallback">
+            Buton açılmazsa bu bağlantıyı kullanabilirsiniz:<br>
+            <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" style="color:#137333;">${safeUrl}</a>
+          </p>
+        </div>`;
+};
 
-  const isApproved = status === 'APPROVED';
-  const safeEvent = escapeHtml(eventTitle);
-  const safeName = escapeHtml(recipientName || teamName || 'Katılımcı');
-  const safeTeam = teamName ? escapeHtml(teamName) : null;
-  const trimmedNote = typeof note === 'string' ? note.trim() : '';
-  const safeNoteHtml = trimmedNote ? escapeHtml(trimmedNote).replace(/\r?\n/g, '<br>') : '';
-
-  const badgeBg = isApproved ? '#e6f4ea' : '#fce8e6';
-  const badgeColor = isApproved ? '#137333' : '#c5221f';
-  const badgeLabel = isApproved ? 'BAŞVURUNUZ ONAYLANDI' : 'BAŞVURU SONUCU';
-  const titleText = isApproved ? `${safeEvent} Başvurunuz Onaylandı` : `${safeEvent} Başvuru Değerlendirme Sonucu`;
-  const leadParagraph = isApproved
-    ? `${safeTeam ? `<strong>"${safeTeam}"</strong> için yaptığınız ` : ''}${safeEvent} başvurusu organizasyon ekibimiz tarafından değerlendirilmiş ve <strong>onaylanmıştır</strong>. Etkinlik detayları ve sıradaki adımlar için iletişim kanallarımızı ve e-posta kutunuzu takip etmeyi unutmayın.`
-    : `${safeTeam ? `<strong>"${safeTeam}"</strong> için yaptığınız ` : ''}${safeEvent} başvurusu değerlendirme sürecimiz sonucunda bu dönem için maalesef <strong>onaylanamamıştır</strong>. İlginiz ve emeğiniz için teşekkür eder, sonraki etkinliklerimizde sizi yeniden aramızda görmeyi dileriz.`;
-
-  const htmlContent = `
+const renderBrandEmailShell = ({ title, badgeLabel, badgeBg, badgeColor, bodyHtml, footerText }) => `
   <!DOCTYPE html>
   <html lang="tr">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${titleText}</title>
+    <title>${title}</title>
     <style>
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #202124; }
       .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 1px solid #e8eaed; }
@@ -321,6 +304,11 @@ const sendApplicationStatusEmail = async ({
       .content { padding: 32px; }
       .status-badge { display: inline-block; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; background: ${badgeBg}; color: ${badgeColor}; margin-bottom: 14px; }
       .note-box { background: #f8f9fa; border-left: 4px solid #4285f4; border-radius: 6px; padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #3c4043; line-height: 1.5; }
+      .whatsapp-box { background: #e6f4ea; border: 1px solid #a8dab5; border-left: 4px solid #1e8e3e; border-radius: 8px; padding: 18px 20px; margin: 22px 0; }
+      .whatsapp-box__title { font-size: 15px; font-weight: 700; color: #137333; margin-bottom: 8px; }
+      .whatsapp-box__text { margin: 0; font-size: 14px; line-height: 1.6; color: #202124; }
+      .whatsapp-btn { display: inline-block; background: #1e8e3e; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 11px 22px; border-radius: 999px; }
+      .whatsapp-box__fallback { margin: 0; font-size: 12px; color: #5f6368; line-height: 1.5; word-break: break-all; }
       .footer { background: #f8f9fa; padding: 20px 32px; font-size: 12px; color: #70757a; text-align: center; border-top: 1px solid #e8eaed; }
     </style>
   </head>
@@ -337,26 +325,91 @@ const sendApplicationStatusEmail = async ({
       </div>
       <div class="content">
         <div class="status-badge">${badgeLabel}</div>
-        <h2 style="margin-top:0; color:#202124; font-size:20px;">${titleText}</h2>
-        <p style="font-size:15px; line-height:1.6; color:#3c4043;">Merhaba <strong>${safeName}</strong>,</p>
-        <p style="font-size:15px; line-height:1.6; color:#3c4043;">${leadParagraph}</p>
-        ${safeNoteHtml ? `<div class="note-box"><strong>Ekip Notu:</strong><br>${safeNoteHtml}</div>` : ''}
-        <p style="font-size:13px; color:#5f6368; line-height:1.5;">Sorularınız için bu e-postayı yanıtlayabilirsiniz.</p>
+        ${bodyHtml}
       </div>
       <div class="footer">
-        Google Developer Groups on Campus • Pamukkale University<br>
-        Denizli, Türkiye • Bu e-posta başvuru değerlendirmeniz hakkında bilgilendirme amaçlıdır.
+        ${footerText}
       </div>
     </div>
   </body>
   </html>
-  `;
+`;
+
+/**
+ * Send Hackathon / Form Application Approval or Rejection Email
+ */
+/**
+ * @param {object} message
+ * @param {string} message.email
+ * @param {string} [message.recipientName]
+ * @param {string} [message.teamName]
+ * @param {string} [message.eventTitle]
+ * @param {'APPROVED' | 'REJECTED'} message.status
+ * @param {string} [message.note]
+ * @param {boolean} [message.includeWhatsapp]
+ * @param {string} [message.whatsappUrl]
+ * @param {string} [message.fromEmail]
+ * @param {string} [message.fromName]
+ * @param {string} [message.replyTo]
+ */
+const sendApplicationStatusEmail = async ({
+  email,
+  recipientName,
+  teamName,
+  eventTitle = 'PAU Hackathon 2026',
+  status,
+  note = '',
+  includeWhatsapp = true,
+  whatsappUrl,
+  fromEmail,
+  fromName,
+  replyTo
+}) => {
+  if (!['APPROVED', 'REJECTED'].includes(status)) {
+    throw Object.assign(new Error('Bildirim e-postası yalnızca APPROVED veya REJECTED durumunda gönderilebilir.'), { status: 400 });
+  }
+
+  const isApproved = status === 'APPROVED';
+  const safeEvent = escapeHtml(eventTitle);
+  const safeName = escapeHtml(recipientName || teamName || 'Katılımcı');
+  const safeTeam = teamName ? escapeHtml(teamName) : null;
+  const trimmedNote = typeof note === 'string' ? note.trim() : '';
+  const safeNoteHtml = trimmedNote ? escapeHtml(trimmedNote).replace(/\r?\n/g, '<br>') : '';
+  const resolvedWhatsappUrl = getHackathonWhatsappUrl(whatsappUrl);
+  const showWhatsapp = isApproved && includeWhatsapp;
+
+  const badgeBg = isApproved ? '#e6f4ea' : '#fce8e6';
+  const badgeColor = isApproved ? '#137333' : '#c5221f';
+  const badgeLabel = isApproved ? 'BAŞVURUNUZ ONAYLANDI' : 'BAŞVURU SONUCU';
+  const titleText = isApproved ? `${safeEvent} Başvurunuz Onaylandı` : `${safeEvent} Başvuru Değerlendirme Sonucu`;
+  const leadParagraph = isApproved
+    ? `${safeTeam ? `<strong>"${safeTeam}"</strong> için yaptığınız ` : ''}${safeEvent} başvurusu organizasyon ekibimiz tarafından değerlendirilmiş ve <strong>onaylanmıştır</strong>. Etkinlik detayları ve sıradaki adımlar için iletişim kanallarımızı ve e-posta kutunuzu takip etmeyi unutmayın.`
+    : `${safeTeam ? `<strong>"${safeTeam}"</strong> için yaptığınız ` : ''}${safeEvent} başvurusu değerlendirme sürecimiz sonucunda bu dönem için maalesef <strong>onaylanamamıştır</strong>. İlginiz ve emeğiniz için teşekkür eder, sonraki etkinliklerimizde sizi yeniden aramızda görmeyi dileriz.`;
+
+  const htmlContent = renderBrandEmailShell({
+    title: titleText,
+    badgeLabel,
+    badgeBg,
+    badgeColor,
+    bodyHtml: `
+        <h2 style="margin-top:0; color:#202124; font-size:20px;">${titleText}</h2>
+        <p style="font-size:15px; line-height:1.6; color:#3c4043;">Merhaba <strong>${safeName}</strong>,</p>
+        <p style="font-size:15px; line-height:1.6; color:#3c4043;">${leadParagraph}</p>
+        ${safeNoteHtml ? `<div class="note-box"><strong>Ekip Notu:</strong><br>${safeNoteHtml}</div>` : ''}
+        ${showWhatsapp ? renderWhatsappInviteBox(resolvedWhatsappUrl) : ''}
+        <p style="font-size:13px; color:#5f6368; line-height:1.5;">Sorularınız için bu e-postayı yanıtlayabilirsiniz.</p>
+    `,
+    footerText: 'Google Developer Groups on Campus • Pamukkale University<br>Denizli, Türkiye • Bu e-posta başvuru değerlendirmeniz hakkında bilgilendirme amaçlıdır.'
+  });
 
   const subjectPrefix = isApproved ? '✅' : 'ℹ️';
   const subjectAction = isApproved ? 'Başvurunuz Onaylandı' : 'Başvuru Değerlendirme Sonucu';
   const textLead = isApproved
     ? `${eventTitle} başvurunuz onaylandı.`
     : `${eventTitle} başvurunuz değerlendirme sonucunda onaylanamadı.`;
+  const whatsappText = showWhatsapp
+    ? ` Pamukkale Hackathon'da sizi aramızda görmek için sabırsızlanıyoruz! İletişimi hızlandırmak ve etkinlik öncesi ile etkinlik sırasındaki tüm sorularınızı sorabilmeniz için WhatsApp kanalımıza katılabilirsiniz: ${resolvedWhatsappUrl}`
+    : '';
 
   return sendEmail({
     profile: 'applicationStatus',
@@ -367,17 +420,80 @@ const sendApplicationStatusEmail = async ({
     toName: recipientName ? sanitizeHeader(recipientName) : undefined,
     subject: sanitizeHeader(`${subjectPrefix} ${eventTitle} - ${subjectAction}`),
     htmlContent,
-    textContent: `Merhaba ${recipientName || 'Katılımcı'}, ${textLead}${trimmedNote ? ` Ekip Notu: ${trimmedNote}` : ''}`
+    textContent: `Merhaba ${recipientName || 'Katılımcı'}, ${textLead}${trimmedNote ? ` Ekip Notu: ${trimmedNote}` : ''}${whatsappText}`
+  });
+};
+
+/**
+ * Send individual WhatsApp communication channel invitation email to an approved participant
+ * @param {object} message
+ * @param {string} message.email
+ * @param {string} [message.recipientName]
+ * @param {string} [message.teamName]
+ * @param {string} [message.eventTitle]
+ * @param {string} [message.whatsappUrl]
+ * @param {string} [message.fromEmail]
+ * @param {string} [message.fromName]
+ * @param {string} [message.replyTo]
+ */
+const sendWhatsappInviteEmail = async ({
+  email,
+  recipientName,
+  teamName,
+  eventTitle = 'Pamukkale Hackathon',
+  whatsappUrl,
+  fromEmail,
+  fromName,
+  replyTo
+}) => {
+  const safeEvent = escapeHtml(eventTitle);
+  const safeName = escapeHtml(recipientName || teamName || 'Katılımcı');
+  const safeTeam = teamName ? escapeHtml(teamName) : null;
+  const resolvedWhatsappUrl = getHackathonWhatsappUrl(whatsappUrl);
+  const titleText = `${safeEvent} WhatsApp Kanalına Davetlisiniz`;
+
+  const htmlContent = renderBrandEmailShell({
+    title: titleText,
+    badgeLabel: 'KATILIMCI WHATSAPP DAVETİ',
+    badgeBg: '#e6f4ea',
+    badgeColor: '#137333',
+    bodyHtml: `
+        <h2 style="margin-top:0; color:#202124; font-size:20px;">${titleText}</h2>
+        <p style="font-size:15px; line-height:1.6; color:#3c4043;">Merhaba <strong>${safeName}</strong>,</p>
+        <p style="font-size:15px; line-height:1.6; color:#3c4043;">
+          ${safeTeam ? `<strong>"${safeTeam}"</strong> ekibiyle birlikte katılacağınız ` : ''}${safeEvent} başvurunuzun onaylandığını hatırlatmak isteriz. Etkinlik günü yaklaşıyor ve sizi aramızda görmek için çok heyecanlıyız!
+        </p>
+        ${renderWhatsappInviteBox(resolvedWhatsappUrl)}
+        <p style="font-size:13px; color:#5f6368; line-height:1.5;">Sorularınız için WhatsApp kanalımızdan veya bu e-postayı yanıtlayarak bize ulaşabilirsiniz.</p>
+    `,
+    footerText: 'Google Developer Groups on Campus • Pamukkale University<br>Denizli, Türkiye • Bu e-posta onaylanan hackathon katılımcılarına özel bilgilendirme amaçlıdır.'
+  });
+
+  const textContent = `Merhaba ${recipientName || 'Katılımcı'}, ${eventTitle} başvurunuz onaylandı! Pamukkale Hackathon'da sizi aramızda görmek için sabırsızlanıyoruz. İletişimi hızlandırmak, duyuruları takip etmek ve etkinlik öncesi ile etkinlik sırasındaki tüm sorularınızı sorabilmeniz için sizi WhatsApp kanalımıza davet ediyoruz: ${resolvedWhatsappUrl}`;
+
+  return sendEmail({
+    profile: 'applicationStatus',
+    fromEmail,
+    fromName,
+    replyTo,
+    to: email,
+    toName: recipientName ? sanitizeHeader(recipientName) : undefined,
+    subject: sanitizeHeader(`💬 ${eventTitle} - WhatsApp İletişim Kanalı Daveti`),
+    htmlContent,
+    textContent
   });
 };
 
 module.exports = {
+  DEFAULT_HACKATHON_WHATSAPP_URL,
+  getHackathonWhatsappUrl,
   getEmailProfile,
   sendEmail,
   sendRegistrationOtpEmail,
   sendHackathonOtpEmail,
   sendPasswordResetOtpEmail,
   sendApplicationStatusEmail,
+  sendWhatsappInviteEmail,
   escapeHtml,
   sanitizeHeader
 };

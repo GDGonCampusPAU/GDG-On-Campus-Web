@@ -3,7 +3,7 @@ import AdminGate from '../components/AdminGate.jsx'
 import Button from '../components/Button.jsx'
 import Field from '../components/Field.jsx'
 import base from '../data/base.js'
-import { choices, clearDraft, isEventShape, readDraft, typeLabels, writeDraft } from '../lib/content.js'
+import { choices, clearDraft, isEventShape, normalizeEventPayload, readDraft, typeLabels, writeDraft } from '../lib/content.js'
 import './Admin.css'
 import { getEventPage, publishEventPage } from '../lib/eventApi.js'
 import { useEvent } from '../context/EventContext.jsx'
@@ -48,6 +48,7 @@ const labels = {
   time: 'Saat',
   type: 'Tür',
   photo: 'Fotoğraf URL',
+  bio: 'Hakkında',
   tier: 'Seviye',
   logo: 'Logo URL',
   url: 'Bağlantı URL',
@@ -67,7 +68,7 @@ const one = {
   fields: 'Alan',
   options: 'Seçenek',
 }
-const person = { name: '', title: '', photo: null }
+const person = { name: '', title: '', photo: null, bio: '', url: null }
 const blank = {
   about: { title: '', text: '', color: 'blue' },
   marquee: '',
@@ -82,7 +83,7 @@ const blank = {
   fields: { id: '', label: '', kind: 'text', required: 'yes', hint: '', options: [] },
   options: { value: '', label: '' },
 }
-const longText = new Set(['text', 'description', 'tagline', 'closedMessage', 'successText'])
+const longText = new Set(['text', 'description', 'tagline', 'closedMessage', 'successText', 'bio'])
 const optionLabels = {
   ...typeLabels,
   open: 'Açık',
@@ -243,9 +244,10 @@ function Editor({ session, onLock }) {
     let active = true
     getEventPage().then(page => {
       if (!active) return
+      const normalized = normalizeEventPayload(page.event)
       setRevision(page.revision)
-      setServerEvent(page.event)
-      if (!readDraft(base)) setDraft(page.event)
+      setServerEvent(normalized)
+      if (!readDraft(base)) setDraft(normalized)
     }).catch(error => { if (active) setNote({ text: error.message, bad: true }) })
     return () => { active = false }
   }, [])
@@ -298,7 +300,7 @@ function Editor({ session, onLock }) {
     e.target.value = ''
     if (!file) return
     try {
-      const value = JSON.parse(await file.text())
+      const value = normalizeEventPayload(JSON.parse(await file.text()))
       if (!isEventShape(base, value)) throw new Error('shape')
       setDraft(value)
       setNote({ text: 'Dosya yüklendi. Siteye uygulamak için Kaydet\'e bas.' })
