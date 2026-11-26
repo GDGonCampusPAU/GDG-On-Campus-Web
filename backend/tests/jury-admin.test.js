@@ -338,7 +338,7 @@ test('results contain averages, suggestions, missing jurors and every comment', 
   assert.equal(first.cards[0].generalComment, 'Harika');
   assert.equal(first.cards[0].total, 100);
   const campusHero = data.categories.find(category => category.key === 'campusHero');
-  assert.deepEqual([campusHero.winner, campusHero.reason], [null, 'NO_ELIGIBLE_NOMINEE']);
+  assert.deepEqual([campusHero.winner, campusHero.reason], [null, 'NO_NOMINATION']);
   assert.equal(data.categories.find(category => category.key === 'dreamTeam').winner, String(teamA._id));
 });
 

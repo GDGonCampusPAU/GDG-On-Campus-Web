@@ -140,6 +140,8 @@ const resetScorecards = async (confirmation, user) => {
     const config = await JudgingConfig.findOneAndUpdate({ _id: CONFIG_ID }, { $inc: { round: 1 }, $set: { updatedBy: user._id, 'live.current': null, 'live.startedAt': null, 'live.closed': [] } }, { session, returnDocument: 'after' }).lean();
     if (config?.locked) throw juryError(423, 'Puanlama kilitliyken puan kartları sıfırlanamaz.', 'CONFIG_LOCKED');
     deleted = (await Scorecard.deleteMany({}, { session })).deletedCount;
+    // Participant votes are rehearsal data too.
+    await require('../models/ParticipantVote').deleteMany({}, { session });
     await record(session, user, 'SCORECARDS_RESET', { details: { deleted, round: config?.round } });
   });
   console.warn(`[Jüri] ${deleted} puan kartı sıfırlandı (kullanıcı ${user._id}).`);

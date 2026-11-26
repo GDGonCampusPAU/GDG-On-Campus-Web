@@ -9,7 +9,7 @@ const { loadConfig } = require('./services/configService');
  */
 const init = async () => {
   await Promise.all([require('./models/Juror').init(), require('./models/Scorecard').init(), require('./models/JudgingConfig').init(),
-    require('./models/JuryAuditLog').init()]);
+    require('./models/JuryAuditLog').init(), require('./models/ParticipantVote').init()]);
   await loadConfig();
 };
 

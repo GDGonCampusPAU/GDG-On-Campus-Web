@@ -502,3 +502,14 @@
 .jury-live__badge--now { background: var(--yellow); }
 .jury-live__badge--wait { background: var(--off-white); }
 .jury-live__badge--off { background: var(--off-white); }
+
+.jury-live__timer {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.jury-live__timer--over {
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--red-pastel);
+}

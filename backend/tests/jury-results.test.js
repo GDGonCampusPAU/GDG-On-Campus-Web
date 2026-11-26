@@ -105,7 +105,8 @@ test('categories with criteria give no suggestion when nobody is nominated', () 
   const result = computeResults(config, entries('a', 'b', 'c'), [card('a', 3), card('b', 4)]);
   for (const category of result.categories.filter(item => item.criterionKeys.length)) {
     assert.equal(category.winner, null);
-    assert.equal(category.reason, 'NO_ELIGIBLE_NOMINEE');
+    // Nobody nominated anyone: "no nomination", not "no eligible nominee left".
+    assert.equal(category.reason, 'NO_NOMINATION');
     assert.deepEqual(category.top, []);
   }
 });

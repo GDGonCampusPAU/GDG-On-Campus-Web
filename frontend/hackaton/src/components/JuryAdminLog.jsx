@@ -12,7 +12,7 @@ const ACTIONS = {
   UNLOCKED: 'Puanlama açıldı',
   SCORECARDS_RESET: 'Puan kartları sıfırlandı',
   SCORECARD_VOIDED: 'Puan kartı iptal edildi',
-  LIVE_ORDER_SHUFFLED: 'Sunum sırası rastgele belirlendi',
+  LIVE_ORDER_SHUFFLED: 'Sunum sırası belirlendi (proje yükleme sırası)',
   LIVE_VOTING_STARTED: 'Oylama başlatıldı',
   LIVE_VOTING_ENDED: 'Oylama bitirildi',
   LIVE_VOTING_REOPENED: 'Oylama yeniden açıldı',

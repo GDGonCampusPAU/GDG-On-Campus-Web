@@ -154,14 +154,14 @@ describe('sonuçlar', () => {
     const wow = (await screen.findByRole('heading', { name: /Demo Tanrısı/ })).closest('li')
     expect(wow).toHaveTextContent('Öneri: Çılgın Kodcular')
     const dream = screen.getByRole('heading', { name: /Dream Team/ }).closest('li')
-    expect(dream).toHaveTextContent('Aday yok, jüri karar versin')
+    expect(dream).toHaveTextContent('Bu kategoriye aday gösterilmedi. Jüri kararı gerekli.')
     expect(dream).not.toHaveTextContent('Öneri:')
   })
 
   it('uygun adayı kalmayan ödülde öneri göstermez', async () => {
     show()
     const pilot = (await screen.findByRole('heading', { name: /Pilotun Kendisi/ })).closest('li')
-    expect(pilot).toHaveTextContent('Uygun aday kalmadı, jüri karar versin')
+    expect(pilot).toHaveTextContent('İlk 5’te ödül almamış aday yok. Jüri kararı gerekli.')
     expect(pilot).not.toHaveTextContent('Öneri:')
     expect(pilot).toHaveTextContent('Aday gösterilen ama başka ödül önerilen: Çılgın Kodcular')
   })

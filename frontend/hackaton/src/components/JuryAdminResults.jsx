@@ -6,8 +6,8 @@ import { formatScore } from '../lib/juryForm.js'
 const timeFormat = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Istanbul' })
 
 const NO_SUGGESTION = {
-  NO_NOMINATION: 'Aday yok, jüri karar versin',
-  NO_ELIGIBLE_NOMINEE: 'Uygun aday kalmadı, jüri karar versin',
+  NO_NOMINATION: 'Bu kategoriye aday gösterilmedi. Jüri kararı gerekli.',
+  NO_ELIGIBLE_NOMINEE: 'İlk 5’te ödül almamış aday yok. Jüri kararı gerekli.',
   NO_TEAM: 'Önerilecek puanlanmış takım yok',
 }
 
@@ -154,6 +154,10 @@ export default function JuryAdminResults({ results, stale, onDownload, onVoid })
       )}
 
       <h3>Genel sıralama</h3>
+      <p className="jury-admin__hint">
+        Nihai puan = Jüri × {String(results.shares?.jury ?? 0.7).replace('.', ',')} + Katılımcı × {String(results.shares?.participants ?? 0.3).replace('.', ',')}.
+        Katılımcı oyu almayan takımda nihai puan jüri puanıdır. Ödüller nihai sıralamanın ilk 5 takımı arasında, takım başına en fazla bir ödül olarak önerilir.
+      </p>
       {ranking.length === 0 ? (
         <p>Henüz yarışan takım yok.</p>
       ) : (
@@ -163,7 +167,9 @@ export default function JuryAdminResults({ results, stale, onDownload, onVoid })
               <tr>
                 <th scope="col">#</th>
                 <th scope="col">Takım</th>
-                <th scope="col">Genel</th>
+                <th scope="col">Nihai</th>
+                <th scope="col">Jüri puanı</th>
+                <th scope="col">Katılımcı</th>
                 <th scope="col">Jüri</th>
                 {criteria.map((criterion) => <th key={criterion.key} scope="col">{criterion.label}</th>)}
               </tr>
@@ -182,7 +188,12 @@ export default function JuryAdminResults({ results, stale, onDownload, onVoid })
                         {team.projectName && <small>{team.projectName}</small>}
                         {team.teamMissing && <small>Takım dağıtılmış</small>}
                       </th>
-                      <td className="jury-admin__overall">{formatScore(team.overall)}</td>
+                      <td className="jury-admin__overall">{formatScore(team.final ?? team.overall)}</td>
+                      <td>{formatScore(team.overall)}</td>
+                      <td>
+                        {formatScore(team.participantScore ?? null)}
+                        <small>{team.participantCount ? `${team.participantCount} oy` : 'Oy yok, nihai = jüri'}</small>
+                      </td>
                       <td className={team.missingJurors.length ? 'jury-admin__short' : undefined}>
                         {team.judgeCount}
                         {team.missingJurors.length > 0 && <small>{`${team.missingJurors.length} / ${activeJurorCount} eksik`}</small>}
@@ -191,7 +202,7 @@ export default function JuryAdminResults({ results, stale, onDownload, onVoid })
                     </tr>
                     {expanded && (
                       <tr>
-                        <td colSpan={4 + criteria.length}>
+                        <td colSpan={6 + criteria.length}>
                           <TeamDetail team={team} results={results} onVoid={onVoid} />
                         </td>
                       </tr>

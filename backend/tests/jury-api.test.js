@@ -125,8 +125,8 @@ test('submit needs every criterion and names the missing ones', async () => {
   const res = await save(alice, teamA, { scores: scores(4, ['demo', 'ux']), submit: true });
   assert.equal(res.status, 400);
   assert.equal(res.body.code, 'SCORES_MISSING');
-  assert.match(res.body.message, /Demo ve sunum/);
-  assert.match(res.body.message, /Kullanıcı deneyimi/);
+  assert.match(res.body.message, /Demo ve Sunum Performansı/);
+  assert.match(res.body.message, /Kullanıcı Deneyimi/);
   const empty = await save(alice, teamA, { scores: scores(null), submit: true });
   assert.equal(empty.status, 400);
   assert.equal(await Scorecard.countDocuments(), 0);

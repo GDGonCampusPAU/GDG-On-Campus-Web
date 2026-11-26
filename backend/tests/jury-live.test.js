@@ -66,7 +66,7 @@ const vote = async (token, team, { submit = true } = {}) => {
 };
 const name = (id) => teams.find(team => String(team._id) === String(id)).name;
 
-test('evaluation is off by default; opening it shuffles the entries once and reopening keeps the order', async () => {
+test('evaluation is off by default; opening it fixes the order once and reopening keeps it', async () => {
   await setup();
   assert.equal((await permissions({})).status, 400);
   const before = await live();
@@ -91,16 +91,20 @@ test('evaluation is off by default; opening it shuffles the entries once and reo
   assert.deepEqual(pub.order, opened.order.map(e => ({ position: e.position, name: e.teamName, state: 'WAITING' })));
 });
 
-test('the shuffle really varies the order', async () => {
-  const seen = new Set();
-  for (let i = 0; i < 12 && seen.size < 2; i++) {
-    await JudgingConfig.deleteMany({});
-    await setup();
-    await permissions({ projectEvaluation: false });
-    await permissions({ projectEvaluation: true });
-    seen.add((await live()).order.map(e => e.teamName).join(','));
-  }
-  assert.ok(seen.size > 1, 'twelve shuffles of three teams gave the same order every time');
+test('the order follows the project upload time; teams without an upload follow in the manual order', async () => {
+  await setup();
+  const at = (minutes) => new Date(Date.UTC(2026, 10, 27, 15, minutes));
+  const upload = (team, minutes) => ProjectSubmission.create({ form: form._id, team: team._id, repoUrl: `https://github.com/x/${team.name}`,
+    repoKey: `x/${team.name.toLowerCase()}`, updatedBy: { participant: new mongoose.Types.ObjectId(), name: 'K' }, createdAt: at(minutes) });
+  // Gama uploaded first, then Alfa; Beta has no upload.
+  await upload(teams[2], 1);
+  await upload(teams[0], 9);
+  await permissions({ projectEvaluation: true });
+  assert.deepEqual((await live()).order.map(e => e.teamName), ['Gama', 'Alfa', 'Beta']);
+  // A late upload is picked up by "rebuild" before the first vote (ADMIN).
+  await upload(teams[1], 0);
+  assert.equal((await call('post', '/live/shuffle', {}, admin)).status, 200);
+  assert.deepEqual((await live()).order.map(e => e.teamName), ['Beta', 'Gama', 'Alfa']);
 });
 
 test('on stage: jurors score only the team being voted; ending needs every active juror; a closed team is frozen', async () => {

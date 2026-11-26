@@ -54,6 +54,8 @@ export function applicationApi(slug, token) {
     sendDisbandCode: () => post('/team/disband/code'),
     disband: (code) => post('/team/disband', { code }),
     projectUpload: () => post('/project-upload'),
+    vote: () => call('/vote'),
+    castVote: (team, scores) => post('/vote', { team, scores }),
   }
 }
 export const getEventPage = () => api('/event-page/hackathon').then(result => result.data)

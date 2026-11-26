@@ -139,9 +139,10 @@ test('jury scoring from setup to locked results', async ({ browser, request }) =
   await expect(table.getByRole('row').nth(1)).toContainText('Kampüs Asistanı');
   await table.getByRole('row').nth(1).getByRole('button').click();
   await expect(admin.getByText('Canlı demoda çalıştı')).toBeVisible();
-  await expect(admin.getByText('Aday yok, jüri karar versin')).toBeVisible();
-  // Three categories with criteria got no nomination: nothing is suggested for them
-  await expect(admin.getByText('Uygun aday kalmadı, jüri karar versin')).toHaveCount(3);
+  // Only "Vay Be" got a nomination: the other four categories (Dream Team and three with criteria)
+  // say nobody was nominated and ask for a jury decision.
+  await expect(admin.getByText('Bu kategoriye aday gösterilmedi. Jüri kararı gerekli.')).toHaveCount(4);
+  await expect(admin.getByText(/İlk 5’te ödül almamış aday yok/)).toHaveCount(0);
   await checkLayout(admin, 'admin results');
   await admin.setViewportSize({ width: 1280, height: 900 });
   const pending = admin.waitForEvent('download');

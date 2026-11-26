@@ -1,6 +1,7 @@
 // Live presentation session on stage ("Proje değerlendirme" permission on the panel's İzinler page).
 //
-//   1. Opening evaluation shuffles the competing teams (config.entries) into a random presentation order.
+//   1. Opening evaluation fixes the presentation order: teams in the order they uploaded their project
+//      (ProjectSubmission.createdAt), then teams without an upload in the setup's manual order.
 //   2. An organizer starts voting for the team on stage: jurors may now score only that team.
 //   3. Ending the voting needs every active juror's submitted card; a missing vote blocks it unless the
 //      organizer confirms (force). The team is then closed: its cards are frozen for good.
@@ -8,12 +9,12 @@
 //
 // While evaluation is closed the jury works as before (free scoring until the lock), except that a
 // closed team stays frozen. That is also the fallback if the live flow fails on stage.
-const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Form = require('../../../models/Form');
 const JudgingConfig = require('../models/JudgingConfig');
 const Juror = require('../models/Juror');
 const Scorecard = require('../models/Scorecard');
+const ProjectSubmission = require('../../projectUpload/models/ProjectSubmission');
 const { loadConfig } = require('./configService');
 const { record } = require('./auditService');
 const { juryError } = require('./juryError');
@@ -34,7 +35,7 @@ const evaluationOpen = async () => {
 const liveOf = (config) => ({ order: [], current: null, startedAt: null, closed: [], ...(config?.live || {}) });
 
 /**
- * The presentation order: the shuffled order first, then entries added later (by their manual order).
+ * The presentation order: the order fixed when evaluation opened, then entries added later (by their manual order).
  * Teams removed from the entries drop out. @returns {any[]} entries in presentation order
  */
 const orderedEntries = (config) => {
@@ -76,20 +77,22 @@ const refusal = (config, teamId) => stateOf(config, teamId) === 'CLOSED'
   ? juryError(423, 'Bu takımın oylaması kapandı; puanlar değiştirilemez.', 'VOTING_CLOSED')
   : juryError(423, 'Bu takım için oylama şu an açık değil. Organizasyon oylamayı başlatınca puanlayabilirsin.', 'VOTING_NOT_OPEN');
 
-const shuffled = (items) => {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = crypto.randomInt(i + 1);
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
+/**
+ * Presentation order: first upload of the project link first; teams without an upload follow in the
+ * setup's manual order. @returns {Promise<any[]>} team ids
+ */
+const byUploadTime = async (entries) => {
+  const uploads = await ProjectSubmission.find({ team: { $in: entries.map(entry => entry.team) } }).select('team createdAt').lean();
+  const uploadedAt = new Map(uploads.map(item => /** @type {[string, number]} */ ([String(item.team), new Date(item.createdAt).getTime()])));
+  const at = (entry) => uploadedAt.get(String(entry.team)) ?? Infinity;
+  return [...entries].sort((a, b) => (at(a) - at(b)) || (a.order - b.order)).map(entry => entry.team);
 };
 
-/** Called when evaluation is opened: fixes a random order once. Reopening evaluation keeps the order. */
+/** Called when evaluation is opened: fixes the order once (by upload time). Reopening evaluation keeps it. */
 const ensureOrder = async (user) => {
   const config = await loadConfig();
   if (liveOf(config).order.length) return;
-  const order = shuffled((config.entries || []).map(entry => entry.team));
+  const order = await byUploadTime(config.entries || []);
   await mongoose.connection.transaction(async session => {
     const res = await JudgingConfig.updateOne({ _id: CONFIG_ID, $or: [{ 'live.order': { $size: 0 } }, { 'live.order': { $exists: false } }] },
       { $set: { 'live.order': order } }, { session, timestamps: false });
@@ -97,12 +100,12 @@ const ensureOrder = async (user) => {
   });
 };
 
-/** A new random order; only before any team has been voted (ADMIN). */
+/** Rebuilds the order from the current uploads; only before any team has been voted (ADMIN). */
 const reshuffle = async (user) => {
   const config = await loadConfig();
   const live = liveOf(config);
   if (live.current || live.closed.length) throw juryError(409, 'Oylama başladıktan sonra sıra değiştirilemez.', 'LIVE_STARTED');
-  const order = shuffled((config.entries || []).map(entry => entry.team));
+  const order = await byUploadTime(config.entries || []);
   await mongoose.connection.transaction(async session => {
     const res = await JudgingConfig.updateOne({ _id: CONFIG_ID, 'live.current': null, 'live.closed': { $size: 0 } },
       { $set: { 'live.order': order } }, { session, timestamps: false });
@@ -207,7 +210,9 @@ const adminView = async () => {
       position: i + 1, state: stateOf(config, entry.team) })),
     current: current ? { team: String(current.team), teamName: current.teamName, position: position(current), startedAt: liveOf(config).startedAt } : null,
     next: (() => { const n = ordered.find(entry => stateOf(config, entry.team) === 'WAITING'); return n ? { team: String(n.team), teamName: n.teamName, position: position(n) } : null; })(),
-    votes: current ? await votesFor(current.team) : []
+    votes: current ? await votesFor(current.team) : [],
+    // Anonymous: only how many participants have voted for the team on stage.
+    participantVotes: current ? await require('../models/ParticipantVote').countDocuments({ team: current.team }) : 0
   };
 };
 
@@ -233,6 +238,6 @@ const publicView = async () => {
 const clearMemo = () => { memo = { at: 0, value: null }; };
 
 module.exports = {
-  evaluationOpen, orderedEntries, stateOf, writable, refusal, ensureOrder, reshuffle, start, end, reopen,
+  same, currentEntry, evaluationOpen, orderedEntries, stateOf, writable, refusal, ensureOrder, reshuffle, start, end, reopen,
   adminView, publicView, clearMemo, FORM_SLUG
 };

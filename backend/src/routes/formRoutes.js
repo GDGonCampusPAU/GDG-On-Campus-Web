@@ -27,6 +27,8 @@ router.post(`${mine}/team/transfer`, formParticipantMiddleware, myApplication.tr
 router.post(`${mine}/team/withdraw`, formParticipantMiddleware, myApplication.withdrawRequest);
 router.post(`${mine}/team/leave`, formParticipantMiddleware, myApplication.leaveTeam);
 router.post(`${mine}/project-upload`, formParticipantMiddleware, myApplication.projectUploadHandoff);
+router.get(`${mine}/vote`, formParticipantMiddleware, myApplication.getVote);
+router.post(`${mine}/vote`, formParticipantMiddleware, myApplication.castVote);
 router.post(`${mine}/team/requests/:participantId/approve`, formParticipantMiddleware, myApplication.approveRequest);
 router.post(`${mine}/team/requests/:participantId/reject`, formParticipantMiddleware, myApplication.rejectRequest);
 router.post(`${mine}/team/members/:participantId/remove`, formParticipantMiddleware, myApplication.removeMember);

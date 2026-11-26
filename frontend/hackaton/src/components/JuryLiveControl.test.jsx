@@ -71,6 +71,6 @@ describe('Sunum akışı', () => {
   it('ORGANIZER yeniden açamaz ve sırayı karıştıramaz', () => {
     setup({ ...idle, started: false }, { isAdmin: false })
     expect(screen.queryByRole('button', { name: 'Yeniden aç' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Sırayı yeniden karıştır' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sırayı yeniden oluştur' })).not.toBeInTheDocument()
   })
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Button from './Button.jsx'
 
 const STATE = {
@@ -19,6 +19,22 @@ const VOTE = {
  * @param {{ live: any, stale: boolean, isAdmin: boolean, client: any, onChanged: (view: any) => void,
  *   onNote: (note: { text: string, bad?: boolean }) => void, onError: (error: any) => void }} props
  */
+/** Oylamanın ne kadar süredir açık olduğu (revizyon: her takıma eşit, 1 dakika). */
+function Elapsed({ since }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const seconds = Math.max(0, Math.floor((now - Date.parse(since)) / 1000))
+  const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+  return (
+    <span className={`jury-live__timer${seconds >= 60 ? ' jury-live__timer--over' : ''}`}>
+      ⏱ {text}{seconds >= 60 ? ' · 1 dakika doldu' : ' / 1:00'}
+    </span>
+  )
+}
+
 export default function JuryLiveControl({ live, stale, isAdmin, client, onChanged, onNote, onError }) {
   const [busy, setBusy] = useState(false)
 
@@ -45,8 +61,8 @@ export default function JuryLiveControl({ live, stale, isAdmin, client, onChange
     act(() => client.reopenVoting(entry.team), () => `${entry.teamName} yeniden oylanabilir.`)
   }
   const shuffle = () => {
-    if (!window.confirm('Sunum sırası yeniden rastgele belirlensin mi? Katılımcılar yeni sırayı görecek.')) return
-    act(() => client.shuffle(), () => 'Sunum sırası yeniden belirlendi.')
+    if (!window.confirm('Sunum sırası güncel proje yükleme zamanlarına göre yeniden oluşturulsun mu? Katılımcılar yeni sırayı görecek.')) return
+    act(() => client.shuffle(), () => 'Sunum sırası proje yükleme sırasına göre yeniden oluşturuldu.')
   }
 
   const { current, next, votes } = live
@@ -64,7 +80,7 @@ export default function JuryLiveControl({ live, stale, isAdmin, client, onChange
       {!live.open && (
         <p className="jury-admin__warning">
           Proje değerlendirme kapalı. Core Team panelindeki <strong>İzinler</strong> sayfasından “Proje değerlendirmeyi aç” ile
-          başlatın; açılınca takımlar rastgele sıralanır.
+          başlatın; açılınca takımlar proje yükleme sırasına göre dizilir.
         </p>
       )}
       {live.open && live.locked && <p className="jury-admin__warning">Puanlama kilitli: oylama başlatılamaz. Önce kilidi açın.</p>}
@@ -75,6 +91,8 @@ export default function JuryLiveControl({ live, stale, isAdmin, client, onChange
           <h3 className="jury-live__team">{current.position}. {current.teamName}</h3>
           <p className="jury-live__count">
             <strong>{counted.length - missing.length} / {counted.length}</strong> jüri oy verdi
+            {' · '}<strong>{live.participantVotes ?? 0}</strong> katılımcı oyu
+            {current.startedAt && <>{' · '}<Elapsed since={current.startedAt} /></>}
           </p>
           <ul className="jury-live__votes">
             {votes.map((vote) => (
@@ -123,7 +141,7 @@ export default function JuryLiveControl({ live, stale, isAdmin, client, onChange
       <div className="jury-live__head">
         <h3>Sunum sırası</h3>
         {isAdmin && live.open && !live.started && live.order.length > 1 && (
-          <Button variant="ghost" size="sm" onClick={shuffle} disabled={busy}>Sırayı yeniden karıştır</Button>
+          <Button variant="ghost" size="sm" onClick={shuffle} disabled={busy}>Sırayı yeniden oluştur</Button>
         )}
       </div>
       <ol className="jury-live__order">
