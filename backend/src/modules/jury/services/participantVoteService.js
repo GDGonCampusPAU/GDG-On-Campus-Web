@@ -1,7 +1,7 @@
 // Participant voting (revizyon §3). While the jury votes for the team on stage, members of the other
 // competing teams vote on "Başvurum" with the same criteria (1-5 each). Anonymous, one vote per person
 // per team, never for their own team. The team's participant score is the weighted average of the votes
-// (computeResults.js) and counts 30% of the final score.
+// (computeResults.js) and counts PARTICIPANT_SHARE (10%) of the final score.
 const mongoose = require('mongoose');
 const JudgingConfig = require('../models/JudgingConfig');
 const ParticipantVote = require('../models/ParticipantVote');

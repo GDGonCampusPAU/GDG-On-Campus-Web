@@ -20,12 +20,25 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'canli-kopya-team-secret-never-use-in-production';
 process.env.PARTICIPANT_JWT_SECRET = 'canli-kopya-participant-secret-never-use-in-production';
 process.env.PARTICIPANT_JWT_EXPIRES_IN = '12h';
-process.env.CLIENT_URLS = ['4173', '4174'].flatMap(p => [`http://127.0.0.1:${p}`, `http://localhost:${p}`]).join(',');
+process.env.CLIENT_URLS = [...['4173', '4174'].flatMap(p => [`http://127.0.0.1:${p}`, `http://localhost:${p}`]),
+  ...String(process.env.GDG_KOPYA_ORIGINS || '').split(',').filter(Boolean)].join(',');
+const HOST = process.env.GDG_KOPYA_HOST || '127.0.0.1';
 process.env.UPLOAD_DIR = path.join(DATA, 'uploads');
 for (const key of Object.keys(process.env)) if (key.startsWith('BREVO_')) delete process.env[key];
 delete process.env.GOOGLE_CLIENT_ID;
 delete process.env.GITHUB_TOKEN;
 fs.mkdirSync(process.env.UPLOAD_DIR, { recursive: true });
+
+// Mail doğrulaması yok: e-posta kodu (OTP) her zaman açılışta üretilen ortak koddur (GDG_KOPYA_KOD).
+// Yalnız 6 haneli kod çağrısı değişir; takım kodu gibi diğer rastgele değerler aynen kalır.
+// Modüller randomInt'i yüklenirken aldığı için bu, backend yüklenmeden önce yapılır.
+const sharedCode = process.env.GDG_KOPYA_KOD;
+if (sharedCode) {
+  const crypto = require('node:crypto');
+  const realRandomInt = crypto.randomInt;
+  crypto.randomInt = (...args) => (args[0] === 100000 && args[1] === 1000000 && typeof args[2] !== 'function'
+    ? Number(sharedCode) : realRandomInt(...args));
+}
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -79,6 +92,9 @@ const restore = () => new Promise((resolve, reject) => {
 
 // --- cli.mjs uç noktaları ----------------------------------------------------------------------
 const harness = express();
+// Oturum üreten uç noktalar yalnız bu bilgisayardan: ağa açıkken başkası admin oturumu alamasın.
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+harness.use(['/__yerel__', '/__test__'], (req, res, next) => (LOOPBACK.has(req.socket.remoteAddress) ? next() : res.status(404).end()));
 harness.use('/__yerel__', express.json());
 const wrap = fn => async (req, res) => {
   try { res.json(await fn(req)); } catch (error) { res.status(error.status || 500).json({ message: error.message }); }
@@ -201,7 +217,7 @@ async function start() {
     await User.create({ fullName: 'Yerel Admin', email: LOCAL_ADMIN.email, role: 'ADMIN', isEmailVerified: true,
       passwordHash: await bcrypt.hash(LOCAL_ADMIN.password, 4) });
   }
-  server = harness.listen(PORT, '127.0.0.1', async () => {
+  server = harness.listen(PORT, HOST, async () => {
     const db = mongoose.connection.db;
     const counts = {};
     for (const c of await db.listCollections().toArray()) counts[c.name] = await db.collection(c.name).estimatedDocumentCount();

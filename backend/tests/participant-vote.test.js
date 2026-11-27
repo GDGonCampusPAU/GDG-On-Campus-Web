@@ -1,4 +1,4 @@
-// Revizyon: participant voting (anonymous, once per team, not one's own), final = jury 70% + participants 30%,
+// Revizyon: participant voting (anonymous, once per team, not one's own), final = jury 90% + participants 10%,
 // awards among the top 5 of the final ranking.
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,7 +19,7 @@ const Scorecard = require('../src/modules/jury/models/Scorecard');
 const ParticipantVote = require('../src/modules/jury/models/ParticipantVote');
 const JuryAuditLog = require('../src/modules/jury/models/JuryAuditLog');
 const { DEFAULT_CRITERIA, DEFAULT_CATEGORIES } = require('../src/modules/jury/defaults');
-const { computeResults } = require('../src/modules/jury/services/computeResults');
+const { computeResults, JURY_SHARE, PARTICIPANT_SHARE } = require('../src/modules/jury/services/computeResults');
 const { init } = require('../src/modules/jury');
 const { issueToken } = require('../src/modules/participantAuth/services/tokenService');
 const { generateToken } = require('../src/utils/jwt');
@@ -122,7 +122,7 @@ test('the lock stops participant votes; a rehearsal reset deletes them', async (
   assert.equal(await ParticipantVote.countDocuments(), 0);
 });
 
-test('results combine jury 70% and participants 30%, and never reveal who voted', async () => {
+test('results combine jury 90% and participants 10%, and never reveal who voted', async () => {
   const juror = (await jury('post', '/jurors', { name: 'Ayşe' })).body.data;
   await jury('post', '/live/start', { team: String(teams.alfa._id) });
   const me = (await request(app).get('/api/v1/jury/me').set('Authorization', `Bearer ${juror.token}`)).body.data;
@@ -136,12 +136,13 @@ test('results combine jury 70% and participants 30%, and never reveal who voted'
   assert.equal(alfa.overall, 100);
   assert.equal(alfa.participantScore, 40);
   assert.equal(alfa.participantCount, 2);
-  assert.equal(alfa.final, 0.7 * 100 + 0.3 * 40);
+  assert.deepEqual([JURY_SHARE, PARTICIPANT_SHARE], [0.9, 0.1]);
+  assert.equal(alfa.final, JURY_SHARE * 100 + PARTICIPANT_SHARE * 40);
   const text = JSON.stringify(results);
   for (const who of Object.values(people)) assert.ok(!text.includes(String(who.id)), 'a voter id leaked into the results');
   const csv = (await jury('get', '/results.csv')).text;
   assert.match(csv, /Nihai Puan/);
-  assert.match(csv, /82/);
+  assert.match(csv, /;94;|,94,|\b94\b/);
 });
 
 test('computeResults: ranking by final score, 50 when nobody voted, awards only among the top 5', () => {
@@ -149,17 +150,17 @@ test('computeResults: ranking by final score, 50 when nobody voted, awards only 
   const entries = ['a', 'b', 'c', 'd', 'e', 'f'].map((team, i) => ({ team, order: i + 1 }));
   const card = (team, value, nominations = []) => ({ team, status: 'SUBMITTED', nominations, scores: DEFAULT_CRITERIA.map(({ key }) => ({ criterion: key, value })) });
   const vote = (team, value) => ({ team, scores: DEFAULT_CRITERIA.map(({ key }) => ({ criterion: key, value })) });
-  // Jury: a 80, b 76 (a ahead). Participants: a 20, b 100 → final a 62, b 83.2: b first.
+  // Jury: a 80, b 76 (a ahead). Participants: a 20, b 100 → final a 74, b 78.4: b first.
   const result = computeResults(config, entries,
     [card('a', 4), card('b', 3.8), card('c', 3), card('d', 3), card('e', 3), card('f', 2, ['wow'])],
     [vote('a', 1), vote('b', 5)]);
   const by = Object.fromEntries(result.ranking.map(t => [t.team, t]));
   assert.equal(result.ranking[0].team, 'b');
-  assert.ok(Math.abs(by.a.final - 62) < 1e-9 && Math.abs(by.b.final - 83.2) < 1e-9);
+  assert.ok(Math.abs(by.a.final - 74) < 1e-9 && Math.abs(by.b.final - 78.4) < 1e-9);
   // No participant vote: the participant part counts as 50.
   assert.equal(by.c.participantScore, null);
   assert.equal(by.c.participantScoreUsed, 50);
-  assert.ok(Math.abs(by.c.final - (0.7 * by.c.overall + 0.3 * 50)) < 1e-9);
+  assert.ok(Math.abs(by.c.final - (JURY_SHARE * by.c.overall + PARTICIPANT_SHARE * 50)) < 1e-9);
   // f is 6th: its "wow" nomination cannot win; the jury decides.
   assert.ok(!result.awardPool.includes('f'));
   const wow = result.categories.find(c => c.key === 'wow');

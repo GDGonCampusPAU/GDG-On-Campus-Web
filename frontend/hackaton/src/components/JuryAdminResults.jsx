@@ -155,7 +155,7 @@ export default function JuryAdminResults({ results, stale, onDownload, onVoid })
 
       <h3>Genel sıralama</h3>
       <p className="jury-admin__hint">
-        Nihai puan = Jüri × {String(results.shares?.jury ?? 0.7).replace('.', ',')} + Katılımcı × {String(results.shares?.participants ?? 0.3).replace('.', ',')}.
+        Nihai puan = Jüri × {String(results.shares?.jury ?? 0.9).replace('.', ',')} + Katılımcı × {String(results.shares?.participants ?? 0.1).replace('.', ',')}.
         Katılımcı oyu almayan takımın katılımcı puanı {results.shares?.noVoteScore ?? 50} sayılır. Ödüller nihai sıralamanın ilk 5 takımı arasında, takım başına en fazla bir ödül olarak önerilir.
       </p>
       {ranking.length === 0 ? (

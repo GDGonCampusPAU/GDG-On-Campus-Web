@@ -13,9 +13,9 @@
 
 const TOP_COUNT = 3;
 const TIE_BREAK_CRITERION = 'technical';
-// Final score (revizyon §4): jury 70%, participants 30%.
-const JURY_SHARE = 0.7;
-const PARTICIPANT_SHARE = 0.3;
+// Final score: jury 90%, participants 10% (was 70/30 in the first revision).
+const JURY_SHARE = 0.9;
+const PARTICIPANT_SHARE = 0.1;
 // A team nobody voted for counts as 50 / 100 from the participants (revizyon 2).
 const NO_VOTE_SCORE = 50;
 // Awards are shared among the top of the final ranking (revizyon §5: "ilk 5").
@@ -95,7 +95,7 @@ const participantSummary = (criteria, votes) => {
 };
 
 /**
- * Final = jury × 0.7 + participants × 0.3. Without any participant vote the participant part counts as
+ * Final = jury × JURY_SHARE (0.9) + participants × PARTICIPANT_SHARE (0.1). Without any participant vote the participant part counts as
  * NO_VOTE_SCORE (50), so a team without votes neither keeps its whole jury score nor drops to zero.
  */
 const finalOf = (overall, participantScore) => {
