@@ -132,7 +132,7 @@ export function EntriesEditor({ entries, savedEntries, client, onError, onChange
   return (
     <section aria-labelledby="entries-title">
       <h2 id="entries-title">Yarışan takımlar</h2>
-      <p className="jury-admin__hint">Liste sunum sırasıdır. Proje adı ve linkler boş kalabilir, jüri yine puanlar.</p>
+      <p className="jury-admin__hint">Proje yükleme sitesinde link ekleyen takımlar buraya kendiliğinden eklenir; buradan çıkardığınız takım bir daha kendiliğinden eklenmez. Proje adı ve linkler boş kalabilir, jüri yine puanlar.</p>
       <div className="jury-admin__actions jury-admin__add">
         <Field id="entry-team" label="Takım">
           <select id="entry-team" value={selected} onChange={(e) => setSelected(e.target.value)}>

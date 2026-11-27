@@ -90,6 +90,8 @@ const byUploadTime = async (entries) => {
 
 /** Called when evaluation is opened: fixes the order once (by upload time). Reopening evaluation keeps it. */
 const ensureOrder = async (user) => {
+  // Teams with a project link compete without being added by hand (autoEntries.js).
+  await require('./autoEntries').addUploadedTeamsSafely();
   const config = await loadConfig();
   if (liveOf(config).order.length) return;
   const order = await byUploadTime(config.entries || []);

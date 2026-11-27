@@ -10,16 +10,21 @@ const criteria = [
 const base = { open: true, eligible: true, canVote: true, reason: null, voted: false, current: { team: 't2', teamName: 'Beta', position: 2 }, criteria }
 
 describe('Katılımcı oylaması', () => {
-  it('değerlendirme kapalıyken ya da oy hakkı yokken görünmez', async () => {
+  it('değerlendirme kapalıyken görünmez', async () => {
     const load = vi.fn(async () => ({ ...base, open: false }))
-    const { container, unmount } = render(<VoteCard load={load} cast={vi.fn()} onExpired={vi.fn()} />)
+    const { container } = render(<VoteCard load={load} cast={vi.fn()} onExpired={vi.fn()} />)
     await vi.waitFor(() => expect(load).toHaveBeenCalled())
     expect(container).toBeEmptyDOMElement()
-    unmount()
-    const outsider = vi.fn(async () => ({ ...base, eligible: false, reason: 'NOT_ELIGIBLE' }))
-    const other = render(<VoteCard load={outsider} cast={vi.fn()} onExpired={vi.fn()} />)
-    await vi.waitFor(() => expect(outsider).toHaveBeenCalled())
-    expect(other.container).toBeEmptyDOMElement()
+  })
+
+  it.each([
+    ['NO_TEAM', /Bir takımda olmadığın için oy veremezsin/],
+    ['PENDING', /kaptanın katılma isteğini henüz onaylamadı/],
+    ['NOT_COMPETING', /yarışan takımlar listesinde değil/],
+  ])('oy hakkı yoksa nedenini söyler: %s', async (notEligible, text) => {
+    render(<VoteCard load={async () => ({ ...base, eligible: false, canVote: false, reason: 'NOT_ELIGIBLE', notEligible })} cast={vi.fn()} onExpired={vi.fn()} />)
+    expect(await screen.findByText(text)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Oyumu gönder/ })).toBeNull()
   })
 
   it('bütün kriterler seçilmeden gönderilemez; gönderince teşekkür eder', async () => {

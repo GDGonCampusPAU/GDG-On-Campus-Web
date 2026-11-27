@@ -104,6 +104,23 @@ describe('takım görünümü', () => {
     expect(screen.queryByRole('link', { name: /Demo/ })).toBeNull()
   })
 
+  it('teslimden sonra push yapan takımda uyarı ve push listesi gösterir', async () => {
+    server.entries[0].latePush = { deadline: '2026-11-27T15:00:00.000Z', status: 'LATE', lateCount: 2, forcedLate: true, headsAtDeadline: [],
+      latePushes: [{ at: '2026-11-27T15:20:00.000Z', type: 'force_push', actor: 'ali', ref: 'main', sha: 'b', url: 'https://github.com/a/b/compare/a...b' }] }
+    await openTeam(/Kampüs Asistanı/)
+    const note = await screen.findByRole('note')
+    expect(note).toHaveTextContent('Teslimden sonra 2 push yapılmış (force push var')
+    expect(note).toHaveTextContent('Teslim: 18:00')
+    expect(within(note).getByRole('link', { name: /Değişiklikler/ })).toHaveAttribute('href', 'https://github.com/a/b/compare/a...b')
+  })
+
+  it('zamanında teslim eden takımda uyarı yok', async () => {
+    server.entries[0].latePush = { deadline: '2026-11-27T15:00:00.000Z', status: 'ON_TIME', lateCount: 0, forcedLate: false, latePushes: [], headsAtDeadline: [] }
+    await openTeam(/Kampüs Asistanı/)
+    await screen.findByRole('link', { name: /Repo/ })
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
   it('javascript: linki render edilmez', async () => {
     server.entries[0].repoUrl = 'javascript:alert(1)'
     await openTeam(/Kampüs Asistanı/)
@@ -117,7 +134,9 @@ describe('takım görünümü', () => {
     await pickAll(user, 5)
     await user.click(screen.getByRole('button', { name: 'Puanları Gönder' }))
     await waitFor(() => expect(server.cards.t2?.status).toBe('SUBMITTED'))
-    expect(await screen.findByRole('button', { name: 'Gönderildi' })).toBeDisabled()
+    // Gönderilince takım listesine dönülür; takım orada "Gönderildi" görünür.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ayşe Yılmaz' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Işık Hızı/ }).closest('li')).toHaveTextContent('Gönderildi')
   })
 
   it('eksik kriterle gönderimde eksikleri listeler', async () => {
@@ -131,11 +150,9 @@ describe('takım görünümü', () => {
     expect(server.client.save.mock.calls.some(([, body]) => body.submit)).toBe(false)
   })
 
-  it('önceki ve sonraki takıma geçer', async () => {
+  it('önceki/sonraki düğmesi yok; takımlara dönüş var', async () => {
     const user = await openTeam(/Kampüs Asistanı/)
-    expect(screen.getByRole('button', { name: '← Önceki' })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: 'Sonraki →' }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Işık Hızı' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Önceki|Sonraki/ })).toBeNull()
     await user.click(screen.getByRole('button', { name: '← Takımlar' }))
     expect(screen.getByRole('heading', { level: 1, name: 'Ayşe Yılmaz' })).toBeInTheDocument()
   })

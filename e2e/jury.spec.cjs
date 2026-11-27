@@ -110,6 +110,10 @@ test('jury scoring from setup to locked results', async ({ browser, request }) =
   for (let index = 3; index < 7; index += 1) await choose(index, 4);
   await phone.getByRole('checkbox', { name: 'Vay Be' }).tap();
   await phone.getByRole('button', { name: 'Puanları Gönder' }).tap();
+  // Submitting goes back to the team list (no previous/next buttons any more)
+  await expect(phone.getByText('1 / 2 takım puanlandı')).toBeVisible();
+  await expect(phone.getByRole('button', { name: /Sonraki|Önceki/ })).toHaveCount(0);
+  await phone.getByRole('button', { name: /Kampüs Asistanı/ }).tap();
   await expect(phone.getByRole('button', { name: 'Gönderildi' })).toBeDisabled();
 
   // Editing a submitted card warns until it is sent again, also after a reload
@@ -120,17 +124,16 @@ test('jury scoring from setup to locked results', async ({ browser, request }) =
   await phone.reload();
   await expect(phone.getByRole('alert')).toContainText('Gönderilmemiş değişiklik var');
   await phone.getByRole('button', { name: 'Yeniden gönder' }).tap();
+  await expect(phone.getByText('1 / 2 takım puanlandı')).toBeVisible();
   await expect(phone.getByRole('alert')).toHaveCount(0);
 
   // A team without any link can be scored
-  await phone.getByRole('button', { name: 'Sonraki →' }).tap();
+  await phone.getByRole('button', { name: new RegExp(NO_LINKS) }).tap();
   await expect(phone.getByRole('heading', { level: 1, name: NO_LINKS })).toBeVisible();
   await expect(phone.getByText(/bağlantısı eklenmemiş/)).toBeVisible();
   for (let index = 0; index < 7; index += 1) await choose(index, 3);
   await checkLayout(phone, 'team without links');
   await phone.getByRole('button', { name: 'Puanları Gönder' }).tap();
-  await expect(phone.getByRole('button', { name: 'Gönderildi' })).toBeDisabled();
-  await phone.getByRole('button', { name: '← Takımlar' }).tap();
   await expect(phone.getByText('2 / 2 takım puanlandı')).toBeVisible();
 
   // Results, suggestions and CSV

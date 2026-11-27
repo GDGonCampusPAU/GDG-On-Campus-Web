@@ -22,6 +22,8 @@ const PAGE_SIZE = 100;
 const MAX_PAGES = 3;
 const CACHE_MS = 60 * 1000;
 const PARALLEL = 4;
+// Team pages (juror, upload site) wait for GitHub at most this long.
+const QUICK_MS = 4000;
 const SHOWN = 20;
 // Activities that bring code in. Deleting a branch adds nothing.
 const CODE_IN = new Set(['push', 'force_push', 'pr_merge', 'merge_queue_merge', 'branch_creation']);
@@ -179,9 +181,51 @@ const createLatePushChecker = ({ fetch: doFetch = (url, init) => fetch(url, init
     };
   };
 
-  return { report, activity, cache };
+  /** The deadline in force: the moment project upload was closed (null while open). */
+  const closingMoment = async () => {
+    const form = await Form.findOne({ slug: FORM_SLUG }).select('settings').lean();
+    const settings = /** @type {any} */ (form)?.settings || {};
+    return settings.projectUploadEnabled === false && settings.projectUploadClosedAt ? new Date(settings.projectUploadClosedAt) : null;
+  };
+
+  /**
+   * One team's late pushes, for the juror's team page and the upload site. Never slows those pages
+   * down: after QUICK_MS the answer is UNAVAILABLE (the GitHub call goes on and fills the cache).
+   * null while project upload is open or the team has no link.
+   * @param {string} repoUrl
+   * @returns {Promise<null | { deadline: string, status: string, lateCount: number, forcedLate: boolean, latePushes: any[], headsAtDeadline: string[] }>}
+   */
+  const forTeam = async (repoUrl) => {
+    const repo = parseRepoUrl(repoUrl);
+    if (!repo) return null;
+    const deadline = await closingMoment();
+    if (!deadline) return null;
+    const time = deadline.getTime();
+    const read = activity(repo.owner, repo.repo);
+    const timeout = new Promise(resolve => { setTimeout(() => resolve(null), QUICK_MS).unref?.(); });
+    const result = /** @type {Awaited<ReturnType<typeof activity>> | null} */ (await Promise.race([read, timeout]));
+    const base = { deadline: deadline.toISOString(), lateCount: 0, forcedLate: false, latePushes: [], headsAtDeadline: [] };
+    if (!result || result.status !== 'OK') return { ...base, status: result?.status || 'UNAVAILABLE' };
+    const code = result.items.filter(item => CODE_IN.has(item.activity_type) && Number.isFinite(Date.parse(item.timestamp)));
+    const late = code.filter(item => Date.parse(item.timestamp) > time);
+    // Branch heads at the deadline: every commit newer than these on the branch came in late.
+    const heads = new Map();
+    for (const item of code) {
+      if (Date.parse(item.timestamp) <= time && !heads.has(item.ref) && item.after) heads.set(item.ref, String(item.after));
+    }
+    return {
+      ...base,
+      status: late.length ? 'LATE' : 'ON_TIME',
+      lateCount: late.length,
+      forcedLate: late.some(item => item.activity_type === 'force_push'),
+      latePushes: late.slice(0, SHOWN).map(item => ({ ...shape(item, repo.url), sha: String(item.after || '') })),
+      headsAtDeadline: [...heads.values()]
+    };
+  };
+
+  return { report, forTeam, activity, cache };
 };
 
 const checker = createLatePushChecker();
 
-module.exports = { createLatePushChecker, report: (query) => checker.report(query), CODE_IN };
+module.exports = { createLatePushChecker, report: (query) => checker.report(query), forTeam: (repoUrl) => checker.forTeam(repoUrl), CODE_IN };

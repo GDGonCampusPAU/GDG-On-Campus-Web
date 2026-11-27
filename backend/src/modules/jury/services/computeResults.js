@@ -16,6 +16,8 @@ const TIE_BREAK_CRITERION = 'technical';
 // Final score (revizyon §4): jury 70%, participants 30%.
 const JURY_SHARE = 0.7;
 const PARTICIPANT_SHARE = 0.3;
+// A team nobody voted for counts as 50 / 100 from the participants (revizyon 2).
+const NO_VOTE_SCORE = 50;
 // Awards are shared among the top of the final ranking (revizyon §5: "ilk 5").
 const AWARD_POOL = 5;
 
@@ -93,12 +95,12 @@ const participantSummary = (criteria, votes) => {
 };
 
 /**
- * Final = jury × 0.7 + participants × 0.3. Without any participant vote the jury score alone is used
- * (and flagged), so a team is not cut by 30% because the hall did not vote for it.
+ * Final = jury × 0.7 + participants × 0.3. Without any participant vote the participant part counts as
+ * NO_VOTE_SCORE (50), so a team without votes neither keeps its whole jury score nor drops to zero.
  */
 const finalOf = (overall, participantScore) => {
   if (overall === null) return null;
-  return participantScore === null ? overall : JURY_SHARE * overall + PARTICIPANT_SHARE * participantScore;
+  return JURY_SHARE * overall + PARTICIPANT_SHARE * (participantScore ?? NO_VOTE_SCORE);
 };
 
 /**
@@ -166,7 +168,8 @@ const computeResults = (config, entries, scorecards, votes = []) => {
   const teams = entries.map(entry => {
     const jury = summarize(criteria, entry, cardsByTeam.get(String(entry.team)));
     const crowd = participantSummary(criteria, votesByTeam.get(String(entry.team)));
-    return { ...jury, ...crowd, final: finalOf(jury.overall, crowd.participantScore) };
+    // participantScore stays null without votes (the screens say so); participantScoreUsed is what counted.
+    return { ...jury, ...crowd, participantScoreUsed: crowd.participantScore ?? NO_VOTE_SCORE, final: finalOf(jury.overall, crowd.participantScore) };
   });
 
   // Ranked by the final score; ties fall back to the jury score, then the technical criterion.
@@ -198,4 +201,4 @@ const computeResults = (config, entries, scorecards, votes = []) => {
   return { ranking, categories, awardPool: [...top] };
 };
 
-module.exports = { computeResults, cardTotal, JURY_SHARE, PARTICIPANT_SHARE };
+module.exports = { computeResults, cardTotal, JURY_SHARE, PARTICIPANT_SHARE, NO_VOTE_SCORE };

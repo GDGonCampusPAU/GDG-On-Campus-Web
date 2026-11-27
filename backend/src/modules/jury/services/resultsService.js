@@ -4,7 +4,7 @@ const Juror = require('../models/Juror');
 const Scorecard = require('../models/Scorecard');
 const ParticipantVote = require('../models/ParticipantVote');
 const { loadConfig } = require('./configService');
-const { computeResults, cardTotal, JURY_SHARE, PARTICIPANT_SHARE } = require('./computeResults');
+const { computeResults, cardTotal, JURY_SHARE, PARTICIPANT_SHARE, NO_VOTE_SCORE } = require('./computeResults');
 
 const getResults = async () => {
   const config = await loadConfig();
@@ -56,7 +56,7 @@ const getResults = async () => {
     ranking: teams,
     categories,
     awardPool,
-    shares: { jury: JURY_SHARE, participants: PARTICIPANT_SHARE }
+    shares: { jury: JURY_SHARE, participants: PARTICIPANT_SHARE, noVoteScore: NO_VOTE_SCORE }
   };
 };
 
@@ -75,7 +75,7 @@ const getResultsCsv = async () => {
     const lead = [team.order, team.teamName, team.projectName];
     const number = value => (value === null || value === undefined ? '' : String(Math.round(value * 100) / 100).replace('.', ','));
     // Team-level scores repeated on every row, so any filter in Excel still shows them.
-    const tail = [number(team.overall), number(team.participantScore), team.participantCount, number(team.final), team.rank ?? ''];
+    const tail = [number(team.overall), number(team.participantScoreUsed ?? team.participantScore), team.participantCount, number(team.final), team.rank ?? ''];
     // Unscored teams keep one row so nobody looks like they were left out.
     if (!team.cards.length) rows.push([...lead, '', '', '', '', '', '', '', '', ...tail]);
     for (const card of team.cards) {
