@@ -39,8 +39,8 @@ const validateRegisterInput = (data) => {
     errors.push('E-posta adresi geçerli bir Pamukkale Üniversitesi (@pau.edu.tr / @posta.pau.edu.tr) veya Gmail adresi olmalıdır.');
   }
 
-  if (!password || typeof password !== 'string' || password.length < 6) {
-    errors.push('Şifre en az 6 karakter uzunluğunda olmalıdır.');
+  if (!password || typeof password !== 'string' || password.length < 8) {
+    errors.push('Şifre en az 8 karakter uzunluğunda olmalıdır.');
   }
 
   return errors;

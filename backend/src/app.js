@@ -3,13 +3,14 @@ const cors = require('cors');
 const { default: helmet } = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-const { rateLimit } = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const formRoutes = require('./routes/formRoutes');
 const hackathonModule = require('./modules/hackathon');
+const juryModule = require('./modules/jury');
 const errorHandler = require('./middleware/errorHandler');
+const rateLimits = require('./middleware/rateLimits');
 
 const app = express();
 const { randomUUID } = require('node:crypto');
@@ -45,36 +46,18 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
 
-// 4. Rate Limiting for general API
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Çok fazla istek gönderildi. Lütfen 15 dakika sonra tekrar deneyiniz.'
-  }
-});
-app.use('/api/', generalLimiter);
+// Jury routes come before the shared limiter and the body parsers on purpose: they authenticate
+// first, then count per person (modules/jury/middleware/limits.js).
+app.use('/api/v1/jury', juryModule.juryRoutes);
+app.use('/api/v1/jury-admin', juryModule.juryAdminRoutes);
+// Live presentation order for participants: its own per-IP ceiling, not the shared limit.
+app.use('/api/v1/presentation', juryModule.presentationRoutes);
 
-// 5. Stricter Rate Limiting for Auth Endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30, // 30 requests per 15 minutes for auth endpoints
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Çok fazla kimlik doğrulama denemesi. Lütfen bir süre sonra tekrar deneyiniz.'
-  }
-});
-app.use('/api/v1/auth/login', authLimiter);
-app.use('/api/v1/auth/register', authLimiter);
-app.use('/api/v1/auth/send-otp', authLimiter);
-app.use('/api/v1/auth/verify-email', authLimiter);
-app.use('/api/v1/auth/forgot-password', authLimiter);
-app.use('/api/v1/auth/reset-password', authLimiter);
+// 4. Rate Limiting for general API
+// Per person when signed in, per IP otherwise (middleware/rateLimits.js).
+// 5. The sign-in endpoints have their own limits inside their routers.
+rateLimits.mountSignIn(app);
+app.use('/api/', rateLimits.general);
 
 // 6. Body Parsers
 // Files travel as multipart (multer has its own limits); JSON/urlencoded bodies stay small.
@@ -134,6 +117,7 @@ app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/event-page', require('./routes/eventPageRoutes'));
 app.use('/api/v1/forms', formRoutes);
 app.use('/api/v1/maintenance', require('./routes/maintenanceRoutes'));
+app.use('/api/v1/internal/project-upload', require('./modules/projectUpload/routes/internalRoutes'));
 
 // Hackathon Module (İzole edilmiş & gerektiğinde .env veya kod üzerinden kapatılabilir/kaldırılabilir)
 if (hackathonModule.isEnabled()) {

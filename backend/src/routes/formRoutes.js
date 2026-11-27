@@ -26,6 +26,9 @@ router.post(`${mine}/team/transfer/code`, formParticipantMiddleware, myApplicati
 router.post(`${mine}/team/transfer`, formParticipantMiddleware, myApplication.transferCaptaincy);
 router.post(`${mine}/team/withdraw`, formParticipantMiddleware, myApplication.withdrawRequest);
 router.post(`${mine}/team/leave`, formParticipantMiddleware, myApplication.leaveTeam);
+router.post(`${mine}/project-upload`, formParticipantMiddleware, myApplication.projectUploadHandoff);
+router.get(`${mine}/vote`, formParticipantMiddleware, myApplication.getVote);
+router.post(`${mine}/vote`, formParticipantMiddleware, myApplication.castVote);
 router.post(`${mine}/team/requests/:participantId/approve`, formParticipantMiddleware, myApplication.approveRequest);
 router.post(`${mine}/team/requests/:participantId/reject`, formParticipantMiddleware, myApplication.rejectRequest);
 router.post(`${mine}/team/members/:participantId/remove`, formParticipantMiddleware, myApplication.removeMember);
@@ -57,7 +60,7 @@ const respond = (fn) => async (req, res, next) => {
   try { res.json({ success: true, data: await fn(req) }); } catch (error) { next(error); }
 };
 router.get('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.getPermissions(req.params.id)));
-router.put('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.updatePermissions(req.params.id, req.body)));
+router.put('/:id/permissions', requireRoles('ADMIN'), respond(req => permissions.updatePermissions(req.params.id, req.body, req.user)));
 
 // Registration teams (staff): list, remove member, change captain, disband.
 router.get('/:id/teams', teamAdmin.listTeams);

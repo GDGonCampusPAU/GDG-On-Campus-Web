@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { EventProvider } from './context/EventContext.jsx'
 import { loadEvent } from './data/event.js'
+import { needsEventData } from './lib/startup.js'
 import './styles/tokens.css'
 import './styles/fonts.css'
 import './styles/base.css'
@@ -13,7 +14,8 @@ async function start() {
   let initial
   let loadError = null
   try {
-    initial = await loadEvent()
+    // Jüri sayfaları etkinlik içeriğini beklemez: yavaş salon bağlantısında puanlama hemen açılmalı.
+    if (needsEventData(window.location.pathname)) initial = await loadEvent()
   } catch (error) {
     loadError = error
   }

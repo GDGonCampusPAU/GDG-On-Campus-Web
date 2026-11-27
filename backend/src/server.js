@@ -24,6 +24,7 @@ const startServer = async () => {
       require('./models/User').init()
     ]);
     await require('./services/eventPageService').ensureHackathonPage();
+    await require('./modules/jury').init();
 
     const server = app.listen(PORT, () => {
       console.log('====================================================');

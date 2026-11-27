@@ -14,7 +14,7 @@ router.get('/hackathon', async (_req, res, next) => {
   } catch (error) { next(error); }
 });
 router.put('/hackathon', auth, requireRoles('ADMIN', 'ORGANIZER'), async (req, res, next) => {
-  try { res.json({ success: true, data: await savePage(req.body.event, req.body.revision, req.user._id) }); }
+  try { res.json({ success: true, data: await savePage(req.body.event, req.body.revision, req.user._id, { mayChangeRegistration: req.user.role === 'ADMIN' }) }); }
   catch (error) { next(error); }
 });
 module.exports = router;

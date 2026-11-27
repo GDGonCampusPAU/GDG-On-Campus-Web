@@ -7,11 +7,12 @@ import Application from './Application.jsx'
 const api = vi.hoisted(() => ({
   get: vi.fn(), update: vi.fn(), join: vi.fn(), withdraw: vi.fn(), leave: vi.fn(),
   approve: vi.fn(), reject: vi.fn(), remove: vi.fn(), sendDisbandCode: vi.fn(), disband: vi.fn(),
-  create: vi.fn(), sendTransferCode: vi.fn(), transfer: vi.fn(),
+  create: vi.fn(), sendTransferCode: vi.fn(), transfer: vi.fn(), projectUpload: vi.fn(), vote: vi.fn(), castVote: vi.fn(),
 }))
 vi.mock('../lib/eventApi.js', () => ({
   applicationApi: () => api,
   lookupTeam: vi.fn(async () => ({ name: 'Yıldızlar', size: 2, maxSize: 4, full: false })),
+  getPresentation: vi.fn(async () => ({ open: false, current: null, order: [] })),
 }))
 
 const identity = { token: 't', participant: { email: 'ayse@example.com' } }

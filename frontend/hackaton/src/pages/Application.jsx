@@ -3,6 +3,9 @@ import { Navigate, useLocation } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import StepForm from '../components/StepForm.jsx'
 import TeamPanel from '../components/TeamPanel.jsx'
+import ProjectUploadCard from '../components/ProjectUploadCard.jsx'
+import PresentationCard from '../components/PresentationCard.jsx'
+import VoteCard from '../components/VoteCard.jsx'
 import { useEvent } from '../context/EventContext.jsx'
 import { applicationApi, lookupTeam } from '../lib/eventApi.js'
 import './Application.css'
@@ -138,6 +141,9 @@ export default function Application() {
             </p>
           )}
 
+          <VoteCard load={api.vote} cast={api.castVote} onExpired={() => setExpired(true)} />
+          <PresentationCard teamName={application.team?.name ?? null} />
+
           <ul className="application__grid">
             <li className={`application__card tone--${status.tone}`}>
               <section aria-labelledby="application-status">
@@ -174,6 +180,12 @@ export default function Application() {
                 </Button>
               </section>
             </li>
+            <ProjectUploadCard
+              team={application.team}
+              open={application.permissions?.projectUpload !== false}
+              start={api.projectUpload}
+              onExpired={() => setExpired(true)}
+            />
           </ul>
 
           {editing && !canEdit && (

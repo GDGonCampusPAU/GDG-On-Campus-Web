@@ -28,6 +28,26 @@ Ekip ve hackathon OTP akışları `node:crypto` `randomInt` ve HMAC-SHA256 hash'
 
 `GET /forms/:id/responses`, `GET /forms/:id/responses/export`, `GET /hackathon/applications` ve `GET /hackathon/applications/export` uç noktaları `status` ve `search` ile regex/literal filtreleme yapabilir. JSON/CSV export akış (streaming) halinde üretilir. Form alanları, seçenekler ve durum/tarih aralıkları sunucuda doğrulanır. Özel eski `/uploads/:filename` linkleri yetkilendirme ister; public kapak görselleri `/uploads/public/` altındadır. Sunucu istek/hata yanıtlarında `X-Request-ID` sağlar.
 
+**Hız sınırları (15 dakika):** Salon gibi tek IP'den çıkan kalabalıklarda bir kişinin diğerlerini kilitlememesi için sayaçlar mümkün olduğunca kişiye bağlıdır.
+
+| İstek | Sınır | Anahtar |
+| --- | --- | --- |
+| Genel API, geçerli imzalı ekip veya katılımcı token'ıyla | 600 | Kişi |
+| Genel API, token'sız veya geçersiz token'la | 200 | IP |
+| Ekip girişi | 30 başarısız deneme | Hesap + IP |
+| Ekip kod kontrolü (kodlu kayıt, e-posta doğrulama, şifre sıfırlama) | 30 başarısız deneme | Hesap + IP |
+| Ekip kod e-postası (send-otp, kodsuz kayıt, forgot-password) | 30 | IP |
+| Katılımcı kod kontrolü | 15 başarısız deneme | Adres + IP |
+| Katılımcı kod e-postası, daha önce doğrulanmamış adres | 100 | IP |
+| Katılımcı kod e-postası, daha önce doğrulanmış adres | 60 sn'de 1 | Adres |
+| Katılımcı e-posta tavanı dolunca | 429 `MAIL_LIMITED`, herkese aynı yanıt | Daha önce doğrulanmış adrese kod yine gider |
+| Google doğrulaması | 300 başarısız deneme | IP |
+| `GET /event-page/hackathon`, `GET /forms/public/:slugOrId` | Uygulama sınırı yok | Girişten önce gerekli okumalar |
+
+Giriş ve kod uçlarının gövdesi en fazla 16 KB'dir (aşılırsa 413). Uygulama sınırları hacimsel saldırıya karşı koruma değildir; o koruma Cloudflare tarafında yapılır.
+
+**Kayıtları açma ve kapatma yalnız ADMIN:** Yayındaki etkinlik formunda durum, tarih aralığı, kota, slug, `successMessage` dışındaki `settings` alanları, silme ve `event.register.status` değişikliği ORGANIZER için 403 döner. ORGANIZER içerik ve soruları düzenleyebilir; yayını form durumunu değiştirmez.
+
 ---
 
 # API kullanım kılavuzu
@@ -140,8 +160,24 @@ Tablodaki yollar API köküne (`/api/v1`) göredir; `/health` ve `/ready` istisn
 | 40 | GET | `/hackathon/applications/export` | Ekip | `format,search,status`; CSV veya JSON export |
 | 41 | GET | `/maintenance` | ADMIN | Bakım modu durumu: `active,since,by{id,name},server` (`running`/`stopped`/`external`) |
 | 42 | PUT | `/maintenance` | ADMIN | `{active:boolean}`; bakım modunu açar/kapatır, güncel durumu döner |
+| 43 | GET | `/jury/me` | Jüri linki | Jüri adı, kilit, kriterler, aktif kategoriler, takımlar ve kendi durumu |
+| 44 | GET | `/jury/entries/:teamId` | Jüri linki | Takım, linkler ve yalnız kendi puan kartı |
+| 45 | PUT | `/jury/entries/:teamId/scorecard` | Jüri linki | `{scores,nominations,generalComment,submit,round,version}`; taslak veya gönderim |
+| 46 | GET | `/jury-admin/config` | Ekip | Kriter, kategori, yarışan takım, kilit, revision |
+| 47 | PUT | `/jury-admin/config` | Ekip | `{criteria,categories,entries,revision}`; eski revision 409, kilitliyken 423 |
+| 48 | GET | `/jury-admin/teams` | Ekip | Eklenebilecek takımlar: `id,name,code,memberCount` |
+| 49 | GET | `/jury-admin/jurors` | Ekip | Jüriler, son görülme, ilerleme |
+| 50 | POST | `/jury-admin/jurors` | ADMIN | `{name}`; 201 ve bir kereye mahsus `token` |
+| 51 | POST | `/jury-admin/jurors/:id/regenerate` | ADMIN | Yeni token; eski link geçersiz |
+| 52 | PATCH | `/jury-admin/jurors/:id` | Ekip | `{name?,active?}` |
+| 53 | PUT | `/jury-admin/lock` | Ekip | `{locked:boolean}`; `false` (kilit açma) yalnız ADMIN |
+| 54 | POST | `/jury-admin/scorecards/reset` | ADMIN | `{confirm:"SIFIRLA"}`; bütün puan kartlarını siler, kilitliyken 423 |
+| 55 | GET | `/jury-admin/results` | Ekip | Sıralama, kategori önerileri, jüri bazında puan ve gerekçeler |
+| 56 | GET | `/jury-admin/results.csv` | Ekip | Excel uyumlu döküm |
+| 57 | POST | `/jury-admin/jurors/:id/scorecards/:teamId/void` | ADMIN | `{reason,version}`; tek gönderilmiş kartı iptal eder |
+| 58 | GET | `/jury-admin/log` | Ekip | `before?`; işlem kaydı, en yeni önce |
 
-Toplam **40 HTTP uç noktası** (`37` adet `/api/v1` rotası, `2` adet kök `/health` & `/ready` rotası ve `1` adet `/uploads/:filename` fallback rotası; ek olarak `/uploads/public/<dosya-adı>` statik dosya erişimi vardır). Hackathon kapalıysa hackathon rotaları yerine `404` döner. `/health` canlılık, `/ready` ise MongoDB veritabanı hazır mı kontrolüdür.
+Jüri modülünün 16 rotası (43-58) dışında **58 adet `/api/v1` rotası** vardır (tablodaki bazı satırlar birden çok rota içerir). Ek olarak kökte `/health`, `/ready`, `/uploads/:filename` ve `/uploads/public/<dosya-adı>` statik dosya erişimi bulunur. Hackathon kapalıysa hackathon rotaları yerine `404` döner. `/health` canlılık, `/ready` ise MongoDB veritabanı hazır mı kontrolüdür.
 
 ## Katılımcı doğrulama API’si
 
@@ -195,7 +231,7 @@ curl -X POST "$API_BASE/auth/send-otp" \
   -d '{"email":"aday@gmail.com","fullName":"Ayşe Yılmaz"}'
 ```
 
-`email` zorunlu; `fullName` isteğe bağlıdır. Başarı `200`; geçersiz e-posta `400`; zaten doğrulanmış hesap `409`.
+`email` zorunlu; `fullName` isteğe bağlıdır. Başarı `200`; geçersiz e-posta `400`. Zaten doğrulanmış hesap da aynı `200` yanıtını alır ama e-posta gönderilmez.
 
 ```bash
 curl -X POST "$API_BASE/auth/register" \
@@ -203,7 +239,7 @@ curl -X POST "$API_BASE/auth/register" \
   -d '{"fullName":"Ayşe Yılmaz","email":"aday@gmail.com","password":"OrnekGucluParola!","code":"123456"}'
 ```
 
-`fullName` 2–100 karakter, `password` en az 6 karakter. Kod örnektir, gerçek OTP kullanılmalıdır. Kod verilmezse hesap oluşturulmaz; OTP gönderilir ve `200`, `requiresVerification: true` döner. Aynı ad/e-posta/parola ile kod eklenerek tekrar POST yapılır. Kodlu başarı `201` ve `user` döndürür; JWT verilmez. Kullanıcı `PENDING` ve `isEmailVerified: true` olur.
+`fullName` 2–100 karakter, `password` en az 8 karakter. Kod örnektir, gerçek OTP kullanılmalıdır. Kod verilmezse hesap oluşturulmaz; OTP gönderilir ve `200`, `requiresVerification: true` döner. Aynı ad/e-posta/parola ile kod eklenerek tekrar POST yapılır. Kodlu başarı `201` ve `user` döndürür; JWT verilmez. Kullanıcı `PENDING` ve `isEmailVerified: true` olur.
 
 ### Var olan hesabın e-postasını doğrulama
 
@@ -213,7 +249,7 @@ curl -X POST "$API_BASE/auth/verify-email" \
   -d '{"email":"aday@gmail.com","code":"123456"}'
 ```
 
-Mevcut hesabı doğrulamak içindir. Yeni kayıt akışında `/register` için alınan kodu burada tüketmeyin; bu rota hesap oluşturmaz. İstek önce kullanıcıyı arar; kullanıcı yoksa OTP'yi yakmadan `404 Not Found` döner, e-posta zaten doğrulanmışsa OTP tüketilmeden `200` mesajı döner.
+Mevcut hesabı doğrulamak içindir. Yeni kayıt akışında `/register` için alınan kodu burada tüketmeyin; bu rota hesap oluşturmaz. Kullanıcı yoksa veya e-postası zaten doğrulanmışsa OTP tüketilmeden, yanlış kodla aynı `400` yanıtı döner.
 
 ### Giriş ve profil
 
@@ -252,8 +288,8 @@ curl -X POST "$API_BASE/auth/forgot-password" \
 ```
 
 - Girdi: `email` (zorunlu, geçerli PAU veya Gmail adresi).
-- Başarı: `200 OK`, `{ "success": true, "message": "Şifre sıfırlama kodu e-posta adresinize gönderildi." }`.
-- Hata: Kullanıcı bulunamazsa `404 Not Found`, e-posta gönderilemezse `502 Bad Gateway` (kod atomik olarak geçersiz kılınır).
+- Başarı: `200 OK`, `{ "success": true, "message": "Bu e-posta adresi ile kayıtlı bir hesap varsa şifre sıfırlama kodu gönderildi." }`.
+- Hata: E-posta gönderilemezse `502 Bad Gateway` (kod atomik olarak geçersiz kılınır). Kullanıcı bulunmasa da aynı `200` yanıtı döner.
 
 ```bash
 # 2. OTP kodu ile yeni şifreyi belirleme
@@ -523,7 +559,7 @@ curl -X POST "$API_BASE/forms/public/atolye-kayit/submit" \
   -F 'resumeFile=@/yerel/yol/cv.pdf'
 ```
 
-Metinleri ayrı `-F 'fullName=...'` alanlarıyla da gönderebilirsiniz. Çoklu seçim için JSON metni içindeki dizi daha nettir. File sorusuna dosya yerine URL metni de verilebilir; URL'nin geçerliliği kontrol edilmez. Böyle bir URL `answers` içinde bulunur, yerel yükleme olmadığı için `uploadedFiles` içine eklenmez.
+Metinleri ayrı `-F 'fullName=...'` alanlarıyla da gönderebilirsiniz. Çoklu seçim için JSON metni içindeki dizi daha nettir. File sorusu yalnız yüklenen dosyayı kabul eder; dosya yerine gönderilen metin veya URL yok sayılır.
 
 Submit'in uyguladığı kurallar:
 
@@ -568,7 +604,7 @@ Desteklenen Form Alan Türleri (10 Tür):
 - `number`: Sayısal değer (min/max doğrulamalı).
 - `date`: Tarih seçici (ISO 8601).
 
-CSV sütunları (`formController.js`): `Yanıt ID`, `Tarih`, `Başvuru Durumu`, `Değerlendirme Notu`, `IP Adresi`, `Doğrulanmış E-posta`, `Doğrulama Yöntemi`, güncel/tarihsel soru etiketleri (`fields`), `Eklenen Dosyalar`. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Export `status` ve `search` filtrelerini destekler; format belirtilmezse varsayılan CSV'dir.
+CSV sütunları (`formController.js`): `Yanıt ID`, `Tarih`, `Başvuru Durumu`, `Değerlendirme Notu`, `IP Adresi`, `Doğrulanmış E-posta`, `Doğrulama Yöntemi`, güncel/tarihsel soru etiketleri (`fields`), `Eklenen Dosyalar`. JSON, ham yanıt dokümanları dizisidir. UTF-8 BOM'lu CSV üretilir. Dosya `,`, `;` veya sekmeyle bölünse de formül başlatabilecek parçaların başına `'` konur. Export `status` ve `search` filtrelerini destekler; format belirtilmezse varsayılan CSV'dir.
 
 DELETE `/forms/:id` body almadan formu, bütün yanıtlarını ve ekli özel dosyaları (`/uploads/private/`) atomik transaction sonrasında diskten siler; başarı `200` döner. Form yayındaki bir `EventPage`'e bağlıysa silme yerine kapatma isteyerek `409 Conflict` döndürür.
 
@@ -653,6 +689,44 @@ curl -X PATCH "$API_BASE/hackathon/applications/$APPLICATION_ID/status" \
 - Takım liderine (`leaderEmail`) otomatik bildirim gönderir.
 - Yanıt modelinde `emailSent`, durum mesajı ve güncellenmiş başvuru verisi döner.
 
+## Proje Yükleme (proje.gdgocpamukkale.com)
+
+Takımlar GitHub proje linklerini ayrı bir sitede (`hackaton-proje-yukleme` projesi) ekler. Link takım başına tektir, onaylı her üye değiştirebilir; her değişiklik kişi ve zamanla `ProjectSubmission.history` içinde saklanır. Aynı repo iki takıma eklenemez. Admin, panelin **İzinler** sayfasından "Proje yükleme"yi kapatınca linkler kilitlenir; site ve commit geçmişi görüntülenmeye devam eder (`projectUpload` izni, `PUT /api/v1/forms/:id/permissions`).
+
+### Siteye geçiş (katılımcı)
+
+| Metot | Yol | Açıklama |
+|---|---|---|
+| POST | `/api/v1/forms/public/:slugOrId/my-application/project-upload` | Katılımcı token'ı gerekir. Onaylı takım üyesine 24 saatlik giriş anahtarı üretir: `{ url: "<PROJECT_UPLOAD_URL>/#t=<token>", expiresAt }`. Takımsız → 409 `NO_TEAM`, onay bekleyen → 409 `TEAM_PENDING`, yapılandırılmamış → 503. |
+
+Anahtar `PROJECT_UPLOAD_SECRET` ile imzalı bir JWT'dir (`aud: project-upload`, `sub`: katılımcı, `team`, `teamName`). URL'nin `#` kısmında taşındığı için sunuculara, loglara ve Referer'a gitmez. Yükleme sitesi onu bitiş saatine kadar geçerli httpOnly bir çereze çevirir.
+
+### İç API (yalnız yükleme sitesinin backend'i)
+
+`/api/v1/internal/project-upload` altında; `X-Internal-Key: <PROJECT_UPLOAD_INTERNAL_KEY>` başlığı gerekir (anahtar yoksa uçlar 404, yanlışsa 401). nginx bu yolu yalnız özel Docker ağından gelen isteklere açar; genel IP limitine sayılmaz.
+
+| Metot | Yol | Açıklama |
+|---|---|---|
+| GET | `/teams/:teamId/state?participant=<id>` | `{ member, reason, team: { id, name }, open, submission, eventStartsAt }`. `reason`: `NOT_MEMBER` / `TEAM_GONE`. `submission`: `{ repoUrl, updatedBy, updatedAt, history[] }` (son 10 değişiklik, yalnız ad). |
+| PUT | `/teams/:teamId/submission` | Gövde `{ participant, repoUrl }`. Üyelik ve izin kaydetme anında denetlenir. Hatalar: 400 `INVALID_REPO`, 403 `NOT_MEMBER` / `UPLOAD_CLOSED`, 409 `REPO_TAKEN`. Aynı repo (büyük/küçük harf farkı dahil) yeniden kaydedilirse değişiklik sayılmaz. |
+
+Ortam değişkenleri: `PROJECT_UPLOAD_URL`, `PROJECT_UPLOAD_SECRET`, `PROJECT_UPLOAD_INTERNAL_KEY` (bkz. `backend/.env.example`).
+
+## Canlı Sunum ve Oylama (Proje değerlendirme)
+
+Panelin **İzinler** sayfasındaki "Proje değerlendirme" (`projectEvaluation`, varsayılan kapalı) açılınca jürideki yarışan takımlar bir kez rastgele sıralanır; kapatıp açmak sırayı değiştirmez. Admin `/admin/juri` > **Sunum akışı** sekmesinden sunan takımın oylamasını başlatır; jüriler yalnız o takımı puanlayabilir. Bütün **aktif** jüriler kartını göndermeden oylama bitirilemez (`force: true` ile onaylanarak bitirilebilir, eksikler işlem kaydına yazılır). Oylaması biten takım kalıcı olarak kilitlenir (değerlendirme sonradan kapatılsa da); yalnız ADMIN yeniden açabilir. Değerlendirme kapalıyken jüri eskisi gibi serbest puanlar (sahnede akış bozulursa yedek yol).
+
+| Metot | Yol | Yetki | Açıklama |
+|---|---|---|---|
+| GET | `/api/v1/jury-admin/live` | ORGANIZER, ADMIN | `{ open, locked, started, order[{ team, teamName, projectName, position, state }], current, next, votes[{ id, name, active, status }] }`; `state`: `WAITING` / `VOTING` / `CLOSED`, `status`: `NONE` / `DRAFT` / `SUBMITTED`. |
+| POST | `/api/v1/jury-admin/live/start` | ORGANIZER, ADMIN | `{ team }`. Hatalar: `EVALUATION_CLOSED`, `JURY_LOCKED`, `VOTING_IN_PROGRESS`, `VOTING_CLOSED`, `ENTRY_NOT_FOUND`. |
+| POST | `/api/v1/jury-admin/live/end` | ORGANIZER, ADMIN | `{ force? }`. Eksik oy varsa 409 `VOTES_MISSING` (mesajda jüri adları). |
+| POST | `/api/v1/jury-admin/live/reopen` | ADMIN | `{ team }`: bitmiş takım yeniden oylanabilir olur. |
+| POST | `/api/v1/jury-admin/live/shuffle` | ADMIN | Yeni rastgele sıra; ilk oylama başladıktan sonra 409 `LIVE_STARTED`. |
+| GET | `/api/v1/presentation` | herkese açık | Başvurum sayfası için: `{ open, current: { name, position } \| null, order[{ position, name, state }] }` (yalnız takım adları). Kendi IP başına geniş limiti vardır, sonuç 2 sn önbellekte. |
+
+Jüri tarafında `GET /api/v1/jury/me` ayrıca `live: { open, current }` ve her takım için `live` (durum) ile `writable` döner; yazılamayan takıma kayıt 423 `VOTING_NOT_OPEN` / `VOTING_CLOSED` ile reddedilir. Jüri ekranı canlı oylama açıkken 4 sn'de bir yenilenir. Jüri ayarında repo linki boş olan takımın linki proje yükleme sitesinden gelir.
+
 ## Bakım Modu ("Tadilattayız" sayfası)
 
 Panelde **Bakım** sekmesinden (yalnızca ADMIN) açılıp kapatılır. Açıkken katılımcı sitesindeki bütün sayfalar 503 ile `frontend/hackaton/public/maintenance.html` sayfasını gösterir; panel ve API çalışmaya devam eder.
@@ -670,6 +744,121 @@ Durumun tek kaynağı diskteki bayrak dosyasıdır (`.maintenance/active.json`, 
 | `MAINTENANCE_DIR` | `<repo>/.maintenance` | Bayrak ve pid dosyasının klasörü |
 | `MAINTENANCE_STANDALONE` | (açık) | `false` ise backend bağımsız sunucuyu başlatmaz (Docker / üretim) |
 | `MAINTENANCE_PORT` / `MAINTENANCE_HOST` | `5173` / `localhost` | Bağımsız sunucunun dinlediği adres |
+
+## Jüri Puanlama API'si
+
+Kaynak: [jüri spec'i](JURI_PUANLAMA_SPEC.md), kod: `backend/src/modules/jury`. Spec'ten farklı veya spec'te açık olmayan kararlar:
+
+| Konu | Davranış |
+| --- | --- |
+| Hız limiti | Jüri rotaları genel limite girmez ve geçerli jüri veya personelin önünde IP'ye bağlı sınır yoktur. Jüri başına 900, personel oturumu başına 2000 istek (15 dk). IP başına 30 sınırı yalnız **başarısız** kimlik kontrollerine uygulanır. Gövde, kimlik doğrulanmadan okunmaz. Hacimsel saldırıya karşı koruma uygulamada değil Cloudflare'dedir. |
+| Kilit | Puanların yanında kriter, kategori, takım, sıra, linkler, sıfırlama ve kart iptali de donar (ADMIN dahil, 423). ORGANIZER kilitleyebilir ama açamaz: kilidi yalnız ADMIN açar. Kilitleme ve açma işlem kaydına düşer. |
+| Link yetkisi | Jüri linkini yalnız ADMIN oluşturur ve yeniler. Linke sahip olan o jüri adına puan verebilir. |
+| Kart iptali | Yalnız ADMIN, gerekçe zorunlu. Kart boş taslağa döner ve hesaptan çıkar; jüri iptali görür, gerekçeyi görmez. Eski puanlar işlem kaydında kalır. |
+| İşlem kaydı | Yönetim tarafındaki her değişiklik, işlemle aynı transaction'da yazılır. Düzenleme veya silme ucu yoktur. Veritabanına erişebilen kişiye karşı kanıt niteliği taşımaz. |
+| Aynı link, iki sekme | Sekmeler cihazdaki tek taslağı paylaşır; bir sekme diğerinin yedeğini silmez veya ezmez. |
+| Link gizliliği | Nginx logunda `/juri/` sonrasındaki token biçimli parça (24+ base64url karakter) gizlenir, isteğin geri kalanı okunur kalır. Cloudflare, Nginx Proxy Manager ve nginx hata kaydı linki tam görebilir. |
+| Gönderilmiş kart | `submit:false` ile değişmez (409). Değişiklik yalnız yeniden `submit:true` ile geçerli olur; ekranda o ana kadar uyarı görünür. |
+| Ödül önerisi | Yalnız ödül almamış adaylar arasından yapılır. Spec §4.5'teki puana düşme hiçbir kategoride uygulanmaz. Uygun aday yoksa `reason: "NO_ELIGIBLE_NOMINEE"`, ekranda "Uygun aday kalmadı, jüri karar versin". |
+| Kriteri boş kategori | Adaylık sayısına göre sıralanır. Hiç aday gösterilmediyse `reason: "NO_NOMINATION"`, ekranda "Aday yok, jüri karar versin". |
+| Puan kartı varken | Kriter eklenemez, silinemez, anahtarı değişemez. Kategori silinemez, pasifleştirilir. |
+| Pasif kategori | Eski adaylık kaydı bozmaz ve hesaba girmez. |
+| Pasif jüri | Linki çalışmaz. Gönderdiği kartlar hesapta kalır; gerekirse tek tek iptal edilir. |
+| Dağıtılan takım | Adı `entries.teamName` kopyasından okunur. Puanı varsa listeden çıkarılamaz. |
+| Linkler | Proje adı ve linkler boş olabilir; puanlamayı engellemez. |
+| Sıfırlama | Yalnız ADMIN, `{"confirm":"SIFIRLA"}`, puanlama açıkken. Tur (`round`) artar, cihazlarda kalan eski taslaklar kabul edilmez. İşlem kaydı silinmez. |
+
+### Jüri uçları
+
+`Authorization: Bearer <jüri token'ı>`. Token, admin'in oluşturduğu `/juri/<token>` linkindedir. Ekip JWT'si burada, jüri token'ı da yönetim uçlarında geçmez. Jüri başka jürilerin puanlarını ve sonuçları göremez.
+
+`GET /jury/me`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "juror": { "id": "JUROR_ID", "name": "Ayşe Yılmaz" },
+    "locked": false,
+    "round": 1,
+    "criteria": [{ "key": "technical", "label": "Teknik uygulama ve çalışırlık", "description": "...", "weight": 25 }],
+    "categories": [{ "key": "wow", "name": "Vay Be", "icon": "🚀" }],
+    "entries": [{ "team": "TEAM_ID", "teamName": "Kod Kurtları", "projectName": "", "order": 1, "status": "NONE" }]
+  }
+}
+```
+
+`GET /jury/entries/:teamId` yanıtı `{entry, locked, round, scorecard}` biçimindedir. `entry` linkleri içerir; `scorecard` yalnız bu jürinindir, yoksa `null`. İptal edildiyse `voidedAt` doludur; gerekçe dönmez.
+
+`PUT /jury/entries/:teamId/scorecard`:
+
+```json
+{
+  "submit": false,
+  "round": 1,
+  "version": 0,
+  "scores": [{ "criterion": "technical", "value": 4, "comment": "Canlı demoda çalıştı" }],
+  "nominations": ["wow"],
+  "generalComment": ""
+}
+```
+
+- `round`: `GET /jury/me` yanıtındaki tur. `version`: kartın son bilinen sürümü, kart yoksa `0`.
+- `value`: 1-5 tam sayı veya `null`. `comment` en fazla 1000, `generalComment` en fazla 2000 karakter.
+- `submit:false` eksik puanı kabul eder. `submit:true` bütün kriterleri ister.
+- Gövde kartın tamamıdır; gönderilmeyen kriter boş kaydedilir.
+- Başarı `{scorecard}` döndürür; sonraki kayıtta onun `version` değeri gönderilir.
+
+| HTTP | `code` | Anlamı |
+| --- | --- | --- |
+| 400 | `SCORES_MISSING` | Gönderimde eksik kriter var; mesajda adları yazar |
+| 400 | `UNKNOWN_KEY` | Bilinmeyen kriter veya kategori |
+| 401, 429 | `JURY_LINK_INVALID` | Token geçersiz, yenilenmiş veya jüri pasif. Aynı IP'den 30 başarısız denemeden sonra 429; geçerli token bundan etkilenmez |
+| 404 | `ENTRY_NOT_FOUND` | Takım yarışan takımlar arasında değil |
+| 409 | `SCORECARD_SUBMITTED` | Gönderilmiş kart taslakla değiştirilmek istendi |
+| 409 | `SCORECARD_CONFLICT` | Kart başka sekme veya cihazda değişti |
+| 409 | `JURY_RESET` | `round` eski; kartlar sıfırlanmış |
+| 423 | `JURY_LOCKED` | Puanlama kilitli |
+| 429 | `RATE_LIMITED` | Bu jürinin 900 istek sınırı |
+
+Biçim hataları (tür, uzunluk, aralık) `code` alanı olmadan 400 döner.
+
+### Yönetim uçları
+
+Ekip JWT'si ve `ORGANIZER`/`ADMIN` rolü gerekir; link oluşturma/yenileme, kilit açma, sıfırlama ve kart iptali yalnız `ADMIN`. Rol token'dan değil veritabanından okunur. Arayüz: `/admin/juri`.
+
+- `GET /jury-admin/config`: `{revision, locked, round, criteria, categories, entries, scorecardCount}`. Her `entries` öğesinde ayrıca `teamMissing` ve `scorecardCount` bulunur.
+- `PUT /jury-admin/config`: `{revision, criteria, categories, entries}` ayarın tamamını değiştirir.
+  - Ağırlıklar tam sayıdır ve toplamı 100'dür; kategori öncelikleri ve sunum sıraları benzersizdir; linkler `http(s)://` ile başlar.
+  - `teamName` sunucuda belirlenir.
+  - Çakışma ve koruma kodları: `CONFIG_CONFLICT`, `CRITERIA_FROZEN`, `CATEGORY_IN_USE`, `ENTRY_HAS_SCORES` (hepsi 409). Kilitliyken `CONFIG_LOCKED` (423).
+- `PUT /jury-admin/lock`: `{locked}`. `false` yalnız ADMIN, diğer rollere 403 `UNLOCK_ADMIN_ONLY`. `revision` değerini artırmaz. Kilitliyken ayar kaydı 423 döner; kilit açılınca açık düzenleme aynı `revision` ile kaydedilebilir.
+- `POST /jury-admin/jurors` ve `POST /jury-admin/jurors/:id/regenerate`: `{juror, token}`. Düz token yalnız bu yanıtta döner.
+- `POST /jury-admin/scorecards/reset`: `{deleted, config}`. Bütün puan kartlarını kalıcı siler; takımlar, jüriler ve linkler kalır.
+- `POST /jury-admin/jurors/:id/scorecards/:teamId/void`: `{reason, version}`. `reason` zorunlu (en fazla 500), `version` sonuçlarda görülen kartın sürümüdür.
+  - 404 `SCORECARD_NOT_FOUND`; 409 `SCORECARD_NOT_SUBMITTED` veya `SCORECARD_CONFLICT` (jüri bu arada yeniden gönderdi); 423 `CONFIG_LOCKED`.
+- `GET /jury-admin/log?before=<id>`: `{items, next}`, sayfa başına 50. Her kayıt `id, at, action, target, details, actor{name,email,role}`.
+  - `action`: `JUROR_CREATED`, `LINK_REGENERATED`, `JUROR_RENAMED`, `JUROR_ACTIVATED`, `JUROR_DEACTIVATED`, `CONFIG_UPDATED`, `LOCKED`, `UNLOCKED`, `SCORECARDS_RESET`, `SCORECARD_VOIDED`.
+- `GET /jury-admin/results`:
+  - `ranking[]`: `rank, overall, judgeCount, criterionAverages, nominationCounts, missingJurors, cards` (jüri bazında puan ve gerekçeler).
+  - `categories[]`: `winner, top` (en fazla 3), `reason, tie, awardedNominees`. Bunlar öneridir. `reason` öneri yoksa `NO_NOMINATION`, `NO_ELIGIBLE_NOMINEE` veya `NO_TEAM` (gönderilmiş kart yok) olur.
+  - Puanlar yuvarlanmadan döner.
+- `GET /jury-admin/results.csv`: yalnız gönderilmiş kartlar; takım × kriter × jüri. UTF-8 BOM, `;` ayırıcı ve ondalık virgül kullanır (Türkçe Excel). Dosya `,`, `;` veya sekmeyle bölünse de formül başlatabilecek parçaların başına `'` konur.
+
+```bash
+curl -X PUT "$API_BASE/jury-admin/lock" \
+  -H "Authorization: Bearer $AUTH_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"locked":true}'
+curl "$API_BASE/jury-admin/results.csv" -H "Authorization: Bearer $AUTH_TOKEN" -o juri_sonuclari.csv
+```
+
+### Etkinlik günü
+
+1. Provadan sonra puanlama açıkken ADMIN hesabıyla **Puan kartlarını sıfırla**. Jüri linklerini de ADMIN oluşturur; etkinlikte en az bir ADMIN hazır bulunsun.
+2. Ekip oturumu varsayılan 12 saat sürer: sunumlardan önce (18.00 civarı) yeniden giriş yapın.
+3. Kilitlemeden önce sonuç ekranındaki "taslakta" ve "jüri eksik" uyarılarını kontrol edin. Gönderilmiş kart üzerindeki gönderilmemiş değişiklik yalnız jürinin cihazındadır, admin ekranında görünmez; jürilere sorun.
+4. Kilitten sonra **İşlem kaydı**nı gözden geçirin: beklenmeyen kilit açma, ayar değişikliği veya link yenileme olmamalı.
+5. Puanlama sırasında deploy yapmayın: deploy siteyi bakım moduna alır.
 
 ## E-posta Gönderici Profilleri Yapılandırması (Brevo)
 

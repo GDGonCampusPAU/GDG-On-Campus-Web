@@ -50,6 +50,30 @@ const PERMISSIONS = [
     closedNotice: 'Bilgi düzenleme kapatıldı. Başvuru yapanlar bilgilerini artık yalnızca görüntüleyebilir.',
     openedNotice: 'Bilgi düzenleme açıldı.',
   },
+  {
+    key: 'projectUpload',
+    title: 'Proje yükleme',
+    on: 'Takım üyeleri “Başvurum” sayfasındaki “Proje Yükleme” ile proje sitesine girip takımlarının GitHub linkini ekleyebilir ve değiştirebilir.',
+    off: 'Proje sitesi açılmaya devam eder; takımlar eklenmiş linki ve commit geçmişini görür ama linki ekleyemez veya değiştiremez. Teslim süresi dolunca kapatın.',
+    closeLabel: 'Proje yüklemeyi kapat',
+    openLabel: 'Proje yüklemeyi aç',
+    closeQuestion: 'Takımlar GitHub linklerini artık değiştiremeyecek. Proje yüklemeyi kapatmak istediğine emin misin?',
+    openQuestion: 'Takımlar GitHub linklerini yeniden ekleyip değiştirebilecek. Emin misin?',
+    closedNotice: 'Proje yükleme kapatıldı. Takımlar linklerini artık yalnızca görüntüleyebilir.',
+    openedNotice: 'Proje yükleme açıldı.',
+  },
+  {
+    key: 'projectEvaluation',
+    title: 'Proje değerlendirme',
+    on: 'Sahnede canlı oylama açık. Jürideki yarışan takımlar proje yükleme sırasına göre dizildi; sunum yapan takım hackathon sitesindeki Jüri yönetimi > “Sunum akışı” sekmesinden seçilir ve jüriler yalnız o takımı oylar. Katılımcılar “Başvurum” sayfasında sunum sırasını görür ve sunan takıma (kendi takımları hariç) anonim oy verir; nihai puan jüri %70 + katılımcı %30.',
+    off: 'Canlı oylama kapalı. Açınca jürideki yarışan takımlar proje yükleme sırasına göre dizilir (sıra bir kez belirlenir, kapatıp açmak değiştirmez) ve sunum akışı yönetilebilir hâle gelir. Oylaması bitirilen takımlar kapalıyken de kilitli kalır.',
+    closeLabel: 'Proje değerlendirmeyi kapat',
+    openLabel: 'Proje değerlendirmeyi aç',
+    closeQuestion: 'Canlı oylama duracak; jüriler oylaması bitmemiş takımları serbestçe puanlayabilecek. Emin misin?',
+    openQuestion: 'Takımlar proje yükleme sırasına göre dizilecek; jüriler ve katılımcılar yalnız oylaması başlatılan takımı puanlayabilecek. Emin misin?',
+    closedNotice: 'Proje değerlendirme kapatıldı.',
+    openedNotice: 'Proje değerlendirme açıldı. Sunum sırası belirlendi; akışı Jüri yönetimindeki “Sunum akışı” sekmesinden yönetebilirsin.',
+  },
 ]
 
 /** Kayıtları kapatırken doldurulan metin: neden + kapanış cümlesi, canlı önizlemeyle. */

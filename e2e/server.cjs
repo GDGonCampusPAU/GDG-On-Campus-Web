@@ -26,11 +26,20 @@ async function start() {
   await mongoose.connect(replica.getUri());
   await Promise.all(Object.values(mongoose.models).map(model => model.init()));
   await require('../backend/src/services/eventPageService').ensureHackathonPage();
+  await require('../backend/src/modules/jury').init();
   await User.create({ fullName: 'E2E Admin', email: 'admin@pau.edu.tr', role: 'ADMIN', isEmailVerified: true,
+    passwordHash: await bcrypt.hash('e2e-admin-password', 4) });
+  await User.create({ fullName: 'E2E Organizer', email: 'organizer@pau.edu.tr', role: 'ORGANIZER', isEmailVerified: true,
     passwordHash: await bcrypt.hash('e2e-admin-password', 4) });
   const harness = express();
   harness.get('/__test__/otp', (req, res) => res.json({ code: codes.get(req.query.email) }));
   harness.get('/__test__/state', async (_req, res) => res.json({ responses: await Response.countDocuments() }));
+  harness.post('/__test__/team', express.json(), async (req, res) => {
+    const form = await require('../backend/src/models/Form').findOne({ slug: 'hackathon-katilim' });
+    await require('../backend/src/models/HackathonTeam').create({ form: form._id, name: req.body.name, nameKey: req.body.name.toLocaleLowerCase('tr-TR'),
+      code: req.body.code, captain: { participant: new mongoose.Types.ObjectId(), email: `${req.body.code}@example.com` } });
+    res.sendStatus(204);
+  });
   harness.use(app);
   server = harness.listen(5010, '127.0.0.1');
 }

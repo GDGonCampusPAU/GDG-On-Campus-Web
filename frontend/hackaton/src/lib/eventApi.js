@@ -53,9 +53,14 @@ export function applicationApi(slug, token) {
     remove: (id) => post(`/team/members/${encodeURIComponent(id)}/remove`),
     sendDisbandCode: () => post('/team/disband/code'),
     disband: (code) => post('/team/disband', { code }),
+    projectUpload: () => post('/project-upload'),
+    vote: () => call('/vote'),
+    castVote: (team, scores) => post('/vote', { team, scores }),
   }
 }
 export const getEventPage = () => api('/event-page/hackathon').then(result => result.data)
+/** Sahnedeki sunum sırası (Proje değerlendirme açıkken); herkese açık, yalnız takım adları. */
+export const getPresentation = () => api('/presentation').then(result => result.data)
 export const publishEventPage = (event, revision, token) => api('/event-page/hackathon', { method: 'PUT', body: { event, revision }, token }).then(result => result.data)
 export async function loginEditor(email, password) {
   const result = await api('/auth/login', { method: 'POST', body: { email, password } })

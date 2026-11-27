@@ -2,6 +2,8 @@
 // (req.submissionForm) and, when a Bearer token was sent, the participant (req.participant).
 const service = require('../services/myApplicationService');
 const { permissionsOf } = require('../services/formPermissionsService');
+const projectUpload = require('../modules/projectUpload/services/projectUploadService');
+const participantVote = require('../modules/jury/services/participantVoteService');
 
 const LOCKED = {
   team: 'Takım değişiklikleri şu an kapalı. Takım bilgilerini yalnızca görüntüleyebilirsin.',
@@ -44,5 +46,10 @@ module.exports = {
   rejectRequest: action((form, participant, req) => service.rejectRequest(form, participant, req.params.participantId)),
   removeMember: action((form, participant, req) => service.removeMember(form, participant, req.params.participantId), 'team'),
   sendDisbandCode: action((form, participant) => service.sendDisbandCode(form, participant), 'team'),
-  disbandTeam: action((form, participant, req) => service.disbandTeam(form, participant, req.body?.code), 'team')
+  disbandTeam: action((form, participant, req) => service.disbandTeam(form, participant, req.body?.code), 'team'),
+  // Opens the project upload site. Allowed while uploading is closed too: the site then only shows the link.
+  projectUploadHandoff: action((form, participant) => projectUpload.issueHandoff(form, participant)),
+  // Participant voting on the team on stage (anonymous, once per team, not for one's own team).
+  getVote: action((form, participant) => participantVote.voteState(form, participant)),
+  castVote: action((form, participant, req) => participantVote.castVote(form, participant, req.body))
 };

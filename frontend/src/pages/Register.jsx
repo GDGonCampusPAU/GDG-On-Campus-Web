@@ -151,7 +151,7 @@ export default function Register() {
           name="password"
           type="password"
           autoComplete="new-password"
-          hint="En az 6 karakter."
+          hint="En az 8 karakter."
           value={values.password}
           onChange={handleChange}
           error={errors.password}

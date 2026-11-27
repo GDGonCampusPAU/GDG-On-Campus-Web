@@ -39,7 +39,14 @@ export default function ParticipantVerification({ slug, onVerified }) {
       // Bu cihazda aynı e-posta son 30 dk içinde doğrulandıysa yeni kod istenmez.
       const cached = loadIdentity(email)
       if (cached) return onVerified({ ...cached, formVersion: form.schemaVersion, registration: form.registration })
-      const result = await api('/participant-auth/email/send-otp', { method: 'POST', body: { email: email.trim() } })
+      let result
+      try {
+        result = await api('/participant-auth/email/send-otp', { method: 'POST', body: { email: email.trim() } })
+      } catch (error) {
+        // Salonun e-posta tavanı dolu: daha önce doğrulananlara kod yine gider, giriş alanı açılmalı.
+        if (error.code === 'MAIL_LIMITED') { setSent(true); setCooldown(60) }
+        throw error
+      }
       setSent(true); setCooldown(result.resendAfterSeconds)
     })
   }

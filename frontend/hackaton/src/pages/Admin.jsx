@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import AdminGate from '../components/AdminGate.jsx'
 import Button from '../components/Button.jsx'
 import Field from '../components/Field.jsx'
 import base from '../data/base.js'
 import { choices, clearDraft, isEventShape, normalizeEventPayload, readDraft, typeLabels, writeDraft } from '../lib/content.js'
 import './Admin.css'
-import { loginEditor, getEventPage, publishEventPage } from '../lib/eventApi.js'
+import { getEventPage, publishEventPage } from '../lib/eventApi.js'
 import { useEvent } from '../context/EventContext.jsx'
+import { useEditorSession } from '../hooks/useEditorSession.js'
 
 const labels = {
   organizer: 'Organizatör',
@@ -112,7 +114,6 @@ const tabs = [
   ['Sosyal', ['socials']],
   ['Kayıt', ['register']],
 ]
-const UNLOCK_KEY = 'hackathon-admin-unlocked'
 
 // Kart başlığı öğenin kendi alanlarından gelir; boşsa sıra adı kullanılır.
 const cardLabel = (item) => [item.time, item.name || item.title || item.label].filter(Boolean).join(' ')
@@ -234,31 +235,6 @@ function Node({ name, title, path, value, update }) {
   )
 }
 
-function Gate({ onUnlock }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const submit = async e => {
-    e.preventDefault()
-    if (busy) return
-    setBusy(true); setError('')
-    try { onUnlock(await loginEditor(email.trim(), password)) }
-    catch (error) { setPassword(''); setError(error.message) }
-    finally { setBusy(false) }
-  }
-  return (
-    <form className="admin__gate" onSubmit={submit}>
-      <h1>İçerik paneli</h1>
-      <p>Core Team yönetim hesabınla giriş yap.</p>
-      <Field id="editor-email" label="E-posta"><input id="editor-email" type="email" autoComplete="username" required value={email} disabled={busy} onChange={e => setEmail(e.target.value)} /></Field>
-      <Field id="password" label="Şifre"><input id="password" type="password" autoComplete="current-password" required value={password} disabled={busy} onChange={e => setPassword(e.target.value)} /></Field>
-      {error && <p role="alert" className="admin__status">{error}</p>}
-      <Button type="submit" disabled={busy}>{busy ? 'Bekleyin…' : 'Giriş'}</Button>
-    </form>
-  )
-}
-
 function Editor({ session, onLock }) {
   const { refreshEvent } = useEvent()
   const [revision, setRevision] = useState(null)
@@ -348,6 +324,9 @@ function Editor({ session, onLock }) {
           <Button onClick={save}>Kaydet</Button>
           <Button onClick={publish} disabled={publishing || revision == null}>{publishing ? 'Yayınlanıyor…' : 'Yayınla'}</Button>
           <Button variant="ghost" onClick={onLock}>Çıkış</Button>
+          <Button variant="ghost" href="/admin/juri">
+            Jüri puanlama
+          </Button>
           <Button variant="ghost" href="/">
             Siteyi gör
           </Button>
@@ -397,14 +376,7 @@ function Editor({ session, onLock }) {
 }
 
 export default function Admin() {
-  const [session, setSession] = useState(() => {
-    try {
-      const value = JSON.parse(window.sessionStorage.getItem(UNLOCK_KEY))
-      return value?.token ? value : null
-    } catch {
-      return null
-    }
-  })
+  const { session, unlock, lock } = useEditorSession()
 
   useEffect(() => {
     const prev = document.title
@@ -419,18 +391,5 @@ export default function Admin() {
     }
   }, [])
 
-  const unlock = (value) => {
-    try {
-      window.sessionStorage.setItem(UNLOCK_KEY, JSON.stringify(value))
-    } catch {
-      // Hatırlanamazsa bu oturumda yine açılır; yenilemede şifre tekrar sorulur.
-    }
-    setSession(value)
-  }
-
-  const lock = () => {
-    try { window.sessionStorage.removeItem(UNLOCK_KEY) } catch { /* storage unavailable */ }
-    setSession(null)
-  }
-  return <main className="admin container">{session ? <Editor session={session} onLock={lock} /> : <Gate onUnlock={unlock} />}</main>
+  return <main className="admin container">{session ? <Editor session={session} onLock={lock} /> : <AdminGate onUnlock={unlock} />}</main>
 }
