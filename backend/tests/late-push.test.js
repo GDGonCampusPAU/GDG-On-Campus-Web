@@ -163,3 +163,34 @@ test('route: staff only, ORGANIZER may run it', async () => {
     globalThis.fetch = original;
   }
 });
+
+test('forTeam (juror page, upload site): nothing while open; after closing the late pushes and the branch head at the deadline', async () => {
+  const checker = createLatePushChecker({ fetch: fakeFetch() });
+  assert.equal(await checker.forTeam('https://github.com/gec/repo'), null, 'upload still open');
+  await Form.updateOne({ _id: form._id }, { $set: { 'settings.projectUploadEnabled': false, 'settings.projectUploadClosedAt': DEADLINE } });
+  assert.equal(await checker.forTeam(''), null, 'no link');
+  const late = await checker.forTeam('https://github.com/gec/repo');
+  assert.deepEqual([late.status, late.lateCount, late.deadline], ['LATE', 1, DEADLINE.toISOString()]);
+  assert.deepEqual(late.headsAtDeadline, ['b'.repeat(40)]);
+  assert.equal(late.latePushes[0].sha, 'b'.repeat(40));
+  assert.equal((await checker.forTeam('https://github.com/zaman/repo')).status, 'ON_TIME');
+  // GitHub too slow: the page does not wait.
+  const slow = createLatePushChecker({ fetch: () => new Promise(() => {}) });
+  const started = Date.now();
+  assert.equal((await slow.forTeam('https://github.com/gec/repo')).status, 'UNAVAILABLE');
+  assert.ok(Date.now() - started < 6000);
+});
+
+test('the juror sees the late pushes of the team on its page', async () => {
+  await Form.updateOne({ _id: form._id }, { $set: { 'settings.projectUploadEnabled': false, 'settings.projectUploadClosedAt': DEADLINE } });
+  const juror = (await request(app).post('/api/v1/jury-admin/jurors').set('Authorization', `Bearer ${admin}`).send({ name: 'Ayşe' })).body.data;
+  const original = globalThis.fetch;
+  globalThis.fetch = fakeFetch();
+  try {
+    const res = await request(app).get(`/api/v1/jury/entries/${teams.gec._id}`).set('Authorization', `Bearer ${juror.token}`);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.deepEqual([res.body.data.entry.latePush.status, res.body.data.entry.latePush.lateCount], ['LATE', 1]);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

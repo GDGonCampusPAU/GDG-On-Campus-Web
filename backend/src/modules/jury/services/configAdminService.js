@@ -21,6 +21,8 @@ const eventForm = async () => {
 };
 
 const getConfig = async () => {
+  // Teams with a project link compete without being added by hand (autoEntries.js).
+  await require('./autoEntries').addUploadedTeamsSafely();
   const config = await loadConfig();
   const [teams, cards] = await Promise.all([
     HackathonTeam.find({ _id: { $in: config.entries.map(entry => entry.team) } }).select('_id').lean(),
@@ -102,7 +104,10 @@ const saveConfig = async (body, user) => {
 
     const changes = configChanges(config.toObject(), { criteria: input.criteria, categories: input.categories, entries });
     if (changes) await record(session, user, 'CONFIG_UPDATED', { details: { changes } });
-    config.set({ criteria: input.criteria, categories: input.categories, entries, revision: config.revision + 1, updatedBy: user._id });
+    // A team taken off the list stays off (it is not added back for its project link); one added by hand is back.
+    const removed = [...previous.keys()].filter(id => !kept.has(id));
+    const excluded = new Set([...(config.excludedTeams || []).map(String), ...removed].filter(id => !kept.has(id)));
+    config.set({ criteria: input.criteria, categories: input.categories, entries, excludedTeams: [...excluded], revision: config.revision + 1, updatedBy: user._id });
     await config.save({ session });
   });
   return getConfig();

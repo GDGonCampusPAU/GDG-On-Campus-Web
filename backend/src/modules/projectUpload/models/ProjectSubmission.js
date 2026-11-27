@@ -11,6 +11,7 @@ const personSchema = new mongoose.Schema({
 
 const historySchema = new mongoose.Schema({
   repoUrl: { type: String, required: true },
+  projectName: { type: String, default: '' },
   by: { type: personSchema, required: true },
   at: { type: Date, required: true }
 }, { _id: false });
@@ -21,6 +22,8 @@ const projectSubmissionSchema = new mongoose.Schema({
   form: { type: mongoose.Schema.Types.ObjectId, ref: 'Form', required: true },
   team: { type: mongoose.Schema.Types.ObjectId, ref: 'HackathonTeam', required: true },
   repoUrl: { type: String, required: true },
+  // Given by the team on the upload site; the jury screens use it unless the jury setup has one.
+  projectName: { type: String, default: '', maxlength: 80 },
   // owner/repo in lower case: the same repo cannot be submitted by two teams.
   repoKey: { type: String, required: true },
   updatedBy: { type: personSchema, required: true },

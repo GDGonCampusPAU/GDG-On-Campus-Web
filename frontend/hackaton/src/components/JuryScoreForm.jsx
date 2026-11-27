@@ -6,6 +6,30 @@ import { formatScore, missingOf, scoreOf, totalOf } from '../lib/juryForm.js'
 
 const VALUES = [1, 2, 3, 4, 5]
 const LINKS = [['repoUrl', 'Repo'], ['demoUrl', 'Demo'], ['presentationUrl', 'Sunum']]
+const pushTime = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' })
+
+/**
+ * Proje yükleme kapandıktan sonra repoya gelen push'lar (GitHub'ın push zamanı; commit tarihi değil).
+ * Yükleme açıkken ya da GitHub'a ulaşılamadıysa bir şey göstermez.
+ * @param {{ late?: { deadline: string, status: string, lateCount: number, forcedLate: boolean, latePushes: any[] } | null }} props
+ */
+function LatePushNotice({ late }) {
+  if (!late || late.status !== 'LATE') return null
+  return (
+    <div className="jury__warning jury__late" role="note">
+      <strong>{`⚠️ Teslimden sonra ${late.lateCount} push yapılmış`}{late.forcedLate ? ' (force push var: geçmiş yeniden yazılmış)' : ''}</strong>
+      <p>{`Teslim: ${pushTime.format(new Date(late.deadline))}. Bu saatten sonra repoya gelen kod değerlendirmeye alınmamalı.`}</p>
+      <ul>
+        {late.latePushes.map((push) => (
+          <li key={`${push.at}-${push.sha}`}>
+            {`${pushTime.format(new Date(push.at))}${push.type === 'force_push' ? ' · force push' : ''}${push.actor ? ` · @${push.actor}` : ''} · `}
+            <a href={push.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Değişiklikler ↗</a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
 
 function Criterion({ criterion, score, disabled, missing, onChange }) {
   const { key, label, description, weight } = criterion
@@ -49,9 +73,9 @@ function saveLabel(team, { dirty, submitted, unsent, conflict }, locked) {
 
 /**
  * @param {{ me: any, summary: any, team: import('../lib/juryStore.js').TeamState | undefined, store: any,
- *   previous?: any, next?: any, onOpen: (team: string | null) => void }} props
+ *   onOpen: (team: string | null) => void }} props
  */
-export default function JuryScoreForm({ me, summary, team, store, previous, next, onOpen }) {
+export default function JuryScoreForm({ me, summary, team, store, onOpen }) {
   const id = summary.team
   const [showMissing, setShowMissing] = useState(false)
   const heading = useRef(null)
@@ -105,7 +129,9 @@ export default function JuryScoreForm({ me, summary, team, store, previous, next
       return
     }
     setShowMissing(false)
-    await store.submit(id)
+    // Gönderim hesaba geçince takım listesine dönülür (canlı oylamada sıradaki takım oradan açılır).
+    // Gönderilemezse (bağlantı, çakışma) jüri sayfada kalır ve uyarıyı görür.
+    if (await store.submit(id)) onOpen(null)
   }
 
   return (
@@ -125,6 +151,7 @@ export default function JuryScoreForm({ me, summary, team, store, previous, next
       ) : (
         entry && <p className="jury__notice">Bu takımın bağlantısı eklenmemiş. Puanlamaya devam edebilirsin.</p>
       )}
+      <LatePushNotice late={entry?.latePush} />
 
       {team.server?.voidedAt && !submitted && (
         <div className="jury__warning" role="alert">
@@ -181,11 +208,6 @@ export default function JuryScoreForm({ me, summary, team, store, previous, next
           </ul>
         </div>
       )}
-
-      <nav className="jury__pager" aria-label="Takım geçişi">
-        <Button variant="ghost" disabled={!previous} onClick={() => onOpen(previous.team)}>← Önceki</Button>
-        <Button variant="ghost" disabled={!next} onClick={() => onOpen(next.team)}>Sonraki →</Button>
-      </nav>
 
       <div className={`jury__bar${unsent ? ' jury__bar--unsent' : ''}`}>
         {/* Uyarı alt çubukta: sayfanın neresinde olunursa olunsun görünür. */}

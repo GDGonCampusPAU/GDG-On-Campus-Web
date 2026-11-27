@@ -7,6 +7,7 @@ const { juryError } = require('./juryError');
 const { isId, parseScorecard } = require('./validation');
 const live = require('./liveService');
 const ProjectSubmission = require('../../projectUpload/models/ProjectSubmission');
+const latePush = require('../../projectUpload/services/latePushService');
 
 const notAnEntry = () => juryError(404, 'Bu takım yarışan takımlar arasında değil.', 'ENTRY_NOT_FOUND');
 const findEntry = (config, teamId) => config?.entries.find(entry => String(entry.team) === String(teamId).toLowerCase());
@@ -57,9 +58,10 @@ const getEntry = async (juror, teamId) => {
   const { team, teamName, order, projectName, demoUrl, presentationUrl } = entry;
   // A link typed in the jury setup wins; otherwise the one the team added on the project upload site.
   const repoUrl = entry.repoUrl || (await ProjectSubmission.findOne({ team }).select('repoUrl').lean())?.repoUrl || '';
-  const card = await Scorecard.findOne({ juror: juror._id, team }).lean();
+  const [card, late] = await Promise.all([Scorecard.findOne({ juror: juror._id, team }).lean(), latePush.forTeam(repoUrl)]);
   return {
-    entry: { team: String(team), teamName, order, projectName, repoUrl, demoUrl, presentationUrl,
+    // latePush: pushes to the repo after project upload was closed (null while uploading is open).
+    entry: { team: String(team), teamName, order, projectName, repoUrl, demoUrl, presentationUrl, latePush: late,
       live: live.stateOf(config, team), writable: !config.locked && live.writable(config, team, open) },
     locked: config.locked,
     round: config.round,

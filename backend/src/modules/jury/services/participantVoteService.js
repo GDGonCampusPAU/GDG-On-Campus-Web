@@ -12,20 +12,27 @@ const { internals } = require('../../../services/myApplicationService');
 /** @param {number} status @param {string} message @param {string} code */
 const failure = (status, message, code) => Object.assign(new Error(message), { status, code });
 
-/** The participant's own team, if it is an approved membership in a competing team. */
-const ownEntry = async (form, config, participantId) => {
+/**
+ * The participant's own competing team. `detail` says why there is none:
+ * NO_TEAM (no team), PENDING (join request not approved yet), NOT_COMPETING (team not in "Yarışan takımlar").
+ * @returns {Promise<{ entry: any, detail: 'NO_TEAM' | 'PENDING' | 'NOT_COMPETING' | null }>}
+ */
+const membershipOf = async (form, config, participantId) => {
   const membership = await internals.findMembership(form, participantId);
-  if (!membership || membership.status !== 'APPROVED') return null;
-  return (config.entries || []).find(entry => live.same(entry.team, membership.team._id)) || null;
+  if (!membership) return { entry: null, detail: 'NO_TEAM' };
+  if (membership.status !== 'APPROVED') return { entry: null, detail: 'PENDING' };
+  const entry = (config.entries || []).find(item => live.same(item.team, membership.team._id)) || null;
+  return { entry, detail: entry ? null : 'NOT_COMPETING' };
 };
+const ownEntry = async (form, config, participantId) => (await membershipOf(form, config, participantId)).entry;
 
 /**
  * What the vote card on "Başvurum" shows. `canVote` only when everything allows a vote right now.
- * reason: EVALUATION_CLOSED | LOCKED | NOT_ELIGIBLE | NO_VOTING | OWN_TEAM | VOTED | null
+ * reason: EVALUATION_CLOSED | LOCKED | NOT_ELIGIBLE | NO_VOTING | OWN_TEAM | VOTED | null; notEligible: why not eligible.
  */
 const voteState = async (form, participant) => {
   const [config, open] = await Promise.all([loadConfig(), live.evaluationOpen()]);
-  const own = await ownEntry(form, config, participant._id);
+  const { entry: own, detail } = await membershipOf(form, config, participant._id);
   const current = live.currentEntry(config);
   const ordered = live.orderedEntries(config);
   const voted = current ? Boolean(await ParticipantVote.exists({ team: current.team, participant: participant._id })) : false;
@@ -39,6 +46,8 @@ const voteState = async (form, participant) => {
   return {
     open,
     eligible: Boolean(own),
+    // Why not eligible (shown on the card): NO_TEAM | PENDING | NOT_COMPETING | null
+    notEligible: detail,
     canVote: reason === null,
     reason,
     voted,

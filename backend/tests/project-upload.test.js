@@ -71,7 +71,7 @@ const internal = (method, path, body, key = INTERNAL_KEY) => {
   return body ? call.send(body) : call;
 };
 const state = (teamId, participant) => internal('get', `/teams/${teamId}/state?participant=${participant}`);
-const save = (teamId, participant, repoUrl) => internal('put', `/teams/${teamId}/submission`, { participant, repoUrl });
+const save = (teamId, participant, repoUrl, projectName = 'Kampüs Asistanı') => internal('put', `/teams/${teamId}/submission`, { participant, repoUrl, projectName });
 
 test('repo links are normalized to github.com/owner/repo and anything else is refused', () => {
   const ok = parseRepoUrl('  github.com/Kod-Kurtlari/hack.app.git/ ');
@@ -130,7 +130,7 @@ test('state: members see the team, the switch and the event start; others and va
   const t = await team();
   const res = await state(t.id, t.member.id);
   assert.equal(res.status, 200);
-  assert.deepEqual(res.body.data, { member: true, reason: null, team: { id: t.id, name: 'Kod Kurtları' }, open: true,
+  assert.deepEqual(res.body.data, { latePush: null, member: true, reason: null, team: { id: t.id, name: 'Kod Kurtları' }, open: true,
     submission: null, eventStartsAt: '2026-11-27T09:00:00+03:00' });
   const pending = (await state(t.id, t.pending.id)).body.data;
   assert.equal(pending.member, false);
@@ -189,6 +189,29 @@ test('save: bad links, non-members, people who left and a closed upload are refu
   const view = (await state(t.id, t.captain.id)).body.data;
   assert.equal(view.open, false);
   assert.equal(view.submission.repoUrl, 'https://github.com/a/b');
+});
+
+test('project name: required with the link; a name-only change is recorded; the jury uses it unless the setup has one', async () => {
+  const t = await team();
+  for (const name of [undefined, '', ' x ', 'a'.repeat(81)]) {
+    const res = await internal('put', `/teams/${t.id}/submission`, { participant: t.captain.id, repoUrl: 'https://github.com/a/b', projectName: name });
+    assert.deepEqual([res.status, res.body.code], [400, 'INVALID_PROJECT_NAME'], String(name));
+  }
+  const first = (await save(t.id, t.captain.id, 'https://github.com/a/b', '  Kampüs   Asistanı ')).body.data.submission;
+  assert.equal(first.projectName, 'Kampüs Asistanı');
+  const renamed = (await save(t.id, t.member.id, 'https://github.com/a/b', 'Kampüs Asistanı 2')).body.data.submission;
+  assert.equal(renamed.projectName, 'Kampüs Asistanı 2');
+  assert.deepEqual(renamed.history.map(h => h.projectName), ['Kampüs Asistanı 2', 'Kampüs Asistanı']);
+  assert.equal((await save(t.id, t.member.id, 'https://github.com/a/b', 'Kampüs Asistanı 2')).body.data.submission.history.length, 2, 'no change, no entry');
+
+  const JudgingConfig = require('../src/modules/jury/models/JudgingConfig');
+  const { loadConfig } = require('../src/modules/jury/services/configService');
+  await JudgingConfig.deleteMany({});
+  await JudgingConfig.collection.insertOne({ _id: JudgingConfig.CONFIG_ID, criteria: [], categories: [], entries: [{ team: new mongoose.Types.ObjectId(t.id), teamName: 'Kod Kurtları', order: 1, projectName: '' }] });
+  assert.equal((await loadConfig()).entries[0].projectName, 'Kampüs Asistanı 2');
+  await JudgingConfig.updateOne({}, { $set: { 'entries.0.projectName': 'Jürinin verdiği ad' } });
+  assert.equal((await loadConfig()).entries[0].projectName, 'Jürinin verdiği ad');
+  await JudgingConfig.deleteMany({});
 });
 
 test('the upload site calls are not counted by the per-IP API limit', async () => {

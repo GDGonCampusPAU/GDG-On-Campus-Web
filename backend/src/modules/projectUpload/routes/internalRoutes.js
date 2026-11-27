@@ -19,6 +19,6 @@ const respond = (fn) => async (req, res, next) => {
 };
 
 router.get('/teams/:teamId/state', respond(req => service.teamState(req.params.teamId, req.query.participant)));
-router.put('/teams/:teamId/submission', respond(req => service.saveRepo(req.params.teamId, req.body?.participant, req.body?.repoUrl)));
+router.put('/teams/:teamId/submission', respond(req => service.saveRepo(req.params.teamId, req.body?.participant, req.body?.repoUrl, req.body?.projectName)));
 
 module.exports = router;

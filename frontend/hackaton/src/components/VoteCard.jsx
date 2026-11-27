@@ -4,6 +4,12 @@ import Button from './Button.jsx'
 export const VOTE_POLL_MS = 4000
 export const IDLE_POLL_MS = 15000
 
+const NOT_ELIGIBLE = {
+  NO_TEAM: 'Katılımcı oylamasına yalnız yarışan takımların üyeleri katılabilir. Bir takımda olmadığın için oy veremezsin.',
+  PENDING: 'Takım kaptanın katılma isteğini henüz onaylamadı. Onaylayınca diğer takımlara oy verebilirsin.',
+  NOT_COMPETING: 'Takımın yarışan takımlar listesinde değil, bu yüzden oy veremezsin. Bir yanlışlık olduğunu düşünüyorsan organizasyon ekibine haber ver.',
+}
+
 /**
  * Katılımcı oylaması ("Başvurum"). Sahnedeki takımın oylaması açıkken, yarışan diğer takımların üyeleri
  * jüriyle aynı kriterlerle 1-5 puan verir. Anonim, takım başına bir kez, kendi takımına değil.
@@ -48,8 +54,26 @@ export default function VoteCard({ load, cast, onExpired, interval = VOTE_POLL_M
     }
   }, [refresh, open, interval, idleInterval])
 
-  if (!state?.open || !state.eligible) return null
+  if (!state?.open) return null
   const { current, criteria, reason } = state
+
+  // Oy hakkı yoksa kart kaybolmaz: kişi nedenini görür (yoksa "oy veremiyorum" diye kalır).
+  if (!state.eligible) {
+    return (
+      <section className="vote vote--idle" aria-live="polite">
+        <p className="vote__tag">Katılımcı oylaması</p>
+        <p>{NOT_ELIGIBLE[state.notEligible] ?? NOT_ELIGIBLE.NOT_COMPETING}</p>
+      </section>
+    )
+  }
+  if (reason === 'LOCKED') {
+    return (
+      <section className="vote vote--idle" aria-live="polite">
+        <p className="vote__tag">Katılımcı oylaması</p>
+        <p>Oylama kapandı.</p>
+      </section>
+    )
+  }
 
   if (!current || reason === 'NO_VOTING') {
     return (
@@ -75,7 +99,6 @@ export default function VoteCard({ load, cast, onExpired, interval = VOTE_POLL_M
       </section>
     )
   }
-  if (reason === 'LOCKED') return null
 
   const complete = criteria.every((c) => scores[c.key])
   const submit = async () => {

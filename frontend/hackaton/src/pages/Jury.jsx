@@ -101,8 +101,6 @@ function JuryApp({ token }) {
           summary={me.entries[index]}
           team={teams[me.entries[index].team]}
           store={store}
-          previous={me.entries[index - 1]}
-          next={me.entries[index + 1]}
           onOpen={open}
         />
       ) : (

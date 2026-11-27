@@ -22,6 +22,7 @@
     "build": "npm run build --workspace gdg-pau-panel --workspace gdg-pau-hackathon",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "test:e2e": "playwright test",
+    "yerel": "node scripts/canli-kopya/cli.mjs",
     "setup:browser": "playwright install chromium"
   },
   "devDependencies": {

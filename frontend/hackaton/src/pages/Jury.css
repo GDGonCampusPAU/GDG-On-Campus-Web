@@ -322,18 +322,6 @@
   accent-color: var(--black);
 }
 
-.jury__pager {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 4px 0 20px;
-}
-
-.jury__pager .btn {
-  min-width: 0;
-  padding: 0 16px;
-}
-
 /* Puan, kayıt durumu ve gönder düğmesi hep görünür. */
 .jury__bar {
   position: sticky;
@@ -433,4 +421,19 @@
 
 .jury__banner--live:not(.jury__banner--now) {
   background: var(--off-white);
+}
+
+.jury__late {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+}
+
+.jury__late p {
+  margin: 4px 0;
+}
+
+.jury__late ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
 }

@@ -82,6 +82,10 @@ test('only members of other competing teams vote, once, only for the team on sta
   // Own team, not competing, pending member, outsider: no vote.
   assert.equal((await voteApi(people.alfaCaptain).state()).data.reason, 'OWN_TEAM');
   assert.equal((await voteApi(people.alfaCaptain).cast(teams.alfa)).status, 403);
+  const why = { outsider: 'NO_TEAM', outTeam: 'NOT_COMPETING', alfaPending: 'PENDING' };
+  for (const [name, expected] of Object.entries(why)) {
+    assert.equal((await voteApi(people[name]).state()).data.notEligible, expected, name);
+  }
   for (const who of [people.outsider, people.outTeam, people.alfaPending]) {
     assert.equal((await voteApi(who).state()).data.reason, 'NOT_ELIGIBLE');
     assert.equal((await voteApi(who).cast(teams.alfa)).status, 403);
@@ -140,7 +144,7 @@ test('results combine jury 70% and participants 30%, and never reveal who voted'
   assert.match(csv, /82/);
 });
 
-test('computeResults: ranking by final score, jury-only when nobody voted, awards only among the top 5', () => {
+test('computeResults: ranking by final score, 50 when nobody voted, awards only among the top 5', () => {
   const config = { criteria: DEFAULT_CRITERIA, categories: DEFAULT_CATEGORIES };
   const entries = ['a', 'b', 'c', 'd', 'e', 'f'].map((team, i) => ({ team, order: i + 1 }));
   const card = (team, value, nominations = []) => ({ team, status: 'SUBMITTED', nominations, scores: DEFAULT_CRITERIA.map(({ key }) => ({ criterion: key, value })) });
@@ -152,9 +156,10 @@ test('computeResults: ranking by final score, jury-only when nobody voted, award
   const by = Object.fromEntries(result.ranking.map(t => [t.team, t]));
   assert.equal(result.ranking[0].team, 'b');
   assert.ok(Math.abs(by.a.final - 62) < 1e-9 && Math.abs(by.b.final - 83.2) < 1e-9);
-  // No participant vote: the jury score alone.
+  // No participant vote: the participant part counts as 50.
   assert.equal(by.c.participantScore, null);
-  assert.equal(by.c.final, by.c.overall);
+  assert.equal(by.c.participantScoreUsed, 50);
+  assert.ok(Math.abs(by.c.final - (0.7 * by.c.overall + 0.3 * 50)) < 1e-9);
   // f is 6th: its "wow" nomination cannot win; the jury decides.
   assert.ok(!result.awardPool.includes('f'));
   const wow = result.categories.find(c => c.key === 'wow');

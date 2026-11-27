@@ -47,6 +47,9 @@ const configSchema = new mongoose.Schema({
   criteria: { type: [criterionSchema], default: [] },
   categories: { type: [categorySchema], default: [] },
   entries: { type: [entrySchema], default: [] },
+  // Teams an organizer removed from the entries: not added back automatically when they have a
+  // project link (autoEntries.js). Adding one by hand takes it off this list.
+  excludedTeams: { type: [mongoose.Schema.Types.ObjectId], default: [] },
   locked: { type: Boolean, default: false },
   live: { type: liveSchema, default: () => ({}) },
   revision: { type: Number, default: 1 },

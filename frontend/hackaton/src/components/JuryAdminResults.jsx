@@ -156,7 +156,7 @@ export default function JuryAdminResults({ results, stale, onDownload, onVoid })
       <h3>Genel sıralama</h3>
       <p className="jury-admin__hint">
         Nihai puan = Jüri × {String(results.shares?.jury ?? 0.7).replace('.', ',')} + Katılımcı × {String(results.shares?.participants ?? 0.3).replace('.', ',')}.
-        Katılımcı oyu almayan takımda nihai puan jüri puanıdır. Ödüller nihai sıralamanın ilk 5 takımı arasında, takım başına en fazla bir ödül olarak önerilir.
+        Katılımcı oyu almayan takımın katılımcı puanı {results.shares?.noVoteScore ?? 50} sayılır. Ödüller nihai sıralamanın ilk 5 takımı arasında, takım başına en fazla bir ödül olarak önerilir.
       </p>
       {ranking.length === 0 ? (
         <p>Henüz yarışan takım yok.</p>
@@ -192,7 +192,7 @@ export default function JuryAdminResults({ results, stale, onDownload, onVoid })
                       <td>{formatScore(team.overall)}</td>
                       <td>
                         {formatScore(team.participantScore ?? null)}
-                        <small>{team.participantCount ? `${team.participantCount} oy` : 'Oy yok, nihai = jüri'}</small>
+                        <small>{team.participantCount ? `${team.participantCount} oy` : `Oy yok, ${results.shares?.noVoteScore ?? 50} sayıldı`}</small>
                       </td>
                       <td className={team.missingJurors.length ? 'jury-admin__short' : undefined}>
                         {team.judgeCount}

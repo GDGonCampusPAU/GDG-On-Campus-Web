@@ -72,9 +72,10 @@ const issueHandoff = async (form, participant) => {
 
 const submissionView = (doc) => doc && {
   repoUrl: doc.repoUrl,
+  projectName: doc.projectName || '',
   updatedBy: doc.updatedBy?.name || '',
   updatedAt: doc.updatedAt,
-  history: (doc.history || []).slice(-SHOWN_HISTORY).reverse().map(item => ({ repoUrl: item.repoUrl, by: item.by?.name || '', at: item.at }))
+  history: (doc.history || []).slice(-SHOWN_HISTORY).reverse().map(item => ({ repoUrl: item.repoUrl, projectName: item.projectName || '', by: item.by?.name || '', at: item.at }))
 };
 
 const eventStartsAt = async () => {
@@ -97,7 +98,10 @@ const teamState = async (teamId, participantId) => {
   const { team, form, member } = await load(teamId, participantId);
   if (!team) return { member: false, reason: 'TEAM_GONE', team: null, open: false, submission: null, eventStartsAt: await eventStartsAt() };
   const submission = member ? await ProjectSubmission.findOne({ team: team._id }).lean() : null;
+  // After the deadline: pushes that reached GitHub later (GitHub's push time, latePushService.js).
+  const latePush = submission ? await require('./latePushService').forTeam(submission.repoUrl) : null;
   return {
+    latePush,
     member,
     reason: member ? null : 'NOT_MEMBER',
     team: { id: String(team._id), name: team.name },
@@ -107,24 +111,36 @@ const teamState = async (teamId, participantId) => {
   };
 };
 
-/** Sets or changes the team's link. Membership and the admin switch are checked at the moment of saving. */
-const saveRepo = async (teamId, participantId, input) => {
+const PROJECT_NAME_MIN = 2;
+const PROJECT_NAME_MAX = 80;
+/** @param {unknown} value */
+const cleanName = (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '');
+
+/**
+ * Sets or changes the team's link and project name. Membership and the admin switch are checked at the
+ * moment of saving.
+ */
+const saveRepo = async (teamId, participantId, input, nameInput) => {
   const repo = parseRepoUrl(input);
   if (!repo) throw failure(400, 'Geçerli bir GitHub proje linki gir (ör. https://github.com/kullanici/proje).', 'INVALID_REPO');
+  const projectName = cleanName(nameInput);
+  if (projectName.length < PROJECT_NAME_MIN || projectName.length > PROJECT_NAME_MAX) {
+    throw failure(400, `Proje adı ${PROJECT_NAME_MIN}-${PROJECT_NAME_MAX} karakter olmalı.`, 'INVALID_PROJECT_NAME');
+  }
   const { team, form, member } = await load(teamId, participantId);
   if (!team || !member) throw failure(403, 'Bu takımın üyesi olmadığın için linki değiştiremezsin.', 'NOT_MEMBER');
   if (!permissionsOf(form).projectUpload) throw failure(403, 'Proje yükleme kapatıldı. Link artık değiştirilemez.', 'UPLOAD_CLOSED');
 
   const existing = await ProjectSubmission.findOne({ team: team._id });
   // GitHub names are case-insensitive: the same repo typed differently is not a new change.
-  if (existing?.repoKey === repo.key) return teamState(teamId, participantId);
+  if (existing?.repoKey === repo.key && existing.projectName === projectName) return teamState(teamId, participantId);
   if (await ProjectSubmission.exists({ form: team.form, repoKey: repo.key, team: { $ne: team._id } })) {
     throw failure(409, 'Bu repo başka bir takım tarafından eklenmiş. Kendi takımınızın reposunu gir.', 'REPO_TAKEN');
   }
   const by = { participant: new mongoose.Types.ObjectId(String(participantId)), name: await nameIn(team, participantId) };
   const update = {
-    $set: { form: team.form, repoUrl: repo.url, repoKey: repo.key, updatedBy: by },
-    $push: { history: { $each: [{ repoUrl: repo.url, by, at: new Date() }], $slice: -HISTORY_MAX } }
+    $set: { form: team.form, repoUrl: repo.url, repoKey: repo.key, projectName, updatedBy: by },
+    $push: { history: { $each: [{ repoUrl: repo.url, projectName, by, at: new Date() }], $slice: -HISTORY_MAX } }
   };
   const save = (upsert) => ProjectSubmission.updateOne({ team: team._id }, update, { upsert, runValidators: true });
   try {
@@ -137,7 +153,9 @@ const saveRepo = async (teamId, participantId, input) => {
     // Two team-mates saving the team's first link at once: the other created the document; update it.
     await save(false);
   }
+  // The first link makes the team a competing team (unless an organizer removed it).
+  await require('../../jury/services/autoEntries').addUploadedTeamsSafely([team._id]);
   return teamState(teamId, participantId);
 };
 
-module.exports = { issueHandoff, teamState, saveRepo, AUDIENCE, ISSUER };
+module.exports = { issueHandoff, teamState, saveRepo, AUDIENCE, ISSUER, PROJECT_NAME_MAX };
