@@ -31,6 +31,7 @@ export function juryAdminApi(token) {
     setLock: (locked) => call('/lock', { method: 'PUT', body: { locked } }),
     reset: (confirm) => call('/scorecards/reset', { method: 'POST', body: { confirm } }),
     results: () => call('/results'),
+    latePushes: (deadline = '') => call(deadline ? `/late-pushes?deadline=${encodeURIComponent(deadline)}` : '/late-pushes'),
     live: () => call('/live'),
     startVoting: (team) => call('/live/start', { method: 'POST', body: { team } }),
     endVoting: (force = false) => call('/live/end', { method: 'POST', body: { force } }),

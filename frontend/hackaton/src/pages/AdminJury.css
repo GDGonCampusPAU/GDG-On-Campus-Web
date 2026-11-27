@@ -513,3 +513,75 @@
   border-radius: var(--radius-pill);
   background: var(--red-pastel);
 }
+
+/* Teslim kontrolü (JuryLateCheck) */
+.jury-late__deadline {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--black);
+  border-radius: var(--radius-sm);
+}
+
+.jury-late__deadline p {
+  margin: 0 0 8px;
+}
+
+.jury-late__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.jury-late__form label {
+  font-weight: 700;
+}
+
+.jury-late__form input {
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px solid var(--black);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.jury-late__prefill {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.jury-late__ok {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--green-pastel);
+  font-weight: 700;
+}
+
+.jury-admin__table .jury-late__row--late {
+  background: var(--red-pastel);
+}
+
+.jury-admin__table .jury-late__row--off {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.jury-late__forced {
+  font-weight: 700 !important;
+}
+
+.jury-late__pushes {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.jury-late__pushes li {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}

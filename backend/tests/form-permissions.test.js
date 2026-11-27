@@ -20,7 +20,7 @@ const User = require('../src/models/User');
 const { issueToken } = require('../src/modules/participantAuth/services/tokenService');
 const { generateToken } = require('../src/utils/jwt');
 
-const OPEN = { teamChanges: true, answerEditing: true, projectUpload: true, projectEvaluation: false, registration: true, closedReason: '', closedEnding: '' };
+const OPEN = { teamChanges: true, answerEditing: true, projectUpload: true, projectUploadClosedAt: null, projectEvaluation: false, registration: true, closedReason: '', closedEnding: '' };
 const perms = (over = {}) => ({ ...OPEN, ...over });
 
 let repl, form, admin, organizer;
