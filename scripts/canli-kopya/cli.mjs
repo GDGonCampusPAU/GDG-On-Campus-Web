@@ -4,6 +4,7 @@
 // Hiçbir şey dışarı gitmez: mail yakalanır, localhost dışı istekler engellenir, GitHub sahtedir.
 // Sunucuya yalnız "veri-cek" bağlanır ve yalnız OKUR (döküm SSH üzerinden bu bilgisayara akar).
 import { spawn, spawnSync } from 'node:child_process'
+import { randomInt } from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
 import os from 'node:os'
@@ -35,6 +36,15 @@ const c = { b: (s) => `\x1b[1m${s}\x1b[0m`, dim: (s) => `\x1b[2m${s}\x1b[0m`, re
 const die = (message) => { console.error(c.red(`✖ ${message}`)); process.exit(1) }
 const ensureData = () => { fs.mkdirSync(DATA, { recursive: true, mode: 0o700 }); fs.chmodSync(DATA, 0o700) }
 
+/** Wi-Fi/Ethernet IPv4 adresi (Docker, VPN ve loopback hariç). */
+const lanAddress = () => {
+  for (const [name, addresses] of Object.entries(os.networkInterfaces())) {
+    if (/^(lo|docker|br-|veth|tun|tap|wg|virbr)/.test(name)) continue
+    const v4 = (addresses || []).find((a) => a.family === 'IPv4' && !a.internal)
+    if (v4) return v4.address
+  }
+  return null
+}
 const portFree = (port) => new Promise((resolve) => {
   const server = net.createServer().once('error', () => resolve(false)).once('listening', () => server.close(() => resolve(true)))
   server.listen(port, '127.0.0.1')
@@ -64,7 +74,7 @@ const commands = {
 ${c.b('Canlı verinin yerel kopyası')}  ${c.dim(`(veri: ${DATA})`)}
 
   ${c.b('npm run yerel -- veri-cek')}              Sunucudan canlı verinin dökümünü indir (yalnız okur)
-  ${c.b('npm run yerel -- baslat')}                Bütün servisleri başlat (Ctrl+C ile durur)
+  ${c.b('npm run yerel -- baslat')} ${c.dim('[--ag]')}         Bütün servisleri başlat (Ctrl+C ile durur); --ag: yerel IP'den başkaları da açar
   ${c.b('npm run yerel -- durum')}                 Servisler ayakta mı
   ${c.b('npm run yerel -- kisiler')} ${c.dim('[ara]')}         Yöneticiler, jüriler, takımlar, katılımcılar
   ${c.b('npm run yerel -- ac admin')} ${c.dim('[e-posta]')}    Panel + jüri yönetimi, giriş yapılmış
@@ -106,8 +116,27 @@ ${c.b('Canlı verinin yerel kopyası')}  ${c.dim(`(veri: ${DATA})`)}
     console.log(c.green('✔ Silindi. Sonraki "baslat" dökümden yeniden yükler.'))
   },
 
-  async baslat() {
+  async baslat(...flags) {
     ensureData()
+    // --ag: yerel ağdan (aynı Wi-Fi'daki telefon/bilgisayar) erişilsin. --ag=192.168.1.20 ile IP seçilir.
+    const lanFlag = flags.find((flag) => flag === '--ag' || flag.startsWith('--ag='))
+    const lanIp = lanFlag ? (lanFlag.split('=')[1] || lanAddress()) : null
+    if (lanFlag && !lanIp) die('Yerel ağ IP adresi bulunamadı. --ag=<ip> ile ver.')
+    if (lanIp) {
+      console.log(c.yellow(`
+! Yerel kopya ${lanIp} adresinden AĞA açılacak. Bu ağa bağlı herkes siteye ulaşabilir ve
+  ortak giriş kodunu bilen herkes HERHANGİ BİR katılımcı olarak girip kişisel bilgilerini görebilir.
+  Eduroam gibi ortak ağlarda kullanma; telefon hotspot'u ya da ev ağı kullan.`))
+      if (!(await ask('Ağa açılsın mı?'))) return console.log('Vazgeçildi.')
+    }
+    const code = String(randomInt(100000, 1000000))
+    const host = lanIp || '127.0.0.1'
+    const pub = {
+      api: `http://${host}:${PORTS.api}`,
+      site: `http://${host}:${PORTS.site}`,
+      panel: `http://${host}:${PORTS.panel}`,
+      upload: lanIp ? `http://${lanIp}:${PORTS.uploadWeb}` : URLS.upload,
+    }
     if (!fs.existsSync(path.join(DATA, 'dump.archive.gz'))) die(`Döküm yok. Önce: ${c.b('npm run yerel -- veri-cek')}`)
     for (const [name, port] of Object.entries(PORTS)) if (!(await portFree(port))) die(`Port ${port} (${name}) dolu. Zaten çalışıyor olabilir: npm run yerel -- durum`)
     const logs = path.join(DATA, 'logs')
@@ -119,16 +148,17 @@ ${c.b('Canlı verinin yerel kopyası')}  ${c.dim(`(veri: ${DATA})`)}
     const services = [
       { name: 'github', cmd: 'node', args: [path.join(HERE, 'fake-github.cjs')], cwd: ROOT, show: true },
       { name: 'backend', cmd: 'node', args: ['--require', noOutbound, path.join(HERE, 'server.cjs')], cwd: ROOT, show: true,
-        env: { PROJECT_UPLOAD_URL: withUpload ? URLS.upload : '', PROJECT_UPLOAD_SECRET: UPLOAD_SECRET, PROJECT_UPLOAD_INTERNAL_KEY: UPLOAD_KEY } },
-      { name: 'site', cmd: 'npx', args: ['vite', '--host', '127.0.0.1', '--port', String(PORTS.site), '--strictPort'], cwd: path.join(ROOT, 'frontend/hackaton'),
-        env: { VITE_API_URL: API, VITE_GOOGLE_CLIENT_ID: '' } },
-      { name: 'panel', cmd: 'npx', args: ['vite', '--host', '127.0.0.1', '--port', String(PORTS.panel), '--strictPort'], cwd: path.join(ROOT, 'frontend'),
-        env: { VITE_API_URL: API } },
+        env: { PROJECT_UPLOAD_URL: withUpload ? pub.upload : '', PROJECT_UPLOAD_SECRET: UPLOAD_SECRET, PROJECT_UPLOAD_INTERNAL_KEY: UPLOAD_KEY,
+          GDG_KOPYA_KOD: code, GDG_KOPYA_HOST: lanIp ? '0.0.0.0' : '127.0.0.1', GDG_KOPYA_ORIGINS: lanIp ? [pub.site, pub.panel].join(',') : '' } },
+      { name: 'site', cmd: 'npx', args: ['vite', '--host', lanIp ? '0.0.0.0' : '127.0.0.1', '--port', String(PORTS.site), '--strictPort'], cwd: path.join(ROOT, 'frontend/hackaton'),
+        env: { VITE_API_URL: pub.api, VITE_GOOGLE_CLIENT_ID: '' } },
+      { name: 'panel', cmd: 'npx', args: ['vite', '--host', lanIp ? '0.0.0.0' : '127.0.0.1', '--port', String(PORTS.panel), '--strictPort'], cwd: path.join(ROOT, 'frontend'),
+        env: { VITE_API_URL: pub.api } },
       ...(withUpload ? [
         { name: 'yukleme-api', cmd: 'node', args: ['--require', noOutbound, 'src/server.js'], cwd: path.join(UPLOAD_ROOT, 'backend'), show: true,
           env: { PORT: String(PORTS.uploadApi), MAIN_API_URL: API, PROJECT_UPLOAD_SECRET: UPLOAD_SECRET, PROJECT_UPLOAD_INTERNAL_KEY: UPLOAD_KEY,
-            PANEL_URL: `${URLS.site}/basvurum`, GITHUB_TOKEN: '', NODE_ENV: 'development' } },
-        { name: 'yukleme-web', cmd: 'npx', args: ['vite', '--port', String(PORTS.uploadWeb), '--strictPort'], cwd: path.join(UPLOAD_ROOT, 'frontend') },
+            PANEL_URL: `${pub.site}/basvurum`, GITHUB_TOKEN: '', NODE_ENV: 'development' } },
+        { name: 'yukleme-web', cmd: 'npx', args: ['vite', ...(lanIp ? ['--host', '0.0.0.0'] : []), '--port', String(PORTS.uploadWeb), '--strictPort'], cwd: path.join(UPLOAD_ROOT, 'frontend') },
       ] : []),
     ]
     if (!withUpload) console.log(c.yellow(`! Proje yükleme sitesi bulunamadı (${UPLOAD_ROOT}); o kısım çalışmayacak.`))
@@ -168,12 +198,14 @@ ${c.b('Canlı verinin yerel kopyası')}  ${c.dim(`(veri: ${DATA})`)}
     if (stopping) return
     const since = fs.existsSync(path.join(DATA, 'dump.tarih')) ? new Date(fs.readFileSync(path.join(DATA, 'dump.tarih'), 'utf8')).toLocaleString('tr-TR') : '?'
     console.log(`
-${c.green('✔ Yerel kopya hazır')} ${c.dim(`(döküm: ${since})`)} — mail gönderilmez, dışarı istek gitmez.
-  Site          ${URLS.site}        jüri yönetimi: ${URLS.site}/admin/juri
-  Panel         ${URLS.panel}
-  Proje yükleme ${withUpload ? URLS.upload : c.dim('yok')}
-  Sahte GitHub  ${URLS.github}
+${c.green('✔ Yerel kopya hazır')} ${c.dim(`(döküm: ${since})`)} — mail gönderilmez, dışarı istek gitmez.${lanIp ? c.yellow(`  AĞA AÇIK: ${lanIp}`) : ''}
+  Site          ${pub.site}        jüri yönetimi: ${pub.site}/admin/juri
+  Panel         ${pub.panel}
+  Proje yükleme ${withUpload ? pub.upload : c.dim('yok')}
+  Sahte GitHub  ${URLS.github} ${c.dim('(yalnız bu bilgisayar)')}
   Yerel admin   yerel-admin@pau.edu.tr / yerel-admin-sifre
+
+  ${c.b(`E-posta doğrulama kodu: ${code}`)}  ${c.dim('(mail gitmez; her e-posta için bu kodu yaz, her başlatmada değişir)')}
 
 Başka bir terminalde: ${c.b('npm run yerel -- kisiler')}, ${c.b('npm run yerel -- ac admin')}, ${c.b('npm run yerel -- ac katilimci <e-posta>')} …
 Durdurmak için Ctrl+C.

@@ -65,7 +65,7 @@ const PERMISSIONS = [
   {
     key: 'projectEvaluation',
     title: 'Proje değerlendirme',
-    on: 'Sahnede canlı oylama açık. Jürideki yarışan takımlar proje yükleme sırasına göre dizildi; sunum yapan takım hackathon sitesindeki Jüri yönetimi > “Sunum akışı” sekmesinden seçilir ve jüriler yalnız o takımı oylar. Katılımcılar “Başvurum” sayfasında sunum sırasını görür ve sunan takıma (kendi takımları hariç) anonim oy verir; nihai puan jüri %70 + katılımcı %30.',
+    on: 'Sahnede canlı oylama açık. Jürideki yarışan takımlar proje yükleme sırasına göre dizildi; sunum yapan takım hackathon sitesindeki Jüri yönetimi > “Sunum akışı” sekmesinden seçilir ve jüriler yalnız o takımı oylar. Katılımcılar “Başvurum” sayfasında sunum sırasını görür ve sunan takıma (kendi takımları hariç) anonim oy verir; nihai puan jüri %90 + katılımcı %10.',
     off: 'Canlı oylama kapalı. Açınca jürideki yarışan takımlar proje yükleme sırasına göre dizilir (sıra bir kez belirlenir, kapatıp açmak değiştirmez) ve sunum akışı yönetilebilir hâle gelir. Oylaması bitirilen takımlar kapalıyken de kilitli kalır.',
     closeLabel: 'Proje değerlendirmeyi kapat',
     openLabel: 'Proje değerlendirmeyi aç',
