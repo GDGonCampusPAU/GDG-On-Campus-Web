@@ -157,6 +157,12 @@ const formSchema = new mongoose.Schema(
         type: Boolean,
         default: true
       },
+      // When "Proje yüklemeyi kapat" was last pressed: the deadline of the late-push check
+      // (jury admin > Teslim kontrolü). Cleared when uploading is opened again.
+      projectUploadClosedAt: {
+        type: Date,
+        default: null
+      },
       // Proje değerlendirme (sahnedeki canlı jüri oylaması). Açılınca jürideki yarışan takımlar rastgele
       // sıralanır, admin /admin/juri'den sunan takımı seçer ve jüriler yalnız o takımı oylar; katılımcılar
       // "Başvurum" sayfasında sunum sırasını ve sıranın kimde olduğunu görür. Varsayılan kapalı.

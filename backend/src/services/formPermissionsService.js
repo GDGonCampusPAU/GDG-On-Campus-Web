@@ -12,13 +12,16 @@ const ENDING_MAX = 200;
 const closedMessage = (reason, ending) =>
   `İlginiz için teşekkür ederiz, ${reason} için kaydınızı yapamıyoruz. ${ending}`.trim();
 
-/** @returns {{ teamChanges: boolean, answerEditing: boolean, projectUpload: boolean, projectEvaluation: boolean, registration: boolean, closedReason: string, closedEnding: string }} */
+/** @returns {{ teamChanges: boolean, answerEditing: boolean, projectUpload: boolean, projectUploadClosedAt: string | null, projectEvaluation: boolean, registration: boolean, closedReason: string, closedEnding: string }} */
 const permissionsOf = (form) => {
   const settings = form?.settings || {};
   return {
     teamChanges: settings.teamChangesEnabled !== false,
     answerEditing: settings.answerEditingEnabled !== false,
     projectUpload: settings.projectUploadEnabled !== false,
+    // Only while closed: the moment it was closed (deadline of the late-push check).
+    projectUploadClosedAt: settings.projectUploadEnabled === false && settings.projectUploadClosedAt
+      ? new Date(settings.projectUploadClosedAt).toISOString() : null,
     // Opt-in: off unless an admin opened it.
     projectEvaluation: settings.projectEvaluationEnabled === true,
     registration: settings.registrationEnabled !== false,
@@ -92,6 +95,10 @@ const updatePermissions = async (id, body, user = null) => {
     $set['settings.registrationClosedEnding'] = text(body.closedEnding, 'Kapanış cümlesi', ENDING_MAX);
   }
   const form = await findForm(id);
+  // The deadline is the moment uploading was closed. Closing again while closed keeps the first moment;
+  // opening clears it (an extension: the next close is the new deadline).
+  if (body.projectUpload === false && form.settings?.projectUploadEnabled !== false) $set['settings.projectUploadClosedAt'] = new Date();
+  if (body.projectUpload === true) $set['settings.projectUploadClosedAt'] = null;
   await Form.updateOne({ _id: form._id }, { $set }, { timestamps: false, runValidators: true });
   // Opening evaluation fixes a random presentation order (once; reopening keeps it).
   // Required lazily: the jury module itself reads these permissions.

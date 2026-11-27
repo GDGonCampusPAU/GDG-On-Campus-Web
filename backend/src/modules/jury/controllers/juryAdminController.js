@@ -4,6 +4,7 @@ const results = require('../services/resultsService');
 const scorecardAdmin = require('../services/scorecardAdminService');
 const audit = require('../services/auditService');
 const live = require('../services/liveService');
+const latePush = require('../../projectUpload/services/latePushService');
 const { respond } = require('./respond');
 
 /**
@@ -91,6 +92,13 @@ const getLog = respond(req => audit.listLog(req.query.before));
 const getResults = respond(() => results.getResults());
 
 /**
+ * @desc    Pushes to each team's repo after the deadline (GitHub's push times, not commit dates)
+ * @route   GET /api/v1/jury-admin/late-pushes?deadline=ISO
+ * @access  Private (ORGANIZER, ADMIN)
+ */
+const getLatePushes = respond(req => latePush.report({ deadline: req.query.deadline }));
+
+/**
  * @desc    Team × criterion × juror dump for Excel
  * @route   GET /api/v1/jury-admin/results.csv
  * @access  Private (ORGANIZER, ADMIN)
@@ -131,4 +139,4 @@ const reopenVoting = respond(req => live.reopen(req.body.team, req.user));
 const shuffleOrder = respond(req => live.reshuffle(req.user));
 
 module.exports = {
-  getLive, startVoting, endVoting, reopenVoting, shuffleOrder, getConfig, saveConfig, listTeams, listJurors, createJuror, regenerateToken, updateJuror, setLock, resetScorecards, voidScorecard, getLog, getResults, exportResults };
+  getLive, startVoting, endVoting, reopenVoting, shuffleOrder, getConfig, saveConfig, listTeams, listJurors, createJuror, regenerateToken, updateJuror, setLock, resetScorecards, voidScorecard, getLog, getResults, getLatePushes, exportResults };

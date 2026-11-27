@@ -4,6 +4,7 @@ import Button from '../components/Button.jsx'
 import JuryAdminJurors from '../components/JuryAdminJurors.jsx'
 import JuryAdminLog from '../components/JuryAdminLog.jsx'
 import JuryAdminResults from '../components/JuryAdminResults.jsx'
+import JuryLateCheck from '../components/JuryLateCheck.jsx'
 import JuryLiveControl from '../components/JuryLiveControl.jsx'
 import { CategoriesEditor, CriteriaEditor, EntriesEditor } from '../components/JuryAdminSetup.jsx'
 import JuryResetPanel from '../components/JuryResetPanel.jsx'
@@ -21,6 +22,7 @@ const LIVE_REFRESH_MS = 3000
 const TABS = [
   ['live', 'Sunum akışı'],
   ['results', 'Sonuçlar'],
+  ['late', 'Teslim kontrolü'],
   ['criteria', 'Kriterler'],
   ['categories', 'Kategoriler'],
   ['entries', 'Yarışan takımlar'],
@@ -297,6 +299,7 @@ function Dashboard({ session, onExpire, onExit }) {
               onError={report}
             />
           )}
+          {tab === 'late' && <JuryLateCheck client={client} onError={report} />}
           {tab === 'results' && <JuryAdminResults results={results} stale={stale} onDownload={download} onVoid={isAdmin && !locked ? voidCard : undefined} />}
           {tab === 'results' && isAdmin && <JuryResetPanel count={setup.config.scorecardCount} locked={locked} onReset={reset} />}
           {tab === 'jurors' && <JuryAdminJurors jurors={jurors} links={links} client={client} canIssueLinks={isAdmin} onIssued={addLink} onChanged={refresh} onError={report} />}

@@ -109,6 +109,8 @@ function ClosingText({ reason, ending, onReason, onEnding, disabled }) {
   )
 }
 
+const closedAtFormat = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Istanbul' })
+
 export default function Permissions({ session, onLogout, onUnauthorized }) {
   const { token, user } = session
   const [state, setState] = useState(/** @type {null | Record<string, any>} */ (null))
@@ -200,6 +202,12 @@ export default function Permissions({ session, onLogout, onUnauthorized }) {
                   {item.title}
                 </h2>
                 <p className="maintenance-card__text">{enabled ? item.on : item.off}</p>
+                {item.key === 'projectUpload' && !enabled && state.projectUploadClosedAt && (
+                  <p className="maintenance-card__text">
+                    <strong>Kapatıldığı an: {closedAtFormat.format(new Date(state.projectUploadClosedAt))}.</strong> Jüri yönetimindeki
+                    “Teslim kontrolü” bu andan sonra repolara push yapan takımları gösterir. Yeniden açılırsa bir sonraki kapatma yeni teslim zamanı olur.
+                  </p>
+                )}
                 {item.key === 'registration' && !enabled && (
                   <figure className="closing-text__preview">
                     <figcaption>Kayıt sayfasında görünen metin</figcaption>

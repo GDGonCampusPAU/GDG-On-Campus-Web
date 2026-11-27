@@ -30,6 +30,8 @@ router.post('/live/reopen', requireRoles('ADMIN'), controller.reopenVoting);
 router.post('/live/shuffle', requireRoles('ADMIN'), controller.shuffleOrder);
 router.get('/results', controller.getResults);
 router.get('/results.csv', controller.exportResults);
+// Asks GitHub about every team's repo: a button on the screen, never polled.
+router.get('/late-pushes', controller.getLatePushes);
 router.use(notFound);
 
 module.exports = router;
