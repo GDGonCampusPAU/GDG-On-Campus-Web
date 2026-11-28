@@ -1,6 +1,16 @@
+import { useState } from 'react'
 import './SponsorGrid.css'
 
+// Easter egg: the unrevealed sponsor sprouts wings on click; stops once it is renamed.
+const WINGED_SPONSOR = 'Gizli Sponsor'
+
 function SponsorItem({ sponsor }) {
+  const [flying, setFlying] = useState(false)
+  const fly = () => {
+    // base.css kills animations under reduced motion, so animationend would never reset the state
+    if (sponsor.name !== WINGED_SPONSOR || flying || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    setFlying(true)
+  }
   const content = (
     <>
       <div className="sponsor__media">
@@ -15,17 +25,27 @@ function SponsorItem({ sponsor }) {
         )}
       </div>
       <span className="sponsor__name">{sponsor.name}</span>
+      {flying && (
+        <>
+          <img className="sponsor__wing sponsor__wing--left" src="/wing-left.webp" alt="" />
+          <img className="sponsor__wing sponsor__wing--right" src="/wing-right.webp" alt="" />
+        </>
+      )}
     </>
   )
-  const className = `sponsor sponsor--${sponsor.tier}`
+  const props = {
+    className: `sponsor sponsor--${sponsor.tier}${flying ? ' is-flying' : ''}`,
+    onClick: fly,
+    onAnimationEnd: (e) => e.target === e.currentTarget && setFlying(false),
+  }
   if (sponsor.url) {
     return (
-      <a className={className} href={sponsor.url} target="_blank" rel="noopener noreferrer">
+      <a {...props} href={sponsor.url} target="_blank" rel="noopener noreferrer">
         {content}
       </a>
     )
   }
-  return <div className={className}>{content}</div>
+  return <div {...props}>{content}</div>
 }
 
 export default function SponsorGrid({ sponsors, compact = false }) {
